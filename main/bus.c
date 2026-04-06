@@ -99,7 +99,7 @@ int bus_send_bytes(const uint8_t *data, size_t len)
     if (pos >= (int)sizeof(hex_log)) pos = (int)sizeof(hex_log) - 1;
     hex_log[pos] = '\0';
 
-    ESP_LOGI(TAG, "TX: %s(%zu bytes)", hex_log, len);
+    ESP_LOGI(TAG, "TX: %s(%d bytes)", hex_log, (int)len);
 
     // Send to UART
     int written = uart_write_bytes(BUS_UART_NUM, (const char *)data, len);

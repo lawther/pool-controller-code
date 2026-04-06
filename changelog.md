@@ -10,12 +10,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [TODO]
 - Sometimes messages fail - likely clashing message on bus. Make them do a retry
 - Solar is not yet supported
+- Add support for second heater.
+- Add support for Service Mode.
+- Add basic controls without home assistant.
+- Optimise for homekit via Homekit Bridge
+- Add logging of unhandled messages only.
 
 ## [Unreleased]
 ### Added
 ### Changed
 ### Deprecated
 ### Removed
+### Fixed
+### Security
+
+## [1.0.0] - 2026-04-06
 ### Fixed
 - Fixed `register_requester` directly accessing global `s_pool_state` and `s_pool_state_mutex` — `register_requester_start` now accepts `pool_state_t *` and `SemaphoreHandle_t` parameters, matching the dependency-injection pattern used by the message decoder; `main.c` passes `&s_pool_state` and `s_pool_state_mutex` at startup
 - Fixed `send_uart_command` in `mqtt_commands.c` bypassing `bus_send_message` — now calls `bus_send_bytes` (extracted from `bus_send_message`) so MQTT commands get TX-wait, TX LED flash, and hex logging consistent with all other bus writes; removed direct `uart_write_bytes` call and `driver/uart.h` include from `mqtt_commands.c`
@@ -26,7 +35,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed `volatile bool` used for `s_mqtt_connected` and `s_mqtt_started` in `mqtt_poolclient.c` — replaced with `atomic_bool` (`<stdatomic.h>`) which provides correct memory-ordering guarantees on all architectures; `volatile` provides no such guarantees and would be unsafe on multi-core targets
 - Fixed `led_flash_rx`/`led_flash_tx` blocking the tcp_bridge task for 50 ms via `vTaskDelay` — moved all flash work (set colour → delay → restore) into a dedicated low-priority `led_flash_task`; callers now post a `led_flash_type_t` to a depth-4 queue and return immediately; if the queue is full under burst conditions the flash is silently dropped rather than blocking bus message processing
 - Fixed `tcp_bridge_stop` deleting `s_log_mutex` while the task could still be inside `tcp_bridge_vprintf` holding it — replaced `vTaskDelete(handle)` with a cooperative stop: `s_stop_requested` flag causes the task to exit the loop cleanly, close sockets, and give a binary semaphore before calling `vTaskDelete(NULL)`; `tcp_bridge_stop` waits on the semaphore (3s timeout with forced delete fallback) before restoring vprintf and deleting the mutex
-
 ### Security
 - Fixed provisioning request buffer too small for max-length SSID (32 bytes) + password (63 bytes) + JSON overhead — increased `HTTP_PROVISION_BUFFER_SIZE` from 200 to 512 bytes
 - Fixed channel, light zone, and valve MQTT payloads using `snprintf` with unescaped `name` fields — replaced with `cJSON` construction so names containing `"`, `\`, or control characters produce valid JSON
