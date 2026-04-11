@@ -2,7 +2,12 @@
 
 Code to listen on and control a Connect 10 pool controller.  I created it as a learning project and happy to collaborate with people who find it useful.
 This has been created by listening to the communications on the control bus, and decoding the instructions by trial and error.
-It is designed to run on and ESP32-C6, and there is a [circuit and PCB design](https://github.com/marklynch/pool-controller-pcb) documented here.
+
+## Core components
+1. [Controller code (this repo)](https://github.com/marklynch/pool-controller-code)
+2. [Circuit and PCB design](https://github.com/marklynch/pool-controller-pcb)
+3. ESP32-C6 - It's been designed around the [Waveshare ESP32-C6 Mini Development Board ](https://core-electronics.com.au/esp32-c6-mini-development-board-wifi6-bluetooth5.html)
+4. [Case for Pool Controller](https://github.com/marklynch/pool-controller-case)
 
 **Note** this is **not an official product** and is not supported by Fluidra.
 
