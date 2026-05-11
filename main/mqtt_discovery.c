@@ -484,7 +484,6 @@ static void publish_ph_discovery(const char *device_id, const char *mac_suffix)
 
     cJSON *root = cJSON_CreateObject();
     cJSON_AddStringToObject(root, "name", "pH");
-    cJSON_AddStringToObject(root, "device_class", "ph");
     cJSON_AddStringToObject(root, "state_topic", state_topic);
     cJSON_AddStringToObject(root, "state_class", "measurement");
     cJSON_AddStringToObject(root, "unit_of_measurement", "pH");
