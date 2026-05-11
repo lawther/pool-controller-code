@@ -487,6 +487,7 @@ static void publish_ph_discovery(const char *device_id, const char *mac_suffix)
     cJSON_AddStringToObject(root, "device_class", "ph");
     cJSON_AddStringToObject(root, "state_topic", state_topic);
     cJSON_AddStringToObject(root, "state_class", "measurement");
+    cJSON_AddStringToObject(root, "unit_of_measurement", "pH");
     cJSON_AddStringToObject(root, "value_template", "{{ value_json.ph }}");
     cJSON_AddStringToObject(root, "unique_id", uid);
     cJSON_AddStringToObject(root, "default_entity_id", uid);

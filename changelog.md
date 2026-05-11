@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
+- Fixed pH sensor MQTT discovery missing `unit_of_measurement` — `publish_ph_discovery` in `mqtt_discovery.c` now includes `"unit_of_measurement": "pH"`, matching the pH Setpoint sensor; without it Home Assistant displayed the pH reading with no unit despite the `ph` device class
 ### Security
 
 ## [1.0.0] - 2026-04-06
