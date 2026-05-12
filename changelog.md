@@ -22,8 +22,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
-- Fixed pH sensor MQTT discovery missing `unit_of_measurement` — `publish_ph_discovery` in `mqtt_discovery.c` now includes `"unit_of_measurement": "pH"`, matching the pH Setpoint sensor; without it Home Assistant displayed the pH reading with no unit despite the `ph` device class
 ### Security
+
+## [1.0.1] - 2026-05-12
+### Fixed
+- Fixed pH sensor MQTT discovery missing `unit_of_measurement` — `publish_ph_discovery` in `mqtt_discovery.c` now includes `"unit_of_measurement": "pH"`, matching the pH Setpoint sensor; without it Home Assistant displayed the pH reading with no unit despite the `ph` device class
+- Fixed `mqtt_publish_light`, `mqtt_publish_heater`, `mqtt_publish_mode`, `mqtt_publish_temperature`, `mqtt_publish_favourite`, and `mqtt_publish_chlorinator` publishing state without `retain=true` — after an MQTT reconnect or Home Assistant restart, these entities showed "Unknown" because no retained message existed to restore state; channels and valves were already retained, so this brings all remaining state topics into line
 
 ## [1.0.0] - 2026-04-06
 ### Fixed

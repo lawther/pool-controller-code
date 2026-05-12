@@ -48,7 +48,7 @@ void mqtt_publish_temperature(const pool_state_t *current_state)
              current_state->current_temp, current_state->pool_setpoint, current_state->spa_setpoint,
              current_state->temp_scale_fahrenheit ? "F" : "C");
 
-    mqtt_publish(topic, payload, 0, false);
+    mqtt_publish(topic, payload, 0, true);
 
     // Update last published state
     s_last_published_state.current_temp = current_state->current_temp;
@@ -92,7 +92,7 @@ void mqtt_publish_heater(const pool_state_t *current_state, int index)
     snprintf(topic, sizeof(topic), "pool/%s/heater/%d/state", device_id, index);
 
     const char *payload = heater->on ? "ON" : "OFF";
-    mqtt_publish(topic, payload, 0, false);
+    mqtt_publish(topic, payload, 0, true);
 
     // Update last published state
     s_last_published_state.heaters[index].on = heater->on;
@@ -119,7 +119,7 @@ void mqtt_publish_mode(const pool_state_t *current_state)
     snprintf(topic, sizeof(topic), "pool/%s/mode/state", device_id);
 
     const char *payload = (current_state->mode == 0) ? "Spa" : (current_state->mode == 1) ? "Pool" : "Unknown";
-    mqtt_publish(topic, payload, 0, false);
+    mqtt_publish(topic, payload, 0, true);
 
     // Update last published state
     s_last_published_state.mode = current_state->mode;
@@ -288,7 +288,7 @@ void mqtt_publish_light(const pool_state_t *current_state, uint8_t zone)
     cJSON_Delete(root);
 
     if (payload) {
-        mqtt_publish(topic, payload, 0, false);
+        mqtt_publish(topic, payload, 0, true);
         free(payload);
     }
 
@@ -360,7 +360,7 @@ void mqtt_publish_chlorinator(const pool_state_t *current_state)
     len += snprintf(payload + len, sizeof(payload) - len,
                    ",\"orp_setpoint\":%d}", current_state->orp_setpoint);
 
-    mqtt_publish(topic, payload, 0, false);
+    mqtt_publish(topic, payload, 0, true);
 
     // Update last published state
     s_last_published_state.ph_reading = current_state->ph_reading;
@@ -524,7 +524,7 @@ void mqtt_publish_favourite(const pool_state_t *state)
     char fallback[32];
     const char *name = get_favourite_option_name(state, state->active_favourite,
                                                  fallback, sizeof(fallback));
-    mqtt_publish(topic, name, 0, false);
+    mqtt_publish(topic, name, 0, true);
 
     s_last_published_state.active_favourite = state->active_favourite;
     s_last_published_state.active_favourite_valid = true;
