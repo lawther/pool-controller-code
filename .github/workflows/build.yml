@@ -59,7 +59,7 @@ jobs:
         with:
           draft: true
           files: |
-            artifacts/pool-controller-${{ steps.ver.outputs.version }}.bin
+            artifacts/pool-controller-update-${{ steps.ver.outputs.version }}.bin
             artifacts/pool-controller-full-${{ steps.ver.outputs.version }}.bin
           generate_release_notes: true
           fail_on_unmatched_files: true
