@@ -215,6 +215,28 @@ idf.py build          # Build the project
 idf.py flash monitor  # Flash to device and monitor output
 ```
 
+## Releases
+
+Releases are produced by a GitHub Actions workflow (`.github/workflows/build.yml`) that fires on any tag matching `v*`. To cut a release:
+
+```bash
+git tag -a v1.0.0 -m "Release v1.0.0"
+git push origin v1.0.0
+```
+
+The workflow will:
+
+1. Build the firmware with `PROJECT_VER` set to the tag name (embedded into the binary and visible via the device's `/status` page).
+2. Create a draft GitHub Release with auto-generated notes.
+3. Attach two assets:
+   - `pool-controller-update-v1.0.0.bin` — app-only binary, for the existing `/update` OTA flow.
+   - `pool-controller-full-v1.0.0.bin` — merged bootloader + partition table + otadata + app, for first-time flashing via `esptool.py --chip esp32c6 write_flash 0x0 pool-controller-full-v1.0.0.bin`.
+4. Publish the draft.
+
+The published release appears at `https://github.com/marklynch/pool-controller-code/releases/tag/v1.0.0`.
+
+To re-test the workflow without cutting a real release, run it manually from the Actions tab (Build & Release → Run workflow). Manual runs build the firmware and upload it as a workflow artifact but do not create a GitHub Release.
+
 ## Documentation
 
 ### [PROTOCOL.md](PROTOCOL.md) — Bus Protocol Reference
