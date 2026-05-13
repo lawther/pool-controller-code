@@ -11,9 +11,6 @@ on:
 permissions:
   contents: write
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -55,7 +52,7 @@ jobs:
             @flash_args
 
       - name: Upload workflow artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: pool-controller-${{ steps.ver.outputs.version }}
           path: artifacts/*.bin
