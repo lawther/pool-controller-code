@@ -4,18 +4,23 @@
 # CMakeLists in this exact order for cmake to work correctly
 cmake_minimum_required(VERSION 3.5)
 
-# Force version update from git on every build
-execute_process(
-    COMMAND git describe --always --dirty --tags
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    OUTPUT_VARIABLE PROJECT_VER
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-    ERROR_QUIET
-)
-
-# Fallback if not in git repo
-if(NOT PROJECT_VER)
-    set(PROJECT_VER "unknown")
+# Honor PROJECT_VER from the environment (set by CI from github.ref_name on tag
+# builds), otherwise derive from git. Without this, `git describe` can pick a
+# different tag than the one that triggered the workflow when multiple tags
+# point at the same commit.
+if(DEFINED ENV{PROJECT_VER} AND NOT "$ENV{PROJECT_VER}" STREQUAL "")
+    set(PROJECT_VER "$ENV{PROJECT_VER}")
+else()
+    execute_process(
+        COMMAND git describe --always --dirty --tags
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        OUTPUT_VARIABLE PROJECT_VER
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+    )
+    if(NOT PROJECT_VER)
+        set(PROJECT_VER "unknown")
+    endif()
 endif()
 
 # Force CMake to use our version

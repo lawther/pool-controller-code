@@ -23,7 +23,11 @@ jobs:
       - name: Determine version
         id: ver
         run: |
-          VERSION=$(git describe --always --tags 2>/dev/null || echo unknown)
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            VERSION="${{ github.ref_name }}"
+          else
+            VERSION=$(git describe --always --tags 2>/dev/null || echo unknown)
+          fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Build firmware
@@ -32,6 +36,7 @@ jobs:
           esp_idf_version: v5.5
           target: esp32c6
           path: '.'
+          command: PROJECT_VER="${{ steps.ver.outputs.version }}" idf.py build
 
       - name: Install esptool
         run: pip install esptool
