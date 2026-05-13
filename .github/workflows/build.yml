@@ -41,9 +41,9 @@ jobs:
         run: |
           VER="${{ steps.ver.outputs.version }}"
           mkdir -p ../artifacts
-          cp pool-controller.bin "../artifacts/pool-controller-${VER}.bin"
+          cp pool-controller.bin "../artifacts/pool-controller-update-${VER}.bin"
           esptool.py --chip esp32c6 merge_bin \
-            -o "../artifacts/firmware-full-${VER}.bin" \
+            -o "../artifacts/pool-controller-full-${VER}.bin" \
             @flash_args
 
       - name: Upload workflow artifact
