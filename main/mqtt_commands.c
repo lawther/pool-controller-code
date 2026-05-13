@@ -159,6 +159,8 @@ static void handle_favourite_command(const char *payload, int payload_len)
         value = 0x00;
     } else if (strncmp(payload, "Spa", payload_len) == 0 && payload_len == 3) {
         value = 0x01;
+    } else if (strncmp(payload, "All Off", payload_len) == 0 && payload_len == 7) {
+        value = 0x80;
     } else if (strncmp(payload, "All Auto", payload_len) == 0 && payload_len == 8) {
         value = 0x81;
     } else {

@@ -1242,6 +1242,7 @@ static bool handle_mode_control_cmd(
     const char *mode_name;
     if (mode_value == 0x00)      mode_name = "Pool";
     else if (mode_value == 0x01) mode_name = "Spa";
+    else if (mode_value == 0x80) mode_name = "All Off";
     else if (mode_value == 0x81) mode_name = "All Auto";
     else if (mode_value >= 0x02 && mode_value <= 0x07) mode_name = "Favourite";
     else mode_name = "Unknown";

@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- Added support for `0x80` (All Off) mode in favourites — handled in `mqtt_commands.c` (command → wire value), `mqtt_publish.c` (wire value → display name), `message_decoder.c` (decoded mode name), and `mqtt_discovery.c` (HA select option); documented in `PROTOCOL.md` alongside `0x81` (All Auto)
 ### Changed
 ### Deprecated
 ### Removed

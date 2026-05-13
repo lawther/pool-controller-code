@@ -762,7 +762,8 @@ static void publish_favourite_discovery(const char *device_id, const char *mac_s
         }
     }
 
-    // All Auto (always available)
+    // All Off / All Auto (always available)
+    cJSON_AddItemToArray(opts, cJSON_CreateString("All Off"));
     cJSON_AddItemToArray(opts, cJSON_CreateString("All Auto"));
 
     cJSON_AddItemToObject(root, "options", opts);

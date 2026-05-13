@@ -218,7 +218,7 @@ The command byte (byte 7) identifies the message type. Some command values are s
 | 26 | Channel Toggle Command            | `0x00F0` | `02 00 F0 FF FF 80 00 10 0D 8D`           | ✅     |                                     |
 | 27 | Temperature Setpoint Command      | `0x00F0` | `02 00 F0 FF FF 80 00 19 0F 98`           | ✅     |                                     |
 | 28 | Heater Control Command            | `0x00F0` | `02 00 F0 FF FF 80 00 3A 0F B9`           | ✅     | Same pattern as [§25](#25-light-zone-control-command-); different reg |
-| 29 | Mode/Favourite Control Command    | `0x00F0` | `02 00 F0 00 50 80 00 2A 0D F9`           | ✅     | Dst=`0x0050`; 0x00=Pool, 0x01=Spa, 0x02–0x07=Fav 1–6, 0x81=All Auto |
+| 29 | Mode/Favourite Control Command    | `0x00F0` | `02 00 F0 00 50 80 00 2A 0D F9`           | ✅     | Dst=`0x0050`; 0x00=Pool, 0x01=Spa, 0x02–0x07=Fav 1–6, 0x80=All Off, 0x81=All Auto |
 | 30 | Valve Control Command             | `0x00F0` | `02 00 F0 FF FF 80 00 28 0E A6`           | ✅     |                                     |
 
 ---
@@ -1374,6 +1374,7 @@ Command sent by the Internet Gateway to the Touch Screen to switch modes or acti
 02 00 F0 00 50 80 00 2A 0D F9 00 00 03   Pool mode (all extras off)
 02 00 F0 00 50 80 00 2A 0D F9 01 01 03   Spa mode
 02 00 F0 00 50 80 00 2A 0D F9 02 02 03   Activate Favourite 1
+02 00 F0 00 50 80 00 2A 0D F9 80 80 03   All Off mode
 02 00 F0 00 50 80 00 2A 0D F9 81 81 03   All Auto mode
                               ^^ Mode/favourite byte
                                  ^^ Data checksum (equals the mode byte)
@@ -1398,6 +1399,7 @@ Command sent by the Internet Gateway to the Touch Screen to switch modes or acti
 | `0x05` | Favourite 4   | `0x36` — user-defined label  | `0x26` — `0x01`=enabled, `0x00`=disabled |
 | `0x06` | Favourite 5   | `0x37` — user-defined label  | `0x27` — `0x01`=enabled, `0x00`=disabled |
 | `0x07` | Favourite 6   | `0x38` — user-defined label  | `0x28` — `0x01`=enabled, `0x00`=disabled |
+| `0x80` | All Off mode  | — (no label register)        | — (always available)          |
 | `0x81` | All Auto mode | — (no label register)        | — (always available)          |
 
 **Notes:**
@@ -1406,7 +1408,7 @@ Command sent by the Internet Gateway to the Touch Screen to switch modes or acti
 - **Command values are inverted from status values** — In status messages ([§1 Mode Message](#1-mode-message-spapool-)), Spa=`0x00` and Pool=`0x01`; in this command, Pool=`0x00` and Spa=`0x01`
 - The Touch Screen acknowledges each activation with an immediate CMD `0x05` broadcast (value `0x01`) followed by the relevant mode, active-channel, and channel-status broadcasts
 - Up to 6 user Favourites are supported (`0x02`–`0x07`). The labels for all 8 slots (including the Pool and Spa built-ins) are stored in registers `0x31`–`0x38` (slot `0x03`), readable via the register protocol (§8)
-- Each slot's enabled/disabled state is stored in registers `0x21`–`0x28` (slot `0x03`), with `0x01` = enabled and `0x00` = disabled. Pool (`0x21`) and Spa (`0x22`) are always `0x01`. All Auto (`0x81`) has no corresponding enable register and is always available
+- Each slot's enabled/disabled state is stored in registers `0x21`–`0x28` (slot `0x03`), with `0x01` = enabled and `0x00` = disabled. Pool (`0x21`) and Spa (`0x22`) are always `0x01`. All Off (`0x80`) and All Auto (`0x81`) have no corresponding enable registers and are always available
 - This command requires the sender to impersonate the Internet Gateway (source address `0x00F0`)
 
 ---

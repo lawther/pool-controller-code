@@ -461,6 +461,9 @@ void mqtt_publish_valve(const pool_state_t *current_state, uint8_t valve_num)
 static const char *get_favourite_option_name(const pool_state_t *state, uint8_t value,
                                              char *buf, size_t buf_len)
 {
+    if (value == 0x80) {
+        return "All Off";
+    }
     if (value == 0x81) {
         return "All Auto";
     }

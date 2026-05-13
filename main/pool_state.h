@@ -116,7 +116,7 @@ typedef struct {
 
     // Favourites / mode slots (Pool, Spa, Fav1–Fav6)
     favourite_t favourites[MAX_FAVOURITES];
-    uint8_t active_favourite;    // 0x00=Pool, 0x01=Spa, 0x02-0x07=Fav1-6, 0x81=AllAuto
+    uint8_t active_favourite;    // 0x00=Pool, 0x01=Spa, 0x02-0x07=Fav1-6, 0x80=AllOff, 0x81=AllAuto
     bool active_favourite_valid;
 
     // Device serial number
