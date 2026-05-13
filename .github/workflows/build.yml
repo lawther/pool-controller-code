@@ -23,7 +23,11 @@ jobs:
       - name: Determine version
         id: ver
         run: |
-          VERSION=$(git describe --always --tags 2>/dev/null || echo unknown)
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            VERSION="${{ github.ref_name }}"
+          else
+            VERSION=$(git describe --always --tags 2>/dev/null || echo unknown)
+          fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Build firmware
