@@ -1,5 +1,12 @@
 # Pool Controller
 
+  [![Build](https://github.com/marklynch/pool-controller-code/actions/workflows/build.yml/badge.svg)](https://github.com/marklynch/pool-controller-code/actions/workflows/build.yml
+  )
+  [![Release](https://img.shields.io/github/v/release/marklynch/pool-controller-code)](https://github.com/marklynch/pool-controller-code/releases)
+  [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+  [![ESP-IDF](https://img.shields.io/badge/ESP--IDF-v5.5+-red)](https://github.com/espressif/esp-idf)
+  [![Platform](https://img.shields.io/badge/platform-ESP32--C6-blue)](https://www.espressif.com/en/products/socs/esp32-c6)
+
 Code to listen on and control a Connect 10 pool controller.  I created it as a learning project and happy to collaborate with people who find it useful.
 This has been created by listening to the communications on the control bus, and decoding the instructions by trial and error.
 
