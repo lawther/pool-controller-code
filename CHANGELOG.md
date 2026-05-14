@@ -19,11 +19,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 ### Changed
-- Changed log timestamp format from milliseconds since boot (e.g. `(96551957)`) to wall-clock time (`HH:MM:SS.mmm`) — set `CONFIG_LOG_TIMESTAMP_SOURCE_SYSTEM=y` in `sdkconfig.defaults`; timestamps show `00:00:xx.xxx` until SNTP syncs after WiFi connects
 ### Deprecated
 ### Removed
 ### Fixed
 ### Security
+
+## [1.0.3] - 2026-05-14
+### Changed
+- Changed log timestamp format from milliseconds since boot (e.g. `(96551957)`) to wall-clock time (`HH:MM:SS.mmm`) — set `CONFIG_LOG_TIMESTAMP_SOURCE_SYSTEM=y` in `sdkconfig.defaults`; timestamps show `00:00:xx.xxx` until SNTP syncs after WiFi connects
 
 ## [1.0.2] - 2026-05-13
 ### Added

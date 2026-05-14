@@ -16,7 +16,7 @@ This has been created by listening to the communications on the control bus, and
 3. ESP32-C6 - It's been designed around the [Waveshare ESP32-C6 Mini Development Board ](https://core-electronics.com.au/esp32-c6-mini-development-board-wifi6-bluetooth5.html)
 4. [Case for Pool Controller](https://github.com/marklynch/pool-controller-case)
 
-**Note** this is **not an official product** and is not supported by Fluidra.
+**Note** this is **not an official product** and does not come with support or any warranty.  Note it is NOT connected to or supported by Fluidra.
 
 ## Current Status
 
