@@ -29,17 +29,25 @@ Tested as working:
 - Auto-requests missing timer and light config when Internet Gateway is absent ✅
 
 
-## Output
-To see the output, either monitor the device using the ESP monitor - or connect to the port exposed on the wifi network.
+## TCP Debug Connection (Port 7373)
+
+The device exposes a raw TCP server on port 7373 that streams all bus traffic as hex and forwards any bytes you send back onto the bus. It also mirrors the device's log output, so you can monitor activity without a USB cable.
 
 Each device gets a unique mDNS hostname derived from the last 3 bytes of its MAC address:
 `poolcontrol-AABBCC.local` — where `AABBCC` matches the suffix of the provisioning AP name (`POOL_AABBCC`).
 
-For example, if you provisioned via the `POOL_A1B2C3` network, the device will be accessible at `poolcontrol-A1B2C3.local`.  The serial number shown on the device's home page uses the same identifier.
+For example, if you provisioned via the `POOL_A1B2C3` network, the device will be accessible at `poolcontrol-A1B2C3.local`.
 
-Example on a mac using nc (netcat)
+### Mac / Linux
+
+Use `nc` (netcat), which is installed by default:
+
+```bash
+nc poolcontrol-A1B2C3.local 7373
 ```
-% nc poolcontrol-A1B2C3.local 7373
+
+Example session:
+```
 Connected to pool control bus bridge.
 UART bytes will be shown here in hex.
 Bytes you send will be forwarded to the bus.
@@ -47,6 +55,36 @@ Bytes you send will be forwarded to the bus.
 00
 02 00 50 FF FF 80 00 FD 0F DC 19 0E 01 28 03
 00
+```
+
+To send a raw command to the bus, type the bytes as a hex string and press Enter:
+```
+02 00 F0 00 50 80 00 39 0F 0E E7 01 00 00 03
+```
+
+### Windows
+
+**Option 1 — PuTTY (recommended)**
+
+1. Download [PuTTY](https://www.chiark.greenend.org.uk/~sgtatham/putty/latest.html) if you don't have it.
+2. Set **Connection type** to **Raw**.
+3. Enter `poolcontrol-A1B2C3.local` as the host and `7373` as the port.
+4. Click **Open**.
+
+**Option 2 — Telnet**
+
+If the Telnet client is enabled (Control Panel → Programs → Turn Windows features on/off → Telnet Client):
+
+```cmd
+telnet poolcontrol-A1B2C3.local 7373
+```
+
+**Option 3 — Windows Subsystem for Linux (WSL)**
+
+If WSL is installed, use `nc` exactly as on Mac/Linux:
+
+```bash
+nc poolcontrol-A1B2C3.local 7373
 ```
 
 ## Testing Message Decoding
