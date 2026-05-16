@@ -18,17 +18,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [1.1.0] - 2026-05-16
+### Added
 - Added device address `0x0070` ("Heatpump", e.g. Active i25 Evo electric heater) to the device-name lookup, plus decoders for its three observed broadcasts: CMD `0x0A` firmware version, CMD `0x16` water-temperature reading (1-byte payload, distinct from the `0x0062` Temp Sensor variant), and CMD `0x17` two-byte `[Heater 1 setpoint, Heater 2 setpoint]` payload
 - Added channel type `0xFB` ("Secondary Heater") to the channel-type lookup so channel-status broadcasts decode it by name instead of logging "Unknown (251)"
 - Documented the `0x0070` heater variants of CMD `0x16` and `0x17` in `PROTOCOL.md` (§2 and §3) as source-dependent shared command bytes, alongside the existing `0x12`/`0x0A` shared-command tables; added `0x0070` to the device address table and `0xFB` to the §7 channel type list
 - Added device address `0x0084` ("Chlorinator 0x84", alternate chlorinator variant mutually exclusive with `0x0090`) and `0x00A0` ("Salt Cell", suspected chlorine generator subordinate to `0x0084`) to the device-name lookup and to the PROTOCOL.md device address table; renamed the `0x0090` lookup string to `"Chlorinator 0x90"` so logs distinguish the two variants
 - Added PROTOCOL.md §31 "Chlorinator Cell Mode" documenting the inter-device CMD `0x18` unicast from `0x0084`/`0x0050` to `0x00A0` carrying a 1-byte chlorinator mode (`0x00`=Off, `0x01`=Manual, `0x02`=Auto — tentative pending more captures)
 - Documented bits 1, 2 and 3 of the §5 Configuration message byte 10 — bit 1 = mode (`0`=heat, `1`=cooler-only), bit 2 = temperature step (`0`=1°, `1`=2°), bit 3 = heater count (`0`=single, `1`=two heaters) — confirmed by three independent single-bit-toggle captures; `handle_config` now logs all three alongside the existing temperature scale. Corrected the previous (unconfirmed) interpretation of bit 0 as heat/cool — bit 0 was observed to stay `1` across all four samples, so its purpose is now marked unknown
-### Changed
-### Deprecated
-### Removed
-### Fixed
-### Security
 
 ## [1.0.3] - 2026-05-14
 ### Changed
