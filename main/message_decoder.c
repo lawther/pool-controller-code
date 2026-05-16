@@ -353,7 +353,9 @@ const char* get_device_name(uint8_t addr_hi, uint8_t addr_lo)
             case 0x62: return "Temp Sensor";
             case 0x6F: return "Controller";
             case 0x70: return "Heatpump";
-            case 0x90: return "Chlorinator";
+            case 0x84: return "Chlorinator 0x84";
+            case 0x90: return "Chlorinator 0x90";
+            case 0xA0: return "Salt Cell";
             case 0xF0: return "Internet GW";
         }
     }
@@ -796,8 +798,12 @@ static bool handle_config(
     if (payload_len < 1) return false;
 
     uint8_t config_byte = payload[0];
-    const char *scale_str = (config_byte & 0x10) ? "Fahrenheit" : "Celsius";
-    ESP_LOGI(TAG, "%s Config - temperature scale=%s", addr_info, scale_str);
+    const char *scale_str   = (config_byte & 0x10) ? "Fahrenheit"   : "Celsius";
+    const char *step_str    = (config_byte & 0x04) ? "2°"           : "1°";
+    const char *heaters_str = (config_byte & 0x08) ? "two"          : "single";
+    const char *mode_str    = (config_byte & 0x02) ? "cooler-only"  : "heat";
+    ESP_LOGI(TAG, "%s Config - temperature scale=%s, step=%s, heaters=%s, mode=%s",
+             addr_info, scale_str, step_str, heaters_str, mode_str);
 
     // Update state only (no MQTT publishing)
     if (ctx->state_mutex && xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) == pdTRUE) {

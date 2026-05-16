@@ -42,6 +42,7 @@ This document describes the proprietary serial protocol used by the Connect 10 p
   - [28. Heater Control Command ✅](#28-heater-control-command-)
   - [29. Mode/Favourite Control Command ✅](#29-modefavourite-control-command-)
   - [30. Valve Control Command ✅](#30-valve-control-command-)
+  - [31. Chlorinator Cell Mode ⚠️](#31-chlorinator-cell-mode-️)
 - [Appendix A: Register Dispatch Table](#appendix-a-register-dispatch-table)
 - [Implementation Notes](#implementation-notes)
 
@@ -102,7 +103,9 @@ uint8_t data_checksum = sum & 0xFF;
 | `0x0062` | Temp Sensor  | Temperature sensor module         |
 | `0x006F` | Controller   | Main pool controller (Connect 10) |
 | `0x0070` | Heater       | Active i25 Evo electric heater    |
+| `0x0084` | Chlorinator  | Chemistry/chlorinator module (alternate variant; mutually exclusive with `0x0090`) |
 | `0x0090` | Chlorinator  | Chemistry/chlorinator module      |
+| `0x00A0` | Salt Cell    | Chlorine generator / salt cell (suspected; subordinate to `0x0084`) |
 | `0x00F0` | Internet GW  | Internet gateway module           |
 | `0xFFFF` | Broadcast    | Broadcast to all devices          |
 
@@ -146,6 +149,13 @@ The command byte (byte 7) identifies the message type. Some command values are s
 |--------|----------|--------|-------------------------------------------|---------|
 | `0x17` | `0x0050` | `0x10` | Touchscreen spa/pool setpoints (°C + °F)  | [§2](#2-temperature-settings-) |
 | `0x17` | `0x0070` | `0x0E` | Heater 1 and Heater 2 setpoints (°C only) | [§2](#2-temperature-settings-) |
+
+**Chlorinator → cell mode (0x18, inter-device unicast)**
+
+| CMD    | Source   | Destination | Meaning                                          | Section |
+|--------|----------|-------------|--------------------------------------------------|---------|
+| `0x18` | `0x0084` | `0x00A0`    | Chlorinator commands salt cell — current mode    | [§31](#31-chlorinator-cell-mode-️) |
+| `0x18` | `0x0050` | `0x00A0`    | Touchscreen echoes mode change to salt cell      | [§31](#31-chlorinator-cell-mode-️) |
 
 **Touchscreen state broadcasts**
 
@@ -237,6 +247,7 @@ The command byte (byte 7) identifies the message type. Some command values are s
 | 28 | Heater Control Command            | `0x00F0` | `02 00 F0 FF FF 80 00 3A 0F B9`           | ✅     | Same pattern as [§25](#25-light-zone-control-command-); different reg |
 | 29 | Mode/Favourite Control Command    | `0x00F0` | `02 00 F0 00 50 80 00 2A 0D F9`           | ✅     | Dst=`0x0050`; 0x00=Pool, 0x01=Spa, 0x02–0x07=Fav 1–6, 0x80=All Off, 0x81=All Auto |
 | 30 | Valve Control Command             | `0x00F0` | `02 00 F0 FF FF 80 00 28 0E A6`           | ✅     |                                     |
+| 31 | Chlorinator Cell Mode             | `0x0084` | `02 00 84 00 A0 80 00 18 0D CB`           | ⚠️     | Dst=`0x00A0` (Salt Cell); 1-byte mode (`0x00`=Off, `0x01`=Manual, `0x02`=Auto — tentative). Also seen from `0x0050` |
 
 ---
 
@@ -472,16 +483,26 @@ System configuration including temperature scale.
 
 **Data Fields:**
 
-- Byte 10: Temperature configuration - 01 Celcius, 11, Fahrenheit - possible bitmask as defined below.
+- Byte 10: Configuration bitmask
   - Bit 7:
   - Bit 6:
   - Bit 5:
-  - Bit 4:  0: celsius, 1:fahrenheit
-  - Bit 3:
-  - Bit 2:
-  - Bit 1:
-  - Bit 0:  1:heat 0: cool
-- Byte 11: Unknown
+  - Bit 4: `0` = Celsius, `1` = Fahrenheit
+  - Bit 3: `0` = single heater, `1` = two heaters configured
+  - Bit 2: `0` = 1° temperature step, `1` = 2° temperature step
+  - Bit 1: `0` = heat, `1` = cooler-only
+  - Bit 0: Unknown — always `1` in observed samples
+- Byte 11: Unknown (consistently `0x06`)
+
+**Observed Byte 10 values:**
+
+| Value  | Binary       | Meaning                                                   |
+|--------|--------------|-----------------------------------------------------------|
+| `0x01` | `0000 0001`  | Celsius, heat, single heater, 1° step                     |
+| `0x03` | `0000 0011`  | Celsius, **cooler-only**, single heater, 1° step          |
+| `0x05` | `0000 0101`  | Celsius, heat, single heater, **2° step**                 |
+| `0x09` | `0000 1001`  | Celsius, heat, **two heaters configured**, 1° step        |
+| `0x11` | `0001 0001`  | Fahrenheit, heat, single heater, 1° step                  |
 
 ---
 
@@ -1515,6 +1536,47 @@ Sent by the Internet Gateway to set a valve to a specific state directly. Unlike
 
 - Whether Auto is accepted by the controller depends on the valve's configuration
 - The controller responds immediately with an updated Valve State Broadcast (§23)
+
+---
+
+### 31. Chlorinator Cell Mode ⚠️
+
+Inter-device unicast carrying the chlorinator's current mode to the salt cell. Observed on systems with chlorinator address `0x0084` (mutually exclusive with the `0x0090` variant — see [Device Addresses](#device-addresses)).
+
+**Pattern (Chlorinator → Cell):** `02 00 84 00 A0 80 00 18 0D CB`
+
+**Pattern (Touchscreen → Cell):** `02 00 50 00 A0 80 00 18 0D 97`
+
+Both patterns have LENGTH `0x0D` (13 bytes) and a single data byte.
+
+**Examples:**
+
+```
+02 00 84 00 A0 80 00 18 0D CB 01 01 03   Chlorinator -> Cell, mode = 0x01 (Manual)
+02 00 84 00 A0 80 00 18 0D CB 02 02 03   Chlorinator -> Cell, mode = 0x02 (Automatic)
+02 00 50 00 A0 80 00 18 0D 97 02 02 03   Touchscreen echoes mode = 0x02 to Cell
+```
+
+**Data Fields:**
+
+- Byte 10: Mode value
+- Byte 11: Data checksum (equals byte 10 — only one data byte)
+
+**Observed Mode Values:**
+
+| Value  | Meaning (tentative) |
+|--------|---------------------|
+| `0x00` | Off                 |
+| `0x01` | Manual              |
+| `0x02` | Automatic           |
+
+**Notes:**
+
+- ⚠️ Mode-value mapping is **tentative**. Three distinct values (`0x00`, `0x01`, `0x02`) have been observed across one capture, and they match the standard pool-channel state encoding ([§7](#7-channel-status-)), but the order seen in the capture did not unambiguously match a user-described Manual→Off→Auto sequence — see `zagnuts_analysis.md` for the timeline.
+- The chlorinator reports its current mode separately to the touchscreen via CMD `0x0F` (see below) — the two messages may briefly disagree during transitions.
+- Both messages are addressed specifically to the Cell (`0x00A0`), not broadcast.
+- The `0x0090` chlorinator variant has not been observed using this command; the `0x18` traffic appears specific to the `0x0084` / `0x00A0` two-module chlorinator topology.
+- A related CMD `0x0F` is sent from `0x0084` to the touchscreen (`0x0050`) carrying the same mode value as a 2-byte payload `[01, mode]`. Not yet a separate section pending more captures.
 
 ---
 
