@@ -101,6 +101,7 @@ uint8_t data_checksum = sum & 0xFF;
 | `0x0050` | Touch Screen | Touch screen interface            |
 | `0x0062` | Temp Sensor  | Temperature sensor module         |
 | `0x006F` | Controller   | Main pool controller (Connect 10) |
+| `0x0070` | Heater       | Active i25 Evo electric heater    |
 | `0x0090` | Chlorinator  | Chemistry/chlorinator module      |
 | `0x00F0` | Internet GW  | Internet gateway module           |
 | `0xFFFF` | Broadcast    | Broadcast to all devices          |
@@ -131,6 +132,20 @@ The command byte (byte 7) identifies the message type. Some command values are s
 |--------|--------------|-------------------------------|---------|
 | `0x0A` | `0x0050`     | Touchscreen Firmware Version  | [§21](#21-touchscreen-firmware-version-) |
 | `0x0A` | `0x00F0`     | Gateway Firmware Version      | [§17](#17-internet-gateway-firmware-version-) |
+
+**Temperature reading (0x16, shared across two sources — different payload layout)**
+
+| CMD    | Source   | LENGTH | Meaning                           | Section |
+|--------|----------|--------|-----------------------------------|---------|
+| `0x16` | `0x0062` | `0x0E` | Temp sensor current reading       | [§3](#3-temperature-reading-️) |
+| `0x16` | `0x0070` | `0x0D` | Heater current water temperature  | [§3](#3-temperature-reading-️) |
+
+**Temperature setpoint (0x17, shared across two sources — different payload layout)**
+
+| CMD    | Source   | LENGTH | Meaning                                   | Section |
+|--------|----------|--------|-------------------------------------------|---------|
+| `0x17` | `0x0050` | `0x10` | Touchscreen spa/pool setpoints (°C + °F)  | [§2](#2-temperature-settings-) |
+| `0x17` | `0x0070` | `0x0E` | Heater 1 and Heater 2 setpoints (°C only) | [§2](#2-temperature-settings-) |
 
 **Touchscreen state broadcasts**
 
@@ -190,9 +205,11 @@ The command byte (byte 7) identifies the message type. Some command values are s
 | #  | Name                              | Source   | Pattern (bytes 0–9)                       | Status | Notes                               |
 |----|-----------------------------------|----------|-------------------------------------------|--------|-------------------------------------|
 | 1  | Mode (Spa/Pool)                   | `0x0050` | `02 00 50 FF FF 80 00 14 0D F1`           | ✅     |                                     |
-| 2  | Temperature Settings              | `0x0050` | `02 00 50 FF FF 80 00 17 10 F7`           | ✅     | Register variant: E7/E8 Slot 0x00   |
-| 3  | Temperature Reading (A)           | `0x0062` | `02 00 62 FF FF 80 00 16 0E 06`           | ⚠️     | Two pattern variants                |
+| 2  | Temperature Settings              | `0x0050` | `02 00 50 FF FF 80 00 17 10 F7`           | ✅     | Source-dependent — also emitted by `0x0070` with different layout. Register variant: E7/E8 Slot 0x00 |
+| 2  | Temperature Settings (Heater)     | `0x0070` | `02 00 70 FF FF 80 00 17 0E 15`           | ✅     | Heater 1 / Heater 2 setpoints (°C)  |
+| 3  | Temperature Reading (A)           | `0x0062` | `02 00 62 FF FF 80 00 16 0E 06`           | ⚠️     | Source-dependent CMD `0x16` — see [§3](#3-temperature-reading-️) |
 | 3  | Temperature Reading (B)           | `0x0062` | `02 00 62 FF FF 80 00 31 0E 21`           | ⚠️     | Two pattern variants                |
+| 3  | Temperature Reading (Heater)      | `0x0070` | `02 00 70 FF FF 80 00 16 0D 13`           | ✅     | Heater water temperature (1 data byte) |
 | 4  | Heater Status                     | `0x0062` | `02 00 62 FF FF 80 00 12 0F 03`           | ⚠️     |                                     |
 | 5  | Configuration                     | `0x0050` | `02 00 50 FF FF 80 00 26 0E 04`           | ⚠️     |                                     |
 | 6  | Active Channels Bitmask           | `0x0050` | `02 00 50 00 6F 80 00 0D 0D 5B`           | ⚠️     | Dst=`0x006F` (Controller)           |
@@ -255,9 +272,12 @@ Reports the current operating mode - pool or spa.
 
 ### 2. Temperature Settings ✅
 
-Reports the temperature setpoints for both spa and pool.
+Reports the temperature setpoints. CMD `0x17` is **shared across two sources** with different payload layouts:
 
-**Pattern:** `02 00 50 FF FF 80 00 17 10 F7`
+- **Touchscreen (`0x0050`)** — broadcasts spa/pool setpoints in both °C and °F (4 data bytes, LENGTH `0x10`).
+- **Heater (`0x0070`)** — broadcasts Heater 1 and Heater 2 setpoints in °C only (2 data bytes, LENGTH `0x0E`). See the [Heater variant](#temperature-settings--heater-variant) subsection below.
+
+**Pattern (Touchscreen):** `02 00 50 FF FF 80 00 17 10 F7`
 
 **Example:**
 
@@ -309,13 +329,43 @@ The controller also broadcasts pool and spa setpoints as individual register mes
 - Byte 11: Slot (`0x00`)
 - Byte 12: Temperature in °C
 
+#### Temperature Settings — Heater variant
+
+When an Active i25 Evo heater (source `0x0070`) is fitted, it broadcasts its own setpoint frame using the same CMD `0x17` but a shorter LENGTH and a different payload — both heater setpoints in a single frame, °C only, no Fahrenheit values.
+
+**Pattern (Heater):** `02 00 70 FF FF 80 00 17 0E 15`
+
+**Example:**
+
+```
+02 00 70 FF FF 80 00 17 0E 15 18 1B 33 03
+                              ^^ Heater 1 setpoint °C (0x18 = 24°C)
+                                 ^^ Heater 2 setpoint °C (0x1B = 27°C)
+                                    ^^ Data checksum (0x18 + 0x1B = 0x33)
+```
+
+**Data Fields:**
+
+- Byte 10: Heater 1 setpoint in °C
+- Byte 11: Heater 2 setpoint in °C
+- Byte 12: Data checksum (sum of bytes 10–11)
+
+**Notes:**
+
+- LENGTH is `0x0E` (14 bytes) — two bytes shorter than the touchscreen variant
+- Both heater setpoints are carried in a single broadcast; the heater never sends them separately
+- The actual current water temperature is reported separately via CMD `0x16` (see [Heater variant of §3](#temperature-reading--heater-variant))
+
 ---
 
 ### 3. Temperature Reading ⚠️
 
-Current water temperature from the sensor. Two pattern variants have been observed — both carry the same temperature value in byte 10.
+Current water temperature. CMD `0x16` is **shared across two sources** with different payload layouts:
 
-**Pattern A:** `02 00 62 FF FF 80 00 16 0E 06`
+- **Temp Sensor (`0x0062`)** — 2-byte payload (LENGTH `0x0E`): temperature + trailing unknown byte (Pattern A below). The sensor also emits a second variant under CMD `0x31` (Pattern B).
+- **Heater (`0x0070`)** — 1-byte payload (LENGTH `0x0D`): water temperature only, no trailing unknown. See the [Heater variant](#temperature-reading--heater-variant) subsection below.
+
+**Pattern A (Temp Sensor):** `02 00 62 FF FF 80 00 16 0E 06`
 
 ```
 02 00 62 FF FF 80 00 16 0E 06 19 00 19 03
@@ -338,9 +388,33 @@ Current water temperature from the sensor. Two pattern variants have been observ
 
 **Notes:**
 
-- Both patterns originate from device `0x0062` (temperature sensor)
+- Patterns A and B both originate from device `0x0062` (temperature sensor)
 - The purpose of byte 11 is not yet understood; it may be a secondary sensor, a raw ADC value, or a fixed status byte
 - Pattern B has been observed decreasing as pool water cools (30→25°C), confirming byte 10 is the current temperature
+
+#### Temperature Reading — Heater variant
+
+When an Active i25 Evo heater (source `0x0070`) is fitted, it broadcasts its own current water-temperature reading using the same CMD `0x16` but with a shorter LENGTH (`0x0D`) and only one data byte — there is no trailing "unknown" byte.
+
+**Pattern (Heater):** `02 00 70 FF FF 80 00 16 0D 13`
+
+**Example:**
+
+```
+02 00 70 FF FF 80 00 16 0D 13 12 12 03
+                              ^^ Current water temperature (0x12 = 18°C)
+                                 ^^ Data checksum (equals byte 10 — only one data byte)
+```
+
+**Data Fields:**
+
+- Byte 10: Current water temperature in °C
+- Byte 11: Data checksum (equals byte 10)
+
+**Notes:**
+
+- LENGTH is `0x0D` (13 bytes) — one byte shorter than the Temp Sensor variant
+- This is the heater's own water-temperature reading; it is independent of the `0x0062` Temp Sensor reading and may differ if the two are sited differently in the plumbing
 
 ---
 
@@ -486,8 +560,9 @@ Detailed status for all configured channels.
 - `0x11`: Hot Seat
 - `0x12`: Heater Power
 - `0x13`: Custom Name
-- `0xFE`: Flagged as light channel
+- `0xFB`: Secondary Heater
 - `0xFD`: Flagged as heater power
+- `0xFE`: Flagged as light channel
 
 **Channel States:**
 

@@ -18,6 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- Added device address `0x0070` ("Heatpump", e.g. Active i25 Evo electric heater) to the device-name lookup, plus decoders for its three observed broadcasts: CMD `0x0A` firmware version, CMD `0x16` water-temperature reading (1-byte payload, distinct from the `0x0062` Temp Sensor variant), and CMD `0x17` two-byte `[Heater 1 setpoint, Heater 2 setpoint]` payload
+- Added channel type `0xFB` ("Secondary Heater") to the channel-type lookup so channel-status broadcasts decode it by name instead of logging "Unknown (251)"
+- Documented the `0x0070` heater variants of CMD `0x16` and `0x17` in `PROTOCOL.md` (§2 and §3) as source-dependent shared command bytes, alongside the existing `0x12`/`0x0A` shared-command tables; added `0x0070` to the device address table and `0xFB` to the §7 channel type list
 ### Changed
 ### Deprecated
 ### Removed

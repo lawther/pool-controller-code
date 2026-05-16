@@ -80,6 +80,11 @@ static const char *MSG_TYPE_TEMP_READING =          "02 00 62 FF FF 80 00 16 0E 
 static const char *MSG_TYPE_TEMP_READING2 =         "02 00 62 FF FF 80 00 31 0E 21";
 static const char *MSG_TYPE_HEATER =                "02 00 62 FF FF 80 00 12 0F 03";
 
+// 70 Heatpump (Active i25 Evo)
+static const char *MSG_TYPE_HEATPUMP_VERSION =      "02 00 70 FF FF 80 00 0A 0E 08";
+static const char *MSG_TYPE_HEATPUMP_TEMP_READING = "02 00 70 FF FF 80 00 16 0D 13";
+static const char *MSG_TYPE_HEATPUMP_TEMP_SETTING = "02 00 70 FF FF 80 00 17 0E 15";
+
 // 90 Chlorinator (pH, ORP)
 static const char *MSG_TYPE_CHLOR = "02 00 90 FF FF 80 00";
 
@@ -133,6 +138,7 @@ static const channel_type_entry_t CHANNEL_TYPE_TABLE[] = {
     {0x10, "Hot Seat"},
     {0x11, "Heater Power"},
     {0x12, "Custom Name"},
+    {0xFB, "Secondary Heater"},
     {0xFD, "Heater"},
     {0xFE, "Light Zone"},
 };
@@ -345,8 +351,9 @@ const char* get_device_name(uint8_t addr_hi, uint8_t addr_lo)
         switch (addr_lo) {
             case 0x50: return "Touch Screen";
             case 0x62: return "Temp Sensor";
-            case 0x90: return "Chlorinator";
             case 0x6F: return "Controller";
+            case 0x70: return "Heatpump";
+            case 0x90: return "Chlorinator";
             case 0xF0: return "Internet GW";
         }
     }
@@ -601,6 +608,68 @@ static bool handle_temp_reading2(
         mqtt_publish_temperature(&snapshot);
     }
 
+    return true;
+}
+
+/**
+ * Handler: Heatpump firmware version
+ * Pattern: "02 00 70 FF FF 80 00 0A 0E 08"
+ */
+static bool handle_heatpump_version(
+    const uint8_t *data, int len,
+    const uint8_t *payload, int payload_len,
+    const char *addr_info,
+    message_decoder_context_t *ctx)
+{
+    if (payload_len < 2) return false;
+
+    uint8_t major = payload[0];
+    uint8_t minor = payload[1];
+
+    ESP_LOGI(TAG, "%s Heatpump firmware version - %d.%d", addr_info, major, minor);
+    return true;
+}
+
+/**
+ * Handler: Heatpump current water temperature
+ * Pattern: "02 00 70 FF FF 80 00 16 0D 13"
+ *
+ * Single-byte payload — the heatpump's own water-temperature reading. Distinct
+ * from the 0x0062 Temp Sensor reading; the two devices may report different
+ * values depending on where each is sited in the plumbing.
+ */
+static bool handle_heatpump_temp_reading(
+    const uint8_t *data, int len,
+    const uint8_t *payload, int payload_len,
+    const char *addr_info,
+    message_decoder_context_t *ctx)
+{
+    if (payload_len < 1) return false;
+
+    uint8_t current_temp = payload[0];
+    ESP_LOGI(TAG, "%s Heatpump water temperature - %d°C", addr_info, current_temp);
+    return true;
+}
+
+/**
+ * Handler: Heatpump setpoints
+ * Pattern: "02 00 70 FF FF 80 00 17 0E 15"
+ *
+ * Two-byte payload carrying both heater setpoints in °C.
+ */
+static bool handle_heatpump_temp_setting(
+    const uint8_t *data, int len,
+    const uint8_t *payload, int payload_len,
+    const char *addr_info,
+    message_decoder_context_t *ctx)
+{
+    if (payload_len < 2) return false;
+
+    uint8_t heater1_set = payload[0];
+    uint8_t heater2_set = payload[1];
+
+    ESP_LOGI(TAG, "%s Heatpump setpoints - heater1=%d°C, heater2=%d°C",
+             addr_info, heater1_set, heater2_set);
     return true;
 }
 
@@ -2288,6 +2357,19 @@ bool decode_message(const uint8_t *data, int len, message_decoder_context_t *ctx
 
     if (match_pattern(data, len, MSG_TYPE_HEATER)) {
         return handle_heater(data, len, payload, payload_len, addr_info, ctx);
+    }
+
+    // Heatpump (0x0070) messages
+    if (match_pattern(data, len, MSG_TYPE_HEATPUMP_VERSION)) {
+        return handle_heatpump_version(data, len, payload, payload_len, addr_info, ctx);
+    }
+
+    if (match_pattern(data, len, MSG_TYPE_HEATPUMP_TEMP_READING)) {
+        return handle_heatpump_temp_reading(data, len, payload, payload_len, addr_info, ctx);
+    }
+
+    if (match_pattern(data, len, MSG_TYPE_HEATPUMP_TEMP_SETTING)) {
+        return handle_heatpump_temp_setting(data, len, payload, payload_len, addr_info, ctx);
     }
 
     // Chlorinator messages
