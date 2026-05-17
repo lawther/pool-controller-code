@@ -19,10 +19,12 @@ This document describes the proprietary serial protocol used by the Connect 10 p
   - [0x0F — Chlorinator Mode → Touchscreen ⚠️](#0x0f--chlorinator-mode--touchscreen-️)
   - [0x10 — Channel Toggle Command ⚠️](#0x10--channel-toggle-command-️)
   - [0x12 — Device Status ⚠️](#0x12--device-status-️)
+  - [0x14 — Mode (Spa/Pool) ✅](#0x14--mode-spapool-)
+  - [0x16 — Water Temperature Reading ⚠️](#0x16--water-temperature-reading-️)
+  - [0x17 — Temperature Settings ✅](#0x17--temperature-settings-)
+  - [0x18 — Chlorinator Cell Mode ⚠️](#0x18--chlorinator-cell-mode-️)
 - [Message Types](#message-types)
-  - [1. Mode Message (Spa/Pool) ✅](#1-mode-message-spapool-)
-  - [2. Temperature Settings ✅](#2-temperature-settings-)
-  - [3. Temperature Reading ⚠️](#3-temperature-reading-️)
+  - [3. Temperature Reading (alt — CMD 0x31) ⚠️](#3-temperature-reading-alt--cmd-0x31-️)
   - [5. Configuration ⚠️](#5-configuration-️)
   - [8. Register Messages (Universal Register System) ⚠️](#8-register-messages-universal-register-system-️)
   - [10. Chlorinator pH Setpoint ✅](#10-chlorinator-ph-setpoint-)
@@ -42,7 +44,6 @@ This document describes the proprietary serial protocol used by the Connect 10 p
   - [28. Heater Control Command ✅](#28-heater-control-command-)
   - [29. Mode/Favourite Control Command ✅](#29-modefavourite-control-command-)
   - [30. Valve Control Command ✅](#30-valve-control-command-)
-  - [31. Chlorinator Cell Mode ⚠️](#31-chlorinator-cell-mode-️)
 - [Appendix A: Register Dispatch Table](#appendix-a-register-dispatch-table)
 - [Implementation Notes](#implementation-notes)
 
@@ -122,13 +123,13 @@ The **In code?** column distinguishes commands that have an actual handler in `m
 | `0x0A` | Firmware Version                    | `0x0050`, `0x0062`, `0x0070`, `0x0084`, `0x00F0` → Broadcast           | Same `{major, minor}` payload across all 5 sources; dispatched on CMD byte alone            | [0x0A](#0x0a--firmware-version-) | Yes (unified handler)   |
 | `0x0B` | Channel Status                      | `0x0050` → Broadcast                                                   |                                                                                             | [0x0B](#0x0b--channel-status-)                           | Yes                     |
 | `0x0D` | Active Channels Bitmask             | `0x0050` → `0x006F` Controller                                         | Unicast                                                                                     | [0x0D](#0x0d--active-channels-bitmask-)                  | Yes                     |
-| `0x0F` | Chlorinator Mode → Touchscreen      | `0x0084` → `0x0050`                                                    | 2-byte `[01, mode]`; mirrors [§31](#31-chlorinator-cell-mode-) cell mode                    | [0x0F](#0x0f--chlorinator-mode--touchscreen-️)           | **No (doc only)**       |
+| `0x0F` | Chlorinator Mode → Touchscreen      | `0x0084` → `0x0050`                                                    | 2-byte `[01, mode]`; mirrors [0x18](#0x18--chlorinator-cell-mode-️) cell mode               | [0x0F](#0x0f--chlorinator-mode--touchscreen-️)           | **No (doc only)**       |
 | `0x10` | Channel Toggle Command              | `0x00F0` Gateway → Broadcast                                           |                                                                                             | [0x10](#0x10--channel-toggle-command-️)                  | Yes                     |
 | `0x12` | Device Status                       | `0x0050`, `0x0062`, `0x0084`, `0x0090`, `0x00F0` → Broadcast           | Payload layout differs per source                                                           | [0x12](#0x12--device-status-️) | Yes (per-source)        |
-| `0x14` | Mode (Spa/Pool)                     | `0x0050` → Broadcast                                                   |                                                                                             | [§1](#1-mode-message-spapool-)                           | Yes                     |
-| `0x16` | Water Temperature Reading           | `0x0062` (LEN `0x0E`), `0x0070` (LEN `0x0D`) → Broadcast               | Source-dependent payload (`0x0062` = inbuilt heater, `0x0070` = add-on Active i25 Evo)      | [§3](#3-temperature-reading-️)                           | Yes (per-source)        |
-| `0x17` | Temperature Settings                | `0x0050` (LEN `0x10`), `0x0070` (LEN `0x0E`) → Broadcast               | Source-dependent payload layout                                                             | [§2](#2-temperature-settings-)                           | Yes (per-source)        |
-| `0x18` | Chlorinator Cell Mode               | `0x0084`, `0x0050` → `0x00A0` Salt Cell                                | Inter-device unicast                                                                        | [§31](#31-chlorinator-cell-mode-)                        | **No (doc only)**       |
+| `0x14` | Mode (Spa/Pool)                     | `0x0050` → Broadcast                                                   |                                                                                             | [0x14](#0x14--mode-spapool-)                             | Yes                     |
+| `0x16` | Water Temperature Reading           | `0x0062` (LEN `0x0E`), `0x0070` (LEN `0x0D`) → Broadcast               | Source-dependent payload (`0x0062` = inbuilt heater, `0x0070` = add-on Active i25 Evo)      | [0x16](#0x16--water-temperature-reading-️)               | Yes (per-source)        |
+| `0x17` | Temperature Settings                | `0x0050` (LEN `0x10`), `0x0070` (LEN `0x0E`) → Broadcast               | Source-dependent payload layout                                                             | [0x17](#0x17--temperature-settings-)                     | Yes (per-source)        |
+| `0x18` | Chlorinator Cell Mode               | `0x0084`, `0x0050` → `0x00A0` Salt Cell                                | Inter-device unicast                                                                        | [0x18](#0x18--chlorinator-cell-mode-️)                   | **No (doc only)**       |
 | `0x19` | Temperature Setpoint Command        | `0x00F0` Gateway → Broadcast                                           |                                                                                             | [§27](#27-temperature-setpoint-command-)                 | Yes                     |
 | `0x1D` | Chlorinator Setpoint                | `0x0090` → Broadcast                                                   | Byte 10: `0x01`=pH, `0x02`=ORP                                                              | [§10](#10-chlorinator-ph-setpoint-), [§12](#12-chlorinator-orp-setpoint-) | Yes                     |
 | `0x1F` | Chlorinator Reading                 | `0x0090` → Broadcast                                                   | Byte 10: `0x01`=pH, `0x02`=ORP                                                              | [§11](#11-chlorinator-ph-reading-), [§13](#13-chlorinator-orp-reading-) | Yes                     |
@@ -137,7 +138,7 @@ The **In code?** column distinguishes commands that have an actual handler in `m
 | `0x27` | Valve State Broadcast               | `0x0050` → Broadcast                                                   | Two LEN variants: `0x0D` (short) and `0x13` (full)                                          | [§23](#23-valve-state-broadcast-️)                       | Yes (both variants)     |
 | `0x28` | Valve Control Command               | `0x00F0` Gateway → Broadcast                                           |                                                                                             | [§30](#30-valve-control-command-)                        | **No (doc only)**       |
 | `0x2A` | Mode/Favourite Control Command      | `0x00F0` Gateway → `0x0050` Touchscreen                                | Unicast                                                                                     | [§29](#29-modefavourite-control-command-)                | Yes                     |
-| `0x31` | Water Temperature Reading (alt)     | `0x0062` → Broadcast                                                   | Second variant alongside `0x16`                                                             | [§3](#3-temperature-reading-️)                           | Yes                     |
+| `0x31` | Water Temperature Reading (alt)     | `0x0062` → Broadcast                                                   | Second variant alongside `0x16`                                                             | [§3](#3-temperature-reading-alt--cmd-0x31-️)             | Yes                     |
 | `0x37` | Gateway Info Messages               | `0x00F0` → Broadcast                                                   | LEN distinguishes serial/IP/comms variants                                                  | [§14](#14-internet-gateway-serial-number-️), [§15](#15-internet-gateway-network-config-️), [§16](#16-internet-gateway-communications-status-️) | Yes (3 handlers)        |
 | `0x38` | Register Data (Response)            | `0x0050` → Broadcast                                                   | Universal register system — sub-dispatched by register + slot                               | [§8](#8-register-messages-universal-register-system-️), [Appendix A](#appendix-a-register-dispatch-table) | Yes                     |
 | `0x39` | Register Read Request               | `0x00F0` Gateway → Broadcast                                           |                                                                                             | [§19](#19-register-read-requestresponse) | Yes                     |
@@ -152,10 +153,6 @@ The **In code?** column distinguishes commands that have an actual handler in `m
 
 | #  | Name                              | Source   | Pattern (bytes 0–9)                       | Status | Notes                               |
 |----|-----------------------------------|----------|-------------------------------------------|--------|-------------------------------------|
-| 1  | Mode (Spa/Pool)                   | `0x0050` | `02 00 50 FF FF 80 00 14 0D F1`           | ✅     |                                     |
-| 2  | Temperature Settings              | `0x0050` | `02 00 50 FF FF 80 00 17 10 F7`           | ✅     | Source-dependent — also emitted by `0x0070` with different layout. Register variant: E7/E8 Slot 0x00 |
-| 2  | Temperature Settings (Heater)     | `0x0070` | `02 00 70 FF FF 80 00 17 0E 15`           | ✅     | Heater 1 / Heater 2 setpoints (°C)  |
-| 3  | Temperature Reading (A)           | `0x0062` | `02 00 62 FF FF 80 00 16 0E 06`           | ⚠️     | Source-dependent CMD `0x16` — see [§3](#3-temperature-reading-️) |
 | 3  | Temperature Reading (B)           | `0x0062` | `02 00 62 FF FF 80 00 31 0E 21`           | ⚠️     | Two pattern variants                |
 | 3  | Temperature Reading (Heater)      | `0x0070` | `02 00 70 FF FF 80 00 16 0D 13`           | ✅     | Heater water temperature (1 data byte) |
 | 5  | Configuration                     | `0x0050` | `02 00 50 FF FF 80 00 26 0E 04`           | ⚠️     |                                     |
@@ -181,7 +178,6 @@ The **In code?** column distinguishes commands that have an actual handler in `m
 | 28 | Heater Control Command            | `0x00F0` | `02 00 F0 FF FF 80 00 3A 0F B9`           | ✅     | Same pattern as [§25](#25-light-zone-control-command-); different reg |
 | 29 | Mode/Favourite Control Command    | `0x00F0` | `02 00 F0 00 50 80 00 2A 0D F9`           | ✅     | Dst=`0x0050`; 0x00=Pool, 0x01=Spa, 0x02–0x07=Fav 1–6, 0x80=All Off, 0x81=All Auto |
 | 30 | Valve Control Command             | `0x00F0` | `02 00 F0 FF FF 80 00 28 0E A6`           | ✅     |                                     |
-| 31 | Chlorinator Cell Mode             | `0x0084` | `02 00 84 00 A0 80 00 18 0D CB`           | ⚠️     | Dst=`0x00A0` (Salt Cell); 1-byte mode (`0x00`=Off, `0x01`=Manual, `0x02`=Auto — tentative). Also seen from `0x0050` |
 
 ---
 
@@ -378,7 +374,7 @@ Inter-device unicast from the Chlorinator (`0x0084`) to the Touchscreen (`0x0050
 
 - ⚠️ Documented only — no handler in `message_decoder.c` yet. The layout came from contemporaneous capture analysis but a definitive sample pair has not been pinned down.
 - Mode encoding follows the protocol-wide channel-state convention (see [0x0B](#0x0b--channel-status-)).
-- The companion `0x18` cell-mode unicast is documented at [§31](#31-chlorinator-cell-mode-).
+- The companion `0x18` cell-mode unicast is documented at [0x18](#0x18--chlorinator-cell-mode-️).
 
 ---
 
@@ -509,7 +505,7 @@ Observed mode values (tentative; follows the standard channel-state convention f
 | `0x01` | Auto    |
 | `0x02` | On      |
 
-Distinct from the configured *cell* mode at [§31](#31-chlorinator-cell-mode-) (CMD `0x18` unicast to the salt cell at `0x00A0`). The two can hold different values concurrently — e.g. chlorinator overall = On while cell = Auto. ⚠️ Tentative because a single-device Off↔Auto↔On transition has not been captured.
+Distinct from the configured *cell* mode at [0x18](#0x18--chlorinator-cell-mode-️) (unicast to the salt cell at `0x00A0`). The two can hold different values concurrently — e.g. chlorinator overall = On while cell = Auto. ⚠️ Tentative because a single-device Off↔Auto↔On transition has not been captured.
 
 ---
 
@@ -545,28 +541,19 @@ Carries redundant firmware-version information already announced by [0x0A](#0x0a
 
 ---
 
-## Message Types
+### 0x14 — Mode (Spa/Pool) ✅
 
-The messages that are fully decoded have a ✅ and the partially decoded ones have a ⚠️
-
-### 1. Mode Message (Spa/Pool) ✅
-
-Reports the current operating mode - pool or spa.
+Reports the current operating mode — pool or spa. Broadcast by the Touchscreen (`0x0050`).
 
 **Pattern:** `02 00 50 FF FF 80 00 14 0D F1`
 
-**Example - Spa Mode:**
+**Examples:**
 
 ```
-02 00 50 FF FF 80 00 14 0D F1 00 00 03
+02 00 50 FF FF 80 00 14 0D F1 00 00 03   Spa mode
+02 00 50 FF FF 80 00 14 0D F1 01 01 03   Pool mode
                               ^^
                               Mode: 0x00 = Spa, 0x01 = Pool
-```
-
-**Example - Pool Mode:**
-
-```
-02 00 50 FF FF 80 00 14 0D F1 01 01 03
 ```
 
 **Data Fields:**
@@ -575,72 +562,107 @@ Reports the current operating mode - pool or spa.
 
 ---
 
-### 2. Temperature Settings ✅
+### 0x16 — Water Temperature Reading ⚠️
 
-Reports the temperature setpoints. CMD `0x17` is **shared across two sources** with different payload layouts:
+Current water temperature broadcast by the device that measures it. Two sources are known: the inbuilt heater (`0x0062`) and the add-on Active i25 Evo heatpump (`0x0070`). Both use CMD `0x16` but the **payload layout differs** — the inbuilt-heater frame is one byte longer and carries an additional unknown trailing byte.
 
-- **Touchscreen (`0x0050`)** — broadcasts spa/pool setpoints in both °C and °F (4 data bytes, LENGTH `0x10`).
-- **Heater (`0x0070`)** — broadcasts Heater 1 and Heater 2 setpoints in °C only (2 data bytes, LENGTH `0x0E`). See the [Heater variant](#temperature-settings--heater-variant) subsection below.
+**Source variants:**
 
-**Pattern (Touchscreen):** `02 00 50 FF FF 80 00 17 10 F7`
+| Source                  | LENGTH | Payload          | Status | Handler                  |
+|-------------------------|--------|------------------|--------|--------------------------|
+| `0x0062` Inbuilt heater | `0x0E` | 2 bytes — temp + unknown | ⚠️ | `handle_temp_reading`    |
+| `0x0070` Heatpump       | `0x0D` | 1 byte — temp only       | ✅ | `handle_heatpump_temp_reading` |
 
-**Example:**
+The inbuilt heater also emits a second water-temperature variant under [CMD 0x31](#0x31--water-temperature-reading-alt-) (to be documented).
+
+---
+
+#### Inbuilt heater (`0x0062`) ⚠️
+
+Pattern: `02 00 62 FF FF 80 00 16 0E 06`
+
+Example:
+
+```
+02 00 62 FF FF 80 00 16 0E 06 19 00 19 03
+                              ^^ Current temperature (0x19 = 25°C)
+                                 ^^ Unknown (always 0x00 observed)
+```
+
+Data fields:
+- Byte 10: Current water temperature in °C
+- Byte 11: Unknown — always `0x00` observed. Purpose not yet understood; may be a secondary sensor, raw ADC value, or fixed status byte.
+
+---
+
+#### Heatpump (`0x0070`) ✅
+
+When an Active i25 Evo heater is fitted it broadcasts its own current water-temperature reading on the same CMD but with a shorter LENGTH (`0x0D`) and only one data byte.
+
+Pattern: `02 00 70 FF FF 80 00 16 0D 13`
+
+Example:
+
+```
+02 00 70 FF FF 80 00 16 0D 13 12 12 03
+                              ^^ Current water temperature (0x12 = 18°C)
+                                 ^^ Data checksum (equals byte 10 — only one data byte)
+```
+
+Data fields:
+- Byte 10: Current water temperature in °C
+- Byte 11: Data checksum (equals byte 10)
+
+This is the heatpump's own water-temperature reading; it is independent of the inbuilt-heater reading and may differ if the two are sited differently in the plumbing.
+
+---
+
+### 0x17 — Temperature Settings ✅
+
+Setpoint broadcast. CMD `0x17` is shared across two sources with different payload layouts: the Touchscreen (`0x0050`) emits spa/pool setpoints in both °C and °F, while the Heatpump (`0x0070`) emits its Heater 1/Heater 2 setpoints in °C only.
+
+**Source variants:**
+
+| Source              | LENGTH | Payload                                | Status | Handler                       |
+|---------------------|--------|----------------------------------------|--------|-------------------------------|
+| `0x0050` Touchscreen| `0x10` | 4 bytes — spa/pool °C + spa/pool °F    | ✅     | `handle_temp_setting`         |
+| `0x0070` Heatpump   | `0x0E` | 2 bytes — Heater 1 °C, Heater 2 °C     | ✅     | `handle_heatpump_temp_setting`|
+
+The same setpoints are also broadcast individually via the register system — see the [Register-based variant](#register-based-temperature-setpoints) below.
+
+---
+
+#### Touchscreen (`0x0050`) ✅
+
+Pattern: `02 00 50 FF FF 80 00 17 10 F7`
+
+Example:
 
 ```
 02 00 50 FF FF 80 00 17 10 F7 25 1D 63 54 F9 03
-                              ^^ Spa setpoint Celcius (37°C in this example)
-                                 ^^ Pool setpoint Celcius (29°C in this example)
-                                    ^^ Spa setpoint Fahrenheit (99°F in this example)
-                                       ^^ Pool setpoint Fahrenheit (84°F in this example)
+                              ^^ Spa setpoint °C (0x25 = 37°C)
+                                 ^^ Pool setpoint °C (0x1D = 29°C)
+                                    ^^ Spa setpoint °F (0x63 = 99°F)
+                                       ^^ Pool setpoint °F (0x54 = 84°F)
 ```
 
-**Data Fields:**
+Data fields:
+- Byte 10: Spa setpoint temperature (°C)
+- Byte 11: Pool setpoint temperature (°C)
+- Byte 12: Spa setpoint temperature (°F)
+- Byte 13: Pool setpoint temperature (°F)
 
-- Byte 10: Spa setpoint temperature Celcius
-- Byte 11: Pool setpoint temperature Celcius
-- Byte 12: Spa setpoint temperature Fahrenheit
-- Byte 13: Pool setpoint temperature Fahrenheit
+Temperature scale (Celsius vs Fahrenheit) is set by [§5 Configuration](#5-configuration-️).
 
-**Notes:**
+---
 
-- Temperature scale (Celsius/Fahrenheit) is set by configuration message ([Section 5](#5-configuration-️))
-- The same setpoints are also broadcast individually via the register system — see pattern variant below
+#### Heatpump (`0x0070`) ✅
 
-**Pattern Variant: Register-based Temperature Setpoints** `02 00 50 FF FF 80 00 38 0F 17`
+When an Active i25 Evo heater is fitted it broadcasts its own setpoints using the same CMD but a shorter LENGTH and a different payload — both heater setpoints in a single frame, °C only.
 
-The controller also broadcasts pool and spa setpoints as individual register messages (one per message). These carry the Celsius value only.
+Pattern: `02 00 70 FF FF 80 00 17 0E 15`
 
-**Example - Pool setpoint (29°C):**
-
-```
-02 00 50 FF FF 80 00 38 0F 17 E7 00 1D 04 03
-                              ^^ Register 0xE7 (Pool setpoint)
-                                 ^^ Slot 0x00
-                                    ^^ Value: 0x1D = 29°C
-```
-
-**Example - Spa setpoint (37°C):**
-
-```
-02 00 50 FF FF 80 00 38 0F 17 E8 00 25 0D 03
-                              ^^ Register 0xE8 (Spa setpoint)
-                                 ^^ Slot 0x00
-                                    ^^ Value: 0x25 = 37°C
-```
-
-**Data Fields:**
-
-- Byte 10: Register ID (`0xE7` = Pool setpoint, `0xE8` = Spa setpoint)
-- Byte 11: Slot (`0x00`)
-- Byte 12: Temperature in °C
-
-#### Temperature Settings — Heater variant
-
-When an Active i25 Evo heater (source `0x0070`) is fitted, it broadcasts its own setpoint frame using the same CMD `0x17` but a shorter LENGTH and a different payload — both heater setpoints in a single frame, °C only, no Fahrenheit values.
-
-**Pattern (Heater):** `02 00 70 FF FF 80 00 17 0E 15`
-
-**Example:**
+Example:
 
 ```
 02 00 70 FF FF 80 00 17 0E 15 18 1B 33 03
@@ -649,77 +671,121 @@ When an Active i25 Evo heater (source `0x0070`) is fitted, it broadcasts its own
                                     ^^ Data checksum (0x18 + 0x1B = 0x33)
 ```
 
-**Data Fields:**
-
-- Byte 10: Heater 1 setpoint in °C
-- Byte 11: Heater 2 setpoint in °C
+Data fields:
+- Byte 10: Heater 1 setpoint (°C)
+- Byte 11: Heater 2 setpoint (°C)
 - Byte 12: Data checksum (sum of bytes 10–11)
 
-**Notes:**
-
-- LENGTH is `0x0E` (14 bytes) — two bytes shorter than the touchscreen variant
-- Both heater setpoints are carried in a single broadcast; the heater never sends them separately
-- The actual current water temperature is reported separately via CMD `0x16` (see [Heater variant of §3](#temperature-reading--heater-variant))
+Both heater setpoints are carried in a single broadcast; the heatpump never sends them separately. The actual current water temperature is reported separately via [0x16](#0x16--water-temperature-reading-️) (Heatpump variant).
 
 ---
 
-### 3. Temperature Reading ⚠️
+#### Register-based Temperature Setpoints
 
-Current water temperature. CMD `0x16` is **shared across two sources** with different payload layouts:
+The controller also broadcasts pool and spa setpoints as individual register messages (one per message, Celsius only) using CMD `0x38` — see [0x38 Register Data](#0x38--register-data-response) and [Appendix A](#appendix-a-register-dispatch-table) for the full register dispatch system.
 
-- **Temp Sensor (`0x0062`)** — 2-byte payload (LENGTH `0x0E`): temperature + trailing unknown byte (Pattern A below). The sensor also emits a second variant under CMD `0x31` (Pattern B).
-- **Heater (`0x0070`)** — 1-byte payload (LENGTH `0x0D`): water temperature only, no trailing unknown. See the [Heater variant](#temperature-reading--heater-variant) subsection below.
+Pattern: `02 00 50 FF FF 80 00 38 0F 17`
 
-**Pattern A (Temp Sensor):** `02 00 62 FF FF 80 00 16 0E 06`
+Examples:
 
 ```
-02 00 62 FF FF 80 00 16 0E 06 19 00 19 03
-                              ^^ Current temperature (25°C)
-                                 ^^ Unknown
+02 00 50 FF FF 80 00 38 0F 17 E7 00 1D 04 03   Pool setpoint = 29°C (register 0xE7)
+02 00 50 FF FF 80 00 38 0F 17 E8 00 25 0D 03   Spa setpoint  = 37°C (register 0xE8)
+                              ^^ Register ID
+                                 ^^ Slot
+                                    ^^ Temperature in °C
 ```
 
-**Pattern B:** `02 00 62 FF FF 80 00 31 0E 21`
+---
+
+### 0x18 — Chlorinator Cell Mode ⚠️
+
+Inter-device unicast carrying the chlorinator's current mode to the Salt Cell (`0x00A0`). Observed on systems with chlorinator address `0x0084` (mutually exclusive with the `0x0090` variant — see [Device Addresses](#device-addresses)). Both the Chlorinator and the Touchscreen can send this — the Touchscreen variant appears when the cell mode is changed from the touchscreen UI.
+
+**Source variants:**
+
+| Source                  | Destination                | Payload                | Status |
+|-------------------------|----------------------------|------------------------|--------|
+| `0x0084` Chlorinator    | `0x00A0` Salt Cell         | 1 byte — mode value    | ⚠️     |
+| `0x0050` Touchscreen    | `0x00A0` Salt Cell         | 1 byte — mode value    | ⚠️     |
+
+No handler in `message_decoder.c` — documented only.
+
+---
+
+#### Chlorinator → Cell (`0x0084` → `0x00A0`) ⚠️
+
+Pattern: `02 00 84 00 A0 80 00 18 0D CB`
+
+Examples:
+
+```
+02 00 84 00 A0 80 00 18 0D CB 01 01 03   mode = 0x01 (Manual)
+02 00 84 00 A0 80 00 18 0D CB 02 02 03   mode = 0x02 (Automatic)
+```
+
+---
+
+#### Touchscreen → Cell (`0x0050` → `0x00A0`) ⚠️
+
+Pattern: `02 00 50 00 A0 80 00 18 0D 97`
+
+Example:
+
+```
+02 00 50 00 A0 80 00 18 0D 97 02 02 03   Touchscreen echoes mode = 0x02 to Cell
+```
+
+The touchscreen sends this when the operator changes cell mode from the UI.
+
+---
+
+**Data fields (both variants):**
+
+- Byte 10: Mode value
+- Byte 11: Data checksum (equals byte 10 — only one data byte)
+
+**Observed mode values (tentative):**
+
+| Value  | Meaning (tentative) |
+|--------|---------------------|
+| `0x00` | Off                 |
+| `0x01` | Manual              |
+| `0x02` | Automatic           |
+
+**Notes:**
+
+- ⚠️ Mode-value mapping is tentative. Three distinct values (`0x00`, `0x01`, `0x02`) have been observed across one capture; the order seen did not unambiguously match a user-described Manual→Off→Auto sequence. The values match the standard channel-state encoding ([0x0B](#0x0b--channel-status-)) — but whether the labels are Off/Manual/Auto (per the capture) or Off/Auto/On (per the protocol-wide convention) needs another capture pair to confirm.
+- The chlorinator reports its current mode separately to the touchscreen via [CMD 0x0F](#0x0f--chlorinator-mode--touchscreen-️) — the two messages may briefly disagree during transitions.
+- The `0x0090` chlorinator variant has not been observed using this command; the `0x18` traffic appears specific to the `0x0084` / `0x00A0` two-module chlorinator topology.
+
+---
+
+## Message Types
+
+The messages that are fully decoded have a ✅ and the partially decoded ones have a ⚠️
+
+### 3. Temperature Reading (alt — CMD 0x31) ⚠️
+
+Second water-temperature variant from the inbuilt heater (`0x0062`), broadcast in parallel to the [0x16](#0x16--water-temperature-reading-️) reading.
+
+**Pattern:** `02 00 62 FF FF 80 00 31 0E 21`
 
 ```
 02 00 62 FF FF 80 00 31 0E 21 1E A6 C4 03
-                              ^^ Current temperature (30°C)
+                              ^^ Current temperature (0x1E = 30°C)
                                  ^^ Unknown (always 0xA6 in observed samples)
 ```
 
 **Data Fields:**
 
 - Byte 10: Current water temperature in °C
-- Byte 11: Unknown — always `0x00` in pattern A, always `0xA6` in pattern B
+- Byte 11: Unknown — always `0xA6` in observed samples
 
 **Notes:**
 
-- Patterns A and B both originate from device `0x0062` (temperature sensor)
-- The purpose of byte 11 is not yet understood; it may be a secondary sensor, a raw ADC value, or a fixed status byte
-- Pattern B has been observed decreasing as pool water cools (30→25°C), confirming byte 10 is the current temperature
-
-#### Temperature Reading — Heater variant
-
-When an Active i25 Evo heater (source `0x0070`) is fitted, it broadcasts its own current water-temperature reading using the same CMD `0x16` but with a shorter LENGTH (`0x0D`) and only one data byte — there is no trailing "unknown" byte.
-
-**Pattern (Heater):** `02 00 70 FF FF 80 00 16 0D 13`
-
-**Example:**
-
-```
-02 00 70 FF FF 80 00 16 0D 13 12 12 03
-                              ^^ Current water temperature (0x12 = 18°C)
-                                 ^^ Data checksum (equals byte 10 — only one data byte)
-```
-
-**Data Fields:**
-
-- Byte 10: Current water temperature in °C
-- Byte 11: Data checksum (equals byte 10)
-
-**Notes:**
-
-- LENGTH is `0x0D` (13 bytes) — one byte shorter than the Temp Sensor variant
-- This is the heater's own water-temperature reading; it is independent of the `0x0062` Temp Sensor reading and may differ if the two are sited differently in the plumbing
+- The purpose of byte 11 is not yet understood
+- Byte 10 has been observed decreasing as pool water cools (30→25°C), confirming it as the current temperature
 
 ---
 
@@ -1406,7 +1472,7 @@ Command to set the pool or spa temperature setpoint. The temperature byte is rep
 **Notes:**
 
 - The temperature value is repeated at bytes 11 and 12 — this is part of the message format, not two separate sends
-- The controller will respond with an updated [Temperature Settings message (§2)](#2-temperature-settings-)
+- The controller will respond with an updated [Temperature Settings message (0x17)](#0x17--temperature-settings-)
 
 ---
 
@@ -1494,7 +1560,7 @@ Command sent by the Internet Gateway to the Touch Screen to switch modes or acti
 **Notes:**
 
 - **Destination is Touch Screen (`0x0050`), not broadcast** — This is addressed specifically to the touch screen, which holds the stored Favourite presets and applies them
-- **Command values are inverted from status values** — In status messages ([§1 Mode Message](#1-mode-message-spapool-)), Spa=`0x00` and Pool=`0x01`; in this command, Pool=`0x00` and Spa=`0x01`
+- **Command values are inverted from status values** — In status messages ([0x14 Mode](#0x14--mode-spapool-)), Spa=`0x00` and Pool=`0x01`; in this command, Pool=`0x00` and Spa=`0x01`
 - The Touch Screen acknowledges each activation with an immediate CMD `0x05` broadcast (value `0x01`) followed by the relevant mode, active-channel, and channel-status broadcasts
 - Up to 6 user Favourites are supported (`0x02`–`0x07`). The labels for all 8 slots (including the Pool and Spa built-ins) are stored in registers `0x31`–`0x38` (slot `0x03`), readable via the register protocol (§8)
 - Each slot's enabled/disabled state is stored in registers `0x21`–`0x28` (slot `0x03`), with `0x01` = enabled and `0x00` = disabled. Pool (`0x21`) and Spa (`0x22`) are always `0x01`. All Off (`0x80`) and All Auto (`0x81`) have no corresponding enable registers and are always available
@@ -1531,48 +1597,6 @@ Sent by the Internet Gateway to set a valve to a specific state directly. Unlike
 - The controller responds immediately with an updated Valve State Broadcast (§23)
 
 ---
-
-### 31. Chlorinator Cell Mode ⚠️
-
-Inter-device unicast carrying the chlorinator's current mode to the salt cell. Observed on systems with chlorinator address `0x0084` (mutually exclusive with the `0x0090` variant — see [Device Addresses](#device-addresses)).
-
-**Pattern (Chlorinator → Cell):** `02 00 84 00 A0 80 00 18 0D CB`
-
-**Pattern (Touchscreen → Cell):** `02 00 50 00 A0 80 00 18 0D 97`
-
-Both patterns have LENGTH `0x0D` (13 bytes) and a single data byte.
-
-**Examples:**
-
-```
-02 00 84 00 A0 80 00 18 0D CB 01 01 03   Chlorinator -> Cell, mode = 0x01 (Manual)
-02 00 84 00 A0 80 00 18 0D CB 02 02 03   Chlorinator -> Cell, mode = 0x02 (Automatic)
-02 00 50 00 A0 80 00 18 0D 97 02 02 03   Touchscreen echoes mode = 0x02 to Cell
-```
-
-**Data Fields:**
-
-- Byte 10: Mode value
-- Byte 11: Data checksum (equals byte 10 — only one data byte)
-
-**Observed Mode Values:**
-
-| Value  | Meaning (tentative) |
-|--------|---------------------|
-| `0x00` | Off                 |
-| `0x01` | Manual              |
-| `0x02` | Automatic           |
-
-**Notes:**
-
-- ⚠️ Mode-value mapping is **tentative**. Three distinct values (`0x00`, `0x01`, `0x02`) have been observed across one capture, and they match the standard pool-channel state encoding ([0x0B](#0x0b--channel-status-)), but the order seen in the capture did not unambiguously match a user-described Manual→Off→Auto sequence.
-- The chlorinator reports its current mode separately to the touchscreen via [CMD 0x0F](#0x0f--chlorinator-mode--touchscreen-️) — the two messages may briefly disagree during transitions.
-- Both messages are addressed specifically to the Cell (`0x00A0`), not broadcast.
-- The `0x0090` chlorinator variant has not been observed using this command; the `0x18` traffic appears specific to the `0x0084` / `0x00A0` two-module chlorinator topology.
-- A related [CMD 0x0F](#0x0f--chlorinator-mode--touchscreen-️) is sent from `0x0084` to the touchscreen (`0x0050`) carrying the same mode value.
-
----
-
 
 ## Appendix A: Register Dispatch Table
 
