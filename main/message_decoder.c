@@ -74,16 +74,16 @@ static const char *MSG_TYPE_TOUCHSCREEN_UNKNOWN2 =  "02 00 50 FF FF 80 00 27 0D 
 static const char *MSG_TYPE_TOUCHSCREEN_UNKNOWN3 =  "02 00 50 FF FF 80 00 05 0D E2";
 static const char *MSG_TYPE_VALVE_STATE =           "02 00 50 FF FF 80 00 27 13 0A";
 
-// 62 Temperature sensor / Unknown subsystem
+// 62 Connect 8/10 Controller
 static const char *MSG_TYPE_TEMP_READING =          "02 00 62 FF FF 80 00 16 0E 06";
 static const char *MSG_TYPE_TEMP_READING2 =         "02 00 62 FF FF 80 00 31 0E 21";
 static const char *MSG_TYPE_HEATER =                "02 00 62 FF FF 80 00 12 0F 03";
 
-// 70 Heatpump (Active i25 Evo)
+// 70 Genus Heater (Active i25 Evo)
 static const char *MSG_TYPE_HEATPUMP_TEMP_READING = "02 00 70 FF FF 80 00 16 0D 13";
 static const char *MSG_TYPE_HEATPUMP_TEMP_SETTING = "02 00 70 FF FF 80 00 17 0E 15";
 
-// 90 Chlorinator (pH, ORP)
+// 90 RolaChem Chlorinator (pH, ORP)
 static const char *MSG_TYPE_CHLOR = "02 00 90 FF FF 80 00";
 
 // Chlorinator sub-type patterns (bytes 7-10)
@@ -408,13 +408,13 @@ const char* get_device_name(uint8_t addr_hi, uint8_t addr_lo)
     if (addr_hi == 0x00) {
         switch (addr_lo) {
             case 0x50: return "Touch Screen";
-            case 0x62: return "Temp Sensor";
-            case 0x6F: return "Controller";
-            case 0x70: return "Heatpump";
-            case 0x84: return "Chlorinator 0x84";
-            case 0x90: return "Chlorinator 0x90";
-            case 0xA0: return "Salt Cell";
-            case 0xF0: return "Internet GW";
+            case 0x62: return "Connect 8/10";
+            case 0x6F: return "Internal Channels";
+            case 0x70: return "Genus Heater";
+            case 0x84: return "Viron Chlorinator";
+            case 0x90: return "RolaChem";
+            case 0xA0: return "Internal Salt Cell";
+            case 0xF0: return "Internet Gateway";
         }
     }
     return NULL;
@@ -725,12 +725,12 @@ static bool handle_temp_reading2(
 }
 
 /**
- * Handler: Heatpump current water temperature
+ * Handler: Genus Heater current water temperature
  * Pattern: "02 00 70 FF FF 80 00 16 0D 13"
  *
- * Single-byte payload — the heatpump's own water-temperature reading. Distinct
- * from the 0x0062 Temp Sensor reading; the two devices may report different
- * values depending on where each is sited in the plumbing.
+ * Single-byte payload — the Genus Heater's own water-temperature reading. Distinct
+ * from the 0x0062 Connect 8/10 Controller reading; the two devices may report different
+ * values depending on where each sensor is sited in the plumbing.
  */
 static bool handle_heatpump_temp_reading(
     const uint8_t *data, int len,
@@ -741,12 +741,12 @@ static bool handle_heatpump_temp_reading(
     if (payload_len < 1) return false;
 
     uint8_t current_temp = payload[0];
-    ESP_LOGI(TAG, "%s Heatpump water temperature - %d°C", addr_info, current_temp);
+    ESP_LOGI(TAG, "%s Genus Heater water temperature - %d°C", addr_info, current_temp);
     return true;
 }
 
 /**
- * Handler: Heatpump setpoints
+ * Handler: Genus Heater setpoints
  * Pattern: "02 00 70 FF FF 80 00 17 0E 15"
  *
  * Two-byte payload carrying both heater setpoints in °C.
@@ -762,7 +762,7 @@ static bool handle_heatpump_temp_setting(
     uint8_t heater1_set = payload[0];
     uint8_t heater2_set = payload[1];
 
-    ESP_LOGI(TAG, "%s Heatpump setpoints - heater1=%d°C, heater2=%d°C",
+    ESP_LOGI(TAG, "%s Genus Heater setpoints - heater1=%d°C, heater2=%d°C",
              addr_info, heater1_set, heater2_set);
     return true;
 }
@@ -972,9 +972,9 @@ static bool handle_firmware_version(
             ctx->pool_state->touchscreen_version_valid = true;
             break;
         case 0x0062:
-            ctx->pool_state->temp_sensor_version_major = major;
-            ctx->pool_state->temp_sensor_version_minor = minor;
-            ctx->pool_state->temp_sensor_version_valid = true;
+            ctx->pool_state->controller_version_major = major;
+            ctx->pool_state->controller_version_minor = minor;
+            ctx->pool_state->controller_version_valid = true;
             break;
         case 0x0084:
             ctx->pool_state->chlor_version_major = major;
@@ -986,7 +986,7 @@ static bool handle_firmware_version(
             ctx->pool_state->gateway_version_minor = minor;
             ctx->pool_state->gateway_version_valid = true;
             break;
-        // 0x0070 (Heatpump) and any future device — log-only, no dedicated state field yet
+        // 0x0070 (Genus Heater) and any future device — log-only, no dedicated state field yet
     }
     ctx->pool_state->last_update_ms = xTaskGetTickCount() * portTICK_PERIOD_MS;
     xSemaphoreGive(ctx->state_mutex);
@@ -2533,7 +2533,7 @@ bool decode_message(const uint8_t *data, int len, message_decoder_context_t *ctx
         return handle_heater(data, len, payload, payload_len, addr_info, ctx);
     }
 
-    // Heatpump (0x0070) messages
+    // Genus Heater (0x0070) messages
     if (match_pattern(data, len, MSG_TYPE_HEATPUMP_TEMP_READING)) {
         return handle_heatpump_temp_reading(data, len, payload, payload_len, addr_info, ctx);
     }

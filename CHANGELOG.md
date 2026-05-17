@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
+- Fixed up the internal naming of devices based on new knowledge and understanding of which codes and firmware versions tie to which device.
 ### Security
 
 
