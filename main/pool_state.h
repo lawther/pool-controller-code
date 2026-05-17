@@ -161,6 +161,11 @@ typedef struct {
     uint8_t gateway_version_minor;
     bool gateway_version_valid;
 
+    // Temp Sensor firmware version
+    uint8_t temp_sensor_version_major;
+    uint8_t temp_sensor_version_minor;
+    bool temp_sensor_version_valid;
+
     // Timers (up to MAX_TIMERS)
     timer_state_t timers[MAX_TIMERS];
 

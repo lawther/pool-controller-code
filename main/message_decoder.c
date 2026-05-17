@@ -69,7 +69,6 @@ static const char *MSG_TYPE_CHANNELS =              "02 00 50 00 6F 80 00 0D 0D 
 static const char *MSG_TYPE_CHANNEL_STATUS =        "02 00 50 FF FF 80 00 0B 25 00";
 static const char *MSG_TYPE_LIGHT_CONFIG =          "02 00 50 FF FF 80 00 06 0E E4";
 static const char *MSG_TYPE_CONTROLLER_TIME =       "02 00 50 FF FF 80 00 FD 0F DC";
-static const char *MSG_TYPE_TOUCHSCREEN_VERSION =   "02 00 50 FF FF 80 00 0A 0E E8";
 static const char *MSG_TYPE_TOUCHSCREEN_UNKNOWN1 =  "02 00 50 FF FF 80 00 12 0E F0";
 static const char *MSG_TYPE_TOUCHSCREEN_UNKNOWN2 =  "02 00 50 FF FF 80 00 27 0D 04";
 static const char *MSG_TYPE_TOUCHSCREEN_UNKNOWN3 =  "02 00 50 FF FF 80 00 05 0D E2";
@@ -81,7 +80,6 @@ static const char *MSG_TYPE_TEMP_READING2 =         "02 00 62 FF FF 80 00 31 0E 
 static const char *MSG_TYPE_HEATER =                "02 00 62 FF FF 80 00 12 0F 03";
 
 // 70 Heatpump (Active i25 Evo)
-static const char *MSG_TYPE_HEATPUMP_VERSION =      "02 00 70 FF FF 80 00 0A 0E 08";
 static const char *MSG_TYPE_HEATPUMP_TEMP_READING = "02 00 70 FF FF 80 00 16 0D 13";
 static const char *MSG_TYPE_HEATPUMP_TEMP_SETTING = "02 00 70 FF FF 80 00 17 0E 15";
 
@@ -98,14 +96,10 @@ static const char *CHLOR_ORP_READING  = "1F 0F 3E 02";
 static const char *MSG_TYPE_CHLOR_STATUS_A = "02 00 90 FF FF 80 00 12 0D 2F";
 static const char *MSG_TYPE_CHLOR_STATUS_B = "02 00 84 FF FF 80 00 12 0D 23";
 
-// Chlorinator firmware version (CMD 0x0A) — observed from 0x0084
-static const char *MSG_TYPE_CHLOR_VERSION  = "02 00 84 FF FF 80 00 0A 0E 1C";
-
 // F0 Internet Gateway
 static const char *MSG_TYPE_SERIAL_NUMBER =           "02 00 F0 FF FF 80 00 37 11 B8";
 static const char *MSG_TYPE_GATEWAY_IP =              "02 00 F0 FF FF 80 00 37 15 BC";
 static const char *MSG_TYPE_GATEWAY_COMMS =           "02 00 F0 FF FF 80 00 37 0F B6";
-static const char *MSG_TYPE_GATEWAY_VERSION =         "02 00 F0 FF FF 80 00 0A 0E 88";
 static const char *MSG_TYPE_GATEWAY_STATUS =          "02 00 F0 FF FF 80 00 12 0F 91";
 static const char *MSG_TYPE_REGISTER_READ_REQUEST =   "02 00 F0 FF FF 80 00 39 0E B7";
 
@@ -731,25 +725,6 @@ static bool handle_temp_reading2(
 }
 
 /**
- * Handler: Heatpump firmware version
- * Pattern: "02 00 70 FF FF 80 00 0A 0E 08"
- */
-static bool handle_heatpump_version(
-    const uint8_t *data, int len,
-    const uint8_t *payload, int payload_len,
-    const char *addr_info,
-    message_decoder_context_t *ctx)
-{
-    if (payload_len < 2) return false;
-
-    uint8_t major = payload[0];
-    uint8_t minor = payload[1];
-
-    ESP_LOGI(TAG, "%s Heatpump firmware version - %d.%d", addr_info, major, minor);
-    return true;
-}
-
-/**
  * Handler: Heatpump current water temperature
  * Pattern: "02 00 70 FF FF 80 00 16 0D 13"
  *
@@ -965,10 +940,16 @@ static bool handle_controller_time(
 }
 
 /**
- * Handler: Touchscreen firmware version message
- * Pattern: "02 00 50 FF FF 80 00 0A 0E E8"
+ * Handler: Firmware version (CMD 0x0A, source-agnostic)
+ *
+ * Covers PROTOCOL.md §17 (Gateway), §21 (Touchscreen), §33 (Chlorinator),
+ * §34 (Temp Sensor), and the Heatpump firmware-version broadcast. Same
+ * 2-byte `{major, minor}` payload shape across every observed source — the
+ * source address selects which `pool_state->*_version_*` field is populated.
+ *
+ * Unknown sources are logged but skipped for state-update purposes.
  */
-static bool handle_touchscreen_version(
+static bool handle_firmware_version(
     const uint8_t *data, int len,
     const uint8_t *payload, int payload_len,
     const char *addr_info,
@@ -978,17 +959,38 @@ static bool handle_touchscreen_version(
 
     uint8_t major = payload[0];
     uint8_t minor = payload[1];
+    uint16_t src = ((uint16_t)data[1] << 8) | data[2];
 
-    ESP_LOGI(TAG, "%s Touchscreen firmware version - %d.%d", addr_info, major, minor);
+    ESP_LOGI(TAG, "%s Firmware version - %d.%d", addr_info, major, minor);
 
-    // Update state only (no MQTT publishing)
-    if (ctx->state_mutex && xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) == pdTRUE) {
-        ctx->pool_state->touchscreen_version_major = major;
-        ctx->pool_state->touchscreen_version_minor = minor;
-        ctx->pool_state->touchscreen_version_valid = true;
-        ctx->pool_state->last_update_ms = xTaskGetTickCount() * portTICK_PERIOD_MS;
-        xSemaphoreGive(ctx->state_mutex);
+    if (!ctx->state_mutex) return true;
+    if (xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) return true;
+
+    switch (src) {
+        case 0x0050:
+            ctx->pool_state->touchscreen_version_major = major;
+            ctx->pool_state->touchscreen_version_minor = minor;
+            ctx->pool_state->touchscreen_version_valid = true;
+            break;
+        case 0x0062:
+            ctx->pool_state->temp_sensor_version_major = major;
+            ctx->pool_state->temp_sensor_version_minor = minor;
+            ctx->pool_state->temp_sensor_version_valid = true;
+            break;
+        case 0x0084:
+            ctx->pool_state->chlor_version_major = major;
+            ctx->pool_state->chlor_version_minor = minor;
+            ctx->pool_state->chlor_version_valid = true;
+            break;
+        case 0x00F0:
+            ctx->pool_state->gateway_version_major = major;
+            ctx->pool_state->gateway_version_minor = minor;
+            ctx->pool_state->gateway_version_valid = true;
+            break;
+        // 0x0070 (Heatpump) and any future device — log-only, no dedicated state field yet
     }
+    ctx->pool_state->last_update_ms = xTaskGetTickCount() * portTICK_PERIOD_MS;
+    xSemaphoreGive(ctx->state_mutex);
 
     return true;
 }
@@ -1258,34 +1260,6 @@ static bool handle_gateway_comms(
 }
 
 /**
- * Handler: Internet Gateway firmware version
- * Pattern: "02 00 F0 FF FF 80 00 0A 0E 88"
- */
-static bool handle_gateway_version(
-    const uint8_t *data, int len,
-    const uint8_t *payload, int payload_len,
-    const char *addr_info,
-    message_decoder_context_t *ctx)
-{
-    if (payload_len < 2) return false;
-
-    uint8_t major = payload[0];
-    uint8_t minor = payload[1];
-
-    ESP_LOGI(TAG, "%s Internet Gateway firmware version - %d.%d", addr_info, major, minor);
-
-    if (ctx->state_mutex && xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) == pdTRUE) {
-        ctx->pool_state->gateway_version_major = major;
-        ctx->pool_state->gateway_version_minor = minor;
-        ctx->pool_state->gateway_version_valid = true;
-        ctx->pool_state->last_update_ms = xTaskGetTickCount() * portTICK_PERIOD_MS;
-        xSemaphoreGive(ctx->state_mutex);
-    }
-
-    return true;
-}
-
-/**
  * Handler: Internet Gateway status broadcast
  * Pattern: "02 00 F0 FF FF 80 00 12 0F 91"
  *
@@ -1293,8 +1267,8 @@ static bool handle_gateway_version(
  * where embedded_checksum == major + minor. The frame checksum at byte 13
  * is handled by the framing layer and is not part of the payload.
  *
- * Firmware-version state is populated by §17 (handle_gateway_version), so
- * this handler is log-only.
+ * Firmware-version state is populated by the generic CMD 0x0A handler
+ * (handle_firmware_version), so this handler is log-only.
  */
 static bool handle_gateway_status(
     const uint8_t *data, int len,
@@ -1663,37 +1637,6 @@ static bool handle_chlor_status(
 
     return true;
 }
-
-/**
- * Handler: Chlorinator firmware version (PROTOCOL.md §33)
- * Pattern: "02 00 84 FF FF 80 00 0A 0E 1C"
- *
- * 2-byte payload: { major, minor }. Same shape as §17 / §21.
- */
-static bool handle_chlor_version(
-    const uint8_t *data, int len,
-    const uint8_t *payload, int payload_len,
-    const char *addr_info,
-    message_decoder_context_t *ctx)
-{
-    if (payload_len < 2) return false;
-
-    uint8_t major = payload[0];
-    uint8_t minor = payload[1];
-
-    ESP_LOGI(TAG, "%s Chlorinator firmware version - %d.%d", addr_info, major, minor);
-
-    if (ctx->state_mutex && xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) == pdTRUE) {
-        ctx->pool_state->chlor_version_major = major;
-        ctx->pool_state->chlor_version_minor = minor;
-        ctx->pool_state->chlor_version_valid = true;
-        ctx->pool_state->last_update_ms = xTaskGetTickCount() * portTICK_PERIOD_MS;
-        xSemaphoreGive(ctx->state_mutex);
-    }
-
-    return true;
-}
-
 
 /**
  * Handler: Light configuration message
@@ -2497,6 +2440,14 @@ bool decode_message(const uint8_t *data, int len, message_decoder_context_t *ctx
 
     // Dispatch to message handlers
 
+    // Firmware version (CMD 0x0A) — universal across sources; payload layout
+    // is identical regardless of which device is broadcasting, so dispatched
+    // by command byte rather than per-source pattern. See PROTOCOL.md §17,
+    // §21, §33, §34 and the Known Command Bytes "Firmware version" table.
+    if (data[7] == 0x0A) {
+        return handle_firmware_version(data, len, payload, payload_len, addr_info, ctx);
+    }
+
     // Register messages (dispatch table approach)
     if (match_pattern(data, len, MSG_TYPE_REGISTER)) {
         // Header checksum already validated above
@@ -2584,10 +2535,6 @@ bool decode_message(const uint8_t *data, int len, message_decoder_context_t *ctx
     }
 
     // Heatpump (0x0070) messages
-    if (match_pattern(data, len, MSG_TYPE_HEATPUMP_VERSION)) {
-        return handle_heatpump_version(data, len, payload, payload_len, addr_info, ctx);
-    }
-
     if (match_pattern(data, len, MSG_TYPE_HEATPUMP_TEMP_READING)) {
         return handle_heatpump_temp_reading(data, len, payload, payload_len, addr_info, ctx);
     }
@@ -2621,11 +2568,6 @@ bool decode_message(const uint8_t *data, int len, message_decoder_context_t *ctx
         return handle_chlor_status(data, len, payload, payload_len, addr_info, ctx);
     }
 
-    // Chlorinator firmware version (§33)
-    if (match_pattern(data, len, MSG_TYPE_CHLOR_VERSION)) {
-        return handle_chlor_version(data, len, payload, payload_len, addr_info, ctx);
-    }
-
     // Gateway messages
     if (match_pattern(data, len, MSG_TYPE_SERIAL_NUMBER)) {
         return handle_serial_number(data, len, payload, payload_len, addr_info, ctx);
@@ -2637,10 +2579,6 @@ bool decode_message(const uint8_t *data, int len, message_decoder_context_t *ctx
 
     if (match_pattern(data, len, MSG_TYPE_GATEWAY_COMMS)) {
         return handle_gateway_comms(data, len, payload, payload_len, addr_info, ctx);
-    }
-
-    if (match_pattern(data, len, MSG_TYPE_GATEWAY_VERSION)) {
-        return handle_gateway_version(data, len, payload, payload_len, addr_info, ctx);
     }
 
     if (match_pattern(data, len, MSG_TYPE_GATEWAY_STATUS)) {
@@ -2671,10 +2609,6 @@ bool decode_message(const uint8_t *data, int len, message_decoder_context_t *ctx
     // Controller info messages
     if (match_pattern(data, len, MSG_TYPE_CONTROLLER_TIME)) {
         return handle_controller_time(data, len, payload, payload_len, addr_info, ctx);
-    }
-
-    if (match_pattern(data, len, MSG_TYPE_TOUCHSCREEN_VERSION)) {
-        return handle_touchscreen_version(data, len, payload, payload_len, addr_info, ctx);
     }
 
     if (match_pattern(data, len, MSG_TYPE_TOUCHSCREEN_UNKNOWN1)) {

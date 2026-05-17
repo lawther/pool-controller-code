@@ -45,6 +45,7 @@ This document describes the proprietary serial protocol used by the Connect 10 p
   - [31. Chlorinator Cell Mode ⚠️](#31-chlorinator-cell-mode-️)
   - [32. Chlorinator Status Broadcast ⚠️](#32-chlorinator-status-broadcast-️)
   - [33. Chlorinator Firmware Version ✅](#33-chlorinator-firmware-version-)
+  - [34. Temp Sensor Firmware Version ✅](#34-temp-sensor-firmware-version-)
 - [Appendix A: Register Dispatch Table](#appendix-a-register-dispatch-table)
 - [Implementation Notes](#implementation-notes)
 
@@ -133,13 +134,15 @@ The command byte (byte 7) identifies the message type. Some command values are s
 | `0x12` | `0x0090`     | Chlorinator Status (variant A)| [§32](#32-chlorinator-status-broadcast-️) |
 | `0x12` | `0x0084`     | Chlorinator Status (variant B)| [§32](#32-chlorinator-status-broadcast-️) |
 
-**Firmware version (0x0A, shared across three devices)**
+**Firmware version (0x0A, shared across five devices)**
 
 | CMD    | Source       | Meaning                       | Section |
 |--------|--------------|-------------------------------|---------|
 | `0x0A` | `0x0050`     | Touchscreen Firmware Version  | [§21](#21-touchscreen-firmware-version-) |
-| `0x0A` | `0x00F0`     | Gateway Firmware Version      | [§17](#17-internet-gateway-firmware-version-) |
+| `0x0A` | `0x0062`     | Temp Sensor Firmware Version  | [§34](#34-temp-sensor-firmware-version-) |
+| `0x0A` | `0x0070`     | Heatpump Firmware Version     | (log-only, no dedicated section) |
 | `0x0A` | `0x0084`     | Chlorinator Firmware Version  | [§33](#33-chlorinator-firmware-version-) |
+| `0x0A` | `0x00F0`     | Gateway Firmware Version      | [§17](#17-internet-gateway-firmware-version-) |
 
 **Temperature reading (0x16, shared across two sources — different payload layout)**
 
@@ -181,6 +184,7 @@ The command byte (byte 7) identifies the message type. Some command values are s
 
 | CMD    | Meaning                   | Section |
 |--------|---------------------------|---------|
+| `0x0A` | Firmware Version          | [§34](#34-temp-sensor-firmware-version-) |
 | `0x12` | Heater Status             | [§4](#4-heater-status-️) |
 | `0x16` | Temperature Reading (A)   | [§3](#3-temperature-reading-️) |
 | `0x31` | Temperature Reading (B)   | [§3](#3-temperature-reading-️) |
@@ -258,6 +262,7 @@ The command byte (byte 7) identifies the message type. Some command values are s
 | 32 | Chlorinator Status (variant A)    | `0x0090` | `02 00 90 FF FF 80 00 12 0D 2F`           | ⚠️     | 1-byte mode payload — observed `0x01` (Auto, tentative) |
 | 32 | Chlorinator Status (variant B)    | `0x0084` | `02 00 84 FF FF 80 00 12 0D 23`           | ⚠️     | 1-byte mode payload — observed `0x02` (On, tentative) |
 | 33 | Chlorinator Firmware Version      | `0x0084` | `02 00 84 FF FF 80 00 0A 0E 1C`           | ✅     | Same shape as §17/§21; `{major, minor}` payload |
+| 34 | Temp Sensor Firmware Version      | `0x0062` | `02 00 62 FF FF 80 00 0A 0E FA`           | ✅     | Same shape as §17/§21/§33; `{major, minor}` payload |
 
 ---
 
@@ -1663,6 +1668,33 @@ Firmware version announcement broadcast by the chlorinator. Uses the same comman
 - Uses the same command byte (`0x0A`) as the Touchscreen ([§21](#21-touchscreen-firmware-version-)) and Gateway ([§17](#17-internet-gateway-firmware-version-)) firmware-version messages — distinguished by source address.
 - Byte 12 (`0x0C` in the example) is the standard frame data checksum (`major + minor`), not an embedded data-level field — distinct from [§18](#18-internet-gateway-status-broadcast-)'s gateway status message which carries an explicit embedded checksum *in addition to* the frame checksum.
 - Observed from the `0x0084` chlorinator variant; the `0x0090` variant has not yet been seen broadcasting CMD `0x0A` but may do so equivalently.
+
+---
+
+### 34. Temp Sensor Firmware Version ✅
+
+Firmware version announcement broadcast by the temperature sensor (`0x0062`). Uses the same command byte (`0x0A`) as the Touchscreen, Gateway, Heatpump, and Chlorinator firmware-version messages — structurally identical with a 2-byte `{major, minor}` payload.
+
+**Pattern:** `02 00 62 FF FF 80 00 0A 0E FA`
+
+**Example:**
+
+```
+02 00 62 FF FF 80 00 0A 0E FA 02 06 08 03
+                              ^^ Major version (2)
+                                 ^^ Minor version (6)
+                                    → Version 2.6
+```
+
+**Data Fields:**
+
+- Byte 10: Major version number
+- Byte 11: Minor version number
+
+**Notes:**
+
+- Decoded by the source-agnostic `handle_firmware_version` handler (dispatched on CMD `0x0A` regardless of source); state is stored in `pool_state->temp_sensor_version_*`.
+- See [§17](#17-internet-gateway-firmware-version-), [§21](#21-touchscreen-firmware-version-), [§33](#33-chlorinator-firmware-version-) for the equivalent broadcasts from other devices.
 
 ---
 
