@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- Added handler and PROTOCOL.md §32 entry for the Chlorinator Status Broadcast (CMD `0x12` from both `0x0090` and `0x0084` variants) — 1-byte mode payload, tentatively mapped to the standard `0x00`=Off / `0x01`=Auto / `0x02`=On channel-state convention (marked ⚠️ pending an Off↔Auto↔On transition capture); `handle_chlor_status` logs the resolved mode name and populates new `pool_state->chlor_mode` / `chlor_mode_valid` fields. Updates the §Known Command Bytes `0x12` shared-device table to list five devices and the Chlorinator broadcasts table to include `0x12`
+- Added handler and PROTOCOL.md §33 entry for the Chlorinator Firmware Version (CMD `0x0A` from `0x0084`) — structurally identical to the §17 Gateway and §21 Touchscreen firmware-version messages with a 2-byte `{major, minor}` payload; `handle_chlor_version` populates new `pool_state->chlor_version_major` / `_minor` / `_valid` fields and logs the version. Updates the §Known Command Bytes `0x0A` shared-device table to list three devices and the Chlorinator broadcasts table to include `0x0A`
 ### Changed
 ### Deprecated
 ### Removed

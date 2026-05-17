@@ -139,6 +139,11 @@ typedef struct {
     uint16_t orp_reading;      // mV
     bool ph_valid;
     bool orp_valid;
+    uint8_t chlor_mode;        // 0=Off, 1=Auto, 2=On (tentative — see PROTOCOL.md §32)
+    bool chlor_mode_valid;
+    uint8_t chlor_version_major;
+    uint8_t chlor_version_minor;
+    bool chlor_version_valid;
 
     // Controller time/clock
     uint8_t controller_minutes;

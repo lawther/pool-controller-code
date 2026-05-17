@@ -43,6 +43,8 @@ This document describes the proprietary serial protocol used by the Connect 10 p
   - [29. Mode/Favourite Control Command ✅](#29-modefavourite-control-command-)
   - [30. Valve Control Command ✅](#30-valve-control-command-)
   - [31. Chlorinator Cell Mode ⚠️](#31-chlorinator-cell-mode-️)
+  - [32. Chlorinator Status Broadcast ⚠️](#32-chlorinator-status-broadcast-️)
+  - [33. Chlorinator Firmware Version ✅](#33-chlorinator-firmware-version-)
 - [Appendix A: Register Dispatch Table](#appendix-a-register-dispatch-table)
 - [Implementation Notes](#implementation-notes)
 
@@ -121,20 +123,23 @@ The command byte (byte 7) identifies the message type. Some command values are s
 | `0x39` | Register Read Request | Gateway → Touchscreen  | [§19](#19-register-read-requestresponse) |
 | `0x3A` | Register Write        | Gateway → Controller   | [§25](#25-light-zone-control-command-), [§28](#28-heater-control-command-) |
 
-**Device status (0x12, shared across three devices)**
+**Device status (0x12, shared across five devices)**
 
-| CMD    | Source       | Meaning                  | Section |
-|--------|--------------|--------------------------|---------|
-| `0x12` | `0x0062`     | Heater Status            | [§4](#4-heater-status-️) |
-| `0x12` | `0x00F0`     | Gateway Status Broadcast | [§18](#18-internet-gateway-status-broadcast-️) |
-| `0x12` | `0x0050`     | Touchscreen Status       | [§22](#22-touchscreen-unknown-1-️) |
+| CMD    | Source       | Meaning                       | Section |
+|--------|--------------|-------------------------------|---------|
+| `0x12` | `0x0062`     | Heater Status                 | [§4](#4-heater-status-️) |
+| `0x12` | `0x00F0`     | Gateway Status Broadcast      | [§18](#18-internet-gateway-status-broadcast-️) |
+| `0x12` | `0x0050`     | Touchscreen Status            | [§22](#22-touchscreen-unknown-1-️) |
+| `0x12` | `0x0090`     | Chlorinator Status (variant A)| [§32](#32-chlorinator-status-broadcast-️) |
+| `0x12` | `0x0084`     | Chlorinator Status (variant B)| [§32](#32-chlorinator-status-broadcast-️) |
 
-**Firmware version (0x0A, shared across two devices)**
+**Firmware version (0x0A, shared across three devices)**
 
 | CMD    | Source       | Meaning                       | Section |
 |--------|--------------|-------------------------------|---------|
 | `0x0A` | `0x0050`     | Touchscreen Firmware Version  | [§21](#21-touchscreen-firmware-version-) |
 | `0x0A` | `0x00F0`     | Gateway Firmware Version      | [§17](#17-internet-gateway-firmware-version-) |
+| `0x0A` | `0x0084`     | Chlorinator Firmware Version  | [§33](#33-chlorinator-firmware-version-) |
 
 **Temperature reading (0x16, shared across two sources — different payload layout)**
 
@@ -184,6 +189,8 @@ The command byte (byte 7) identifies the message type. Some command values are s
 
 | CMD    | Meaning                   | Section |
 |--------|---------------------------|---------|
+| `0x0A` | Firmware Version          | [§33](#33-chlorinator-firmware-version-) |
+| `0x12` | Status (mode)             | [§32](#32-chlorinator-status-broadcast-️) |
 | `0x1D` | Setpoint (pH or ORP)      | [§10](#10-chlorinator-ph-setpoint-), [§12](#12-chlorinator-orp-setpoint-) |
 | `0x1F` | Reading (pH or ORP)       | [§11](#11-chlorinator-ph-reading-), [§13](#13-chlorinator-orp-reading-) |
 
@@ -248,6 +255,9 @@ The command byte (byte 7) identifies the message type. Some command values are s
 | 29 | Mode/Favourite Control Command    | `0x00F0` | `02 00 F0 00 50 80 00 2A 0D F9`           | ✅     | Dst=`0x0050`; 0x00=Pool, 0x01=Spa, 0x02–0x07=Fav 1–6, 0x80=All Off, 0x81=All Auto |
 | 30 | Valve Control Command             | `0x00F0` | `02 00 F0 FF FF 80 00 28 0E A6`           | ✅     |                                     |
 | 31 | Chlorinator Cell Mode             | `0x0084` | `02 00 84 00 A0 80 00 18 0D CB`           | ⚠️     | Dst=`0x00A0` (Salt Cell); 1-byte mode (`0x00`=Off, `0x01`=Manual, `0x02`=Auto — tentative). Also seen from `0x0050` |
+| 32 | Chlorinator Status (variant A)    | `0x0090` | `02 00 90 FF FF 80 00 12 0D 2F`           | ⚠️     | 1-byte mode payload — observed `0x01` (Auto, tentative) |
+| 32 | Chlorinator Status (variant B)    | `0x0084` | `02 00 84 FF FF 80 00 12 0D 23`           | ⚠️     | 1-byte mode payload — observed `0x02` (On, tentative) |
+| 33 | Chlorinator Firmware Version      | `0x0084` | `02 00 84 FF FF 80 00 0A 0E 1C`           | ✅     | Same shape as §17/§21; `{major, minor}` payload |
 
 ---
 
@@ -546,7 +556,7 @@ Detailed status for all configured channels.
 02 00 50 FF FF 80 00 0B 25 00 08 01 00 00 02 00 00 FE 00 00 FE 00 00 0B 02 01 09 00 00 FD 00 00 00 00 00 1B 03
                               ^^ Number of channels
                                  ^^  Channel 1: Type=1 (Filter)
-                                    ^^ Channel 1: State (00 off, 01, Auto, 02 One)
+                                    ^^ Channel 1: State (00 off, 01, Auto, 02 On)
                                        ^^ Channel 1:  currently active (either on or auto timer)
                                          ^^ Channel 2: Type=2 (Cleaner)
                                             etc
@@ -1586,6 +1596,73 @@ Both patterns have LENGTH `0x0D` (13 bytes) and a single data byte.
 - Both messages are addressed specifically to the Cell (`0x00A0`), not broadcast.
 - The `0x0090` chlorinator variant has not been observed using this command; the `0x18` traffic appears specific to the `0x0084` / `0x00A0` two-module chlorinator topology.
 - A related CMD `0x0F` is sent from `0x0084` to the touchscreen (`0x0050`) carrying the same mode value as a 2-byte payload `[01, mode]`. Not yet a separate section pending more captures.
+
+---
+
+### 32. Chlorinator Status Broadcast ⚠️
+
+Broadcast from the chlorinator carrying its current operating mode. Both chlorinator address variants (`0x0090` and `0x0084` — mutually exclusive; see [Device Addresses](#device-addresses)) emit this message with the same structure, distinguished only by the source address and the resulting header checksum.
+
+**Pattern (variant A — `0x0090`):** `02 00 90 FF FF 80 00 12 0D 2F`
+
+**Pattern (variant B — `0x0084`):** `02 00 84 FF FF 80 00 12 0D 23`
+
+Both patterns have LENGTH `0x0D` (13 bytes) and a single data byte. The header checksum differs (`0x2F` vs `0x23`) purely because the source byte changes (`0x90` vs `0x84`).
+
+**Examples:**
+
+```
+02 00 90 FF FF 80 00 12 0D 2F 01 01 03   Chlorinator 0x0090 -> Broadcast, mode = 0x01 (Auto)
+02 00 84 FF FF 80 00 12 0D 23 02 02 03   Chlorinator 0x0084 -> Broadcast, mode = 0x02 (On)
+```
+
+**Data Fields:**
+
+- Byte 10: Mode value
+- Byte 11: Data checksum (equals byte 10 — only one data byte)
+
+**Observed Mode Values:**
+
+| Value  | Meaning (tentative) |
+|--------|---------------------|
+| `0x00` | Off (not yet observed) |
+| `0x01` | Auto                |
+| `0x02` | On                  |
+
+**Notes:**
+
+- ⚠️ Mode-value mapping is **tentative**. It follows the standard `0x00=Off / 0x01=Auto / 0x02=On` channel-state convention used elsewhere in the protocol ([§7](#7-channel-status-)), but a single-device transition across Off ↔ Auto ↔ On has not yet been captured. `0x00` may simply not be broadcast when the chlorinator is powered off.
+- This is distinct from the configured *cell* mode broadcast in [§31](#31-chlorinator-cell-mode-), which is sent over a unicast to the salt cell (`0x00A0`) with CMD `0x18`. The `0x12` broadcast here is the chlorinator's own overall mode, addressed to the broadcast destination (`0xFFFF`). The two can hold different values concurrently — e.g., the chlorinator overall = On while the cell is in Auto.
+- CMD `0x12` is also used by four other devices as a status broadcast (heater, gateway, touchscreen — see the [Device Status table](#known-command-bytes)); each is source-dependent and carries a different payload layout.
+- Observed on both chlorinator hardware variants in independent captures (round8 system: `0x0090` with payload `0x01`; zagnuts system: `0x0084` with payload `0x02`).
+
+---
+
+### 33. Chlorinator Firmware Version ✅
+
+Firmware version announcement broadcast by the chlorinator. Uses the same command byte (`0x0A`) as the Touchscreen and Internet Gateway firmware-version messages but originates from source `0x0084`. Structurally identical to those two — `{major, minor}` payload, standard frame checksum.
+
+**Pattern:** `02 00 84 FF FF 80 00 0A 0E 1C`
+
+**Example:**
+
+```
+02 00 84 FF FF 80 00 0A 0E 1C 05 07 0C 03
+                              ^^ Major version (5)
+                                 ^^ Minor version (7)
+                                    → Version 5.7
+```
+
+**Data Fields:**
+
+- Byte 10: Major version number
+- Byte 11: Minor version number
+
+**Notes:**
+
+- Uses the same command byte (`0x0A`) as the Touchscreen ([§21](#21-touchscreen-firmware-version-)) and Gateway ([§17](#17-internet-gateway-firmware-version-)) firmware-version messages — distinguished by source address.
+- Byte 12 (`0x0C` in the example) is the standard frame data checksum (`major + minor`), not an embedded data-level field — distinct from [§18](#18-internet-gateway-status-broadcast-)'s gateway status message which carries an explicit embedded checksum *in addition to* the frame checksum.
+- Observed from the `0x0084` chlorinator variant; the `0x0090` variant has not yet been seen broadcasting CMD `0x0A` but may do so equivalently.
 
 ---
 
