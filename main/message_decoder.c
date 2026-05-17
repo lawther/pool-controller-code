@@ -402,7 +402,7 @@ static bool update_state_only(
     return update_state_and_publish(ctx, update_fn, update_data, NULL);
 }
 
-const char* get_device_name(uint8_t addr_hi, uint8_t addr_lo)
+const char* get_device_name(uint8_t addr_hi, uint8_t addr_lo, char *fallback_buf, size_t buf_size)
 {
     if (addr_hi == 0xFF && addr_lo == 0xFF) return "Broadcast";
     if (addr_hi == 0x00) {
@@ -417,7 +417,8 @@ const char* get_device_name(uint8_t addr_hi, uint8_t addr_lo)
             case 0xF0: return "Internet Gateway";
         }
     }
-    return NULL;
+    snprintf(fallback_buf, buf_size, "Unknown 0x%02X%02X", addr_hi, addr_lo);
+    return fallback_buf;
 }
 
 const char* get_gateway_comms_status_text(uint16_t code)
@@ -939,6 +940,27 @@ static bool handle_controller_time(
     return true;
 }
 
+// Find or insert a seen-device entry. Returns slot index, or -1 if full.
+// Caller must hold the pool-state mutex.
+static int find_or_insert_seen_device_locked(pool_state_t *st, uint8_t hi, uint8_t lo)
+{
+    for (int i = 0; i < st->num_seen_devices; i++) {
+        if (st->seen_devices[i].addr_hi == hi && st->seen_devices[i].addr_lo == lo) {
+            return i;
+        }
+    }
+    if (st->num_seen_devices >= MAX_SEEN_DEVICES) return -1;
+    int idx = st->num_seen_devices++;
+    st->seen_devices[idx].addr_hi = hi;
+    st->seen_devices[idx].addr_lo = lo;
+    st->seen_devices[idx].fw_version_valid = false;
+    st->seen_devices[idx].fw_version_major = 0;
+    st->seen_devices[idx].fw_version_minor = 0;
+    st->seen_devices[idx].decoded_count = 0;
+    st->seen_devices[idx].unknown_count = 0;
+    return idx;
+}
+
 /**
  * Handler: Firmware version (CMD 0x0A, source-agnostic)
  *
@@ -988,6 +1010,14 @@ static bool handle_firmware_version(
             break;
         // 0x0070 (Genus Heater) and any future device — log-only, no dedicated state field yet
     }
+
+    int dev_idx = find_or_insert_seen_device_locked(ctx->pool_state, data[1], data[2]);
+    if (dev_idx >= 0) {
+        ctx->pool_state->seen_devices[dev_idx].fw_version_valid = true;
+        ctx->pool_state->seen_devices[dev_idx].fw_version_major = major;
+        ctx->pool_state->seen_devices[dev_idx].fw_version_minor = minor;
+    }
+
     ctx->pool_state->last_update_ms = xTaskGetTickCount() * portTICK_PERIOD_MS;
     xSemaphoreGive(ctx->state_mutex);
 
@@ -2369,6 +2399,8 @@ static bool handle_channel_status(
 // Main decoder function
 // ======================================================
 
+static bool dispatch_message(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
+
 bool decode_message(const uint8_t *data, int len, message_decoder_context_t *ctx)
 {
     if (!ctx || !ctx->pool_state) {
@@ -2422,23 +2454,50 @@ bool decode_message(const uint8_t *data, int len, message_decoder_context_t *ctx
     // Extract source and destination addresses
     uint8_t src_hi = data[1], src_lo = data[2];
     uint8_t dst_hi = data[3], dst_lo = data[4];
-    const char *src_name = get_device_name(src_hi, src_lo);
-    const char *dst_name = get_device_name(dst_hi, dst_lo);
+    char src_name_buf[16], dst_name_buf[16];
+    const char *src_name = get_device_name(src_hi, src_lo, src_name_buf, sizeof(src_name_buf));
+    const char *dst_name = get_device_name(dst_hi, dst_lo, dst_name_buf, sizeof(dst_name_buf));
 
-    // Log addresses (format depends on whether names are known)
     char addr_info[64];
-    if (src_name && dst_name) {
-        snprintf(addr_info, sizeof(addr_info), "[%s -> %s]", src_name, dst_name);
-    } else if (src_name) {
-        snprintf(addr_info, sizeof(addr_info), "[%s -> %02X%02X]", src_name, dst_hi, dst_lo);
-    } else if (dst_name) {
-        snprintf(addr_info, sizeof(addr_info), "[%02X%02X -> %s]", src_hi, src_lo, dst_name);
-    } else {
-        snprintf(addr_info, sizeof(addr_info), "[%02X%02X -> %02X%02X]", src_hi, src_lo, dst_hi, dst_lo);
+    snprintf(addr_info, sizeof(addr_info), "[%s -> %s]", src_name, dst_name);
+
+    // Register source address in the seen-devices registry (skip broadcast)
+    if (ctx->state_mutex && !(src_hi == 0xFF && src_lo == 0xFF)) {
+        if (xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) == pdTRUE) {
+            find_or_insert_seen_device_locked(ctx->pool_state, src_hi, src_lo);
+            xSemaphoreGive(ctx->state_mutex);
+        }
     }
 
-    // Dispatch to message handlers
+    bool decoded = dispatch_message(data, len, payload, payload_len, addr_info, ctx);
 
+    // Increment global and per-device decoded/unknown counters
+    if (ctx->state_mutex) {
+        if (xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) == pdTRUE) {
+            if (decoded) ctx->pool_state->messages_decoded_total++;
+            else         ctx->pool_state->messages_unknown_total++;
+
+            // Per-device counters (skip broadcast)
+            if (!(src_hi == 0xFF && src_lo == 0xFF)) {
+                int idx = find_or_insert_seen_device_locked(ctx->pool_state, src_hi, src_lo);
+                if (idx >= 0) {
+                    if (decoded) ctx->pool_state->seen_devices[idx].decoded_count++;
+                    else         ctx->pool_state->seen_devices[idx].unknown_count++;
+                }
+            }
+            xSemaphoreGive(ctx->state_mutex);
+        }
+    }
+
+    return decoded;
+}
+
+static bool dispatch_message(
+    const uint8_t *data, int len,
+    const uint8_t *payload, int payload_len,
+    const char *addr_info,
+    message_decoder_context_t *ctx)
+{
     // Firmware version (CMD 0x0A) — universal across sources; payload layout
     // is identical regardless of which device is broadcasting, so dispatched
     // by command byte rather than per-source pattern. See PROTOCOL.md

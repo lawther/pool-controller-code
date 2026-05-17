@@ -66,6 +66,7 @@
 #define MAX_FAVOURITES                 8       // Pool + Spa (built-ins) + Favourites 1–6 (user)
 #define MAX_TIMERS                     16      // Maximum number of timers (registers 0x08-0x17)
 #define MAX_REGISTER_LABELS            32      // Maximum number of register label entries
+#define MAX_SEEN_DEVICES               16      // Maximum number of distinct source addresses tracked
 
 // ======================================================
 // UART/Bus Configuration

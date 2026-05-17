@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include "pool_state.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
@@ -45,13 +46,13 @@ bool decode_message(const uint8_t *data, int len, message_decoder_context_t *ctx
 bool verify_message_checksum(const uint8_t *data, int len);
 
 /**
- * Get device name from address bytes
+ * Get device name from address bytes.
  *
- * @param addr_hi High byte of address
- * @param addr_lo Low byte of address
- * @return Device name string, or NULL if unknown
+ * If the address is known, returns a static label. Otherwise formats
+ * "Unknown 0xHHLL" into the caller-supplied buffer and returns a pointer
+ * to it. The buffer must be at least 16 bytes.
  */
-const char* get_device_name(uint8_t addr_hi, uint8_t addr_lo);
+const char* get_device_name(uint8_t addr_hi, uint8_t addr_lo, char *fallback_buf, size_t buf_size);
 
 /**
  * Get gateway communications status text

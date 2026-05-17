@@ -75,6 +75,19 @@ typedef struct {
     bool valid;          // True if this entry has been populated
 } register_label_t;
 
+// Seen-device registry entry: one slot per distinct source address observed
+// on the bus. Name is resolved at output time via get_device_name(); firmware
+// version is populated by handle_firmware_version when a CMD 0x0A is seen.
+typedef struct {
+    uint8_t addr_hi;
+    uint8_t addr_lo;
+    bool fw_version_valid;
+    uint8_t fw_version_major;
+    uint8_t fw_version_minor;
+    uint32_t decoded_count;     // Frames from this source that decode_message handled
+    uint32_t unknown_count;     // Frames from this source that fell through to handle_unknown
+} seen_device_t;
+
 // Favourite/mode slot (indices 0–7: Pool, Spa, Fav1–Fav6)
 typedef struct {
     char name[32];        // Label from register 0x31+index, slot 0x03
@@ -165,6 +178,14 @@ typedef struct {
     uint8_t controller_version_major;
     uint8_t controller_version_minor;
     bool controller_version_valid;
+
+    // Seen devices (one slot per distinct source address observed)
+    seen_device_t seen_devices[MAX_SEEN_DEVICES];
+    uint8_t num_seen_devices;
+
+    // Total decoded / unknown message counts across all sources
+    uint32_t messages_decoded_total;
+    uint32_t messages_unknown_total;
 
     // Timers (up to MAX_TIMERS)
     timer_state_t timers[MAX_TIMERS];

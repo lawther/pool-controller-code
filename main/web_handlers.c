@@ -4,7 +4,6 @@
 #include "pool_state.h"
 #include "mqtt_poolclient.h"
 #include "message_decoder.h"
-#include "tcp_bridge.h"
 #include "device_serial.h"
 #include "esp_wifi.h"
 #include "esp_log.h"
@@ -605,9 +604,34 @@ static esp_err_t status_get_handler(httpd_req_t *req)
 
     // Message decode counters
     cJSON *msg_counts = cJSON_CreateObject();
-    cJSON_AddNumberToObject(msg_counts, "decoded", tcp_bridge_get_decoded_count());
-    cJSON_AddNumberToObject(msg_counts, "unknown", tcp_bridge_get_unknown_count());
+    cJSON_AddNumberToObject(msg_counts, "decoded", state.messages_decoded_total);
+    cJSON_AddNumberToObject(msg_counts, "unknown", state.messages_unknown_total);
     cJSON_AddItemToObject(root, "message_counts", msg_counts);
+
+    // Devices observed on the bus
+    cJSON *devices = cJSON_CreateArray();
+    for (int i = 0; i < state.num_seen_devices; i++) {
+        const seen_device_t *d = &state.seen_devices[i];
+        char addr_str[8], name_buf[16];
+        snprintf(addr_str, sizeof(addr_str), "0x%02X%02X", d->addr_hi, d->addr_lo);
+        const char *name = get_device_name(d->addr_hi, d->addr_lo, name_buf, sizeof(name_buf));
+        cJSON *dev = cJSON_CreateObject();
+        cJSON_AddStringToObject(dev, "address", addr_str);
+        cJSON_AddStringToObject(dev, "name",    name);
+        if (d->fw_version_valid) {
+            char fw_str[16];
+            snprintf(fw_str, sizeof(fw_str), "%d.%d", d->fw_version_major, d->fw_version_minor);
+            cJSON_AddStringToObject(dev, "firmware_version", fw_str);
+        } else {
+            cJSON_AddNullToObject(dev, "firmware_version");
+        }
+        cJSON *dev_counts = cJSON_CreateObject();
+        cJSON_AddNumberToObject(dev_counts, "decoded", d->decoded_count);
+        cJSON_AddNumberToObject(dev_counts, "unknown", d->unknown_count);
+        cJSON_AddItemToObject(dev, "message_counts", dev_counts);
+        cJSON_AddItemToArray(devices, dev);
+    }
+    cJSON_AddItemToObject(root, "devices", devices);
 
     // Temperature
     cJSON *temperature = cJSON_CreateObject();
