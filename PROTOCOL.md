@@ -14,14 +14,14 @@ This document describes the proprietary serial protocol used by the Connect 10 p
   - [0x05 — Touchscreen Activation Ack ⚠️](#0x05--touchscreen-activation-ack-️)
   - [0x06 — Lighting Zone Configuration ✅](#0x06--lighting-zone-configuration-)
   - [0x0A — Firmware Version ✅](#0x0a--firmware-version-)
+  - [0x0B — Channel Status ✅](#0x0b--channel-status-)
+  - [0x0D — Active Channels Bitmask ✅](#0x0d--active-channels-bitmask-)
 - [Message Types](#message-types)
   - [1. Mode Message (Spa/Pool) ✅](#1-mode-message-spapool-)
   - [2. Temperature Settings ✅](#2-temperature-settings-)
   - [3. Temperature Reading ⚠️](#3-temperature-reading-️)
   - [4. Heater Status ⚠️](#4-heater-status-️)
   - [5. Configuration ⚠️](#5-configuration-️)
-  - [6. Active Channels Bitmask ⚠️](#6-active-channels-bitmask-️)
-  - [7. Channel Status ✅](#7-channel-status-)
   - [8. Register Messages (Universal Register System) ⚠️](#8-register-messages-universal-register-system-️)
   - [10. Chlorinator pH Setpoint ✅](#10-chlorinator-ph-setpoint-)
   - [11. Chlorinator pH Reading ✅](#11-chlorinator-ph-reading-)
@@ -122,8 +122,8 @@ The **In code?** column distinguishes commands that have an actual handler in `m
 | `0x05` | Touchscreen Activation Ack          | `0x0050` → Broadcast                                                   | 1-byte payload `0x01`; sent after mode/favourite changes                                    | [0x05](#0x05--touchscreen-activation-ack-️) | Yes (log-only)          |
 | `0x06` | Lighting Zone Configuration         | `0x0050` → Broadcast                                                   |                                                                                             | [0x06](#0x06--lighting-zone-configuration-)              | Yes                     |
 | `0x0A` | Firmware Version                    | `0x0050`, `0x0062`, `0x0070`, `0x0084`, `0x00F0` → Broadcast           | Same `{major, minor}` payload across all 5 sources; dispatched on CMD byte alone            | [0x0A](#0x0a--firmware-version-) | Yes (unified handler)   |
-| `0x0B` | Channel Status                      | `0x0050` → Broadcast                                                   |                                                                                             | [§7](#7-channel-status-)                                 | Yes                     |
-| `0x0D` | Active Channels Bitmask             | `0x0050` → `0x006F` Controller                                         | Unicast                                                                                     | [§6](#6-active-channels-bitmask-️)                       | Yes                     |
+| `0x0B` | Channel Status                      | `0x0050` → Broadcast                                                   |                                                                                             | [0x0B](#0x0b--channel-status-)                           | Yes                     |
+| `0x0D` | Active Channels Bitmask             | `0x0050` → `0x006F` Controller                                         | Unicast                                                                                     | [0x0D](#0x0d--active-channels-bitmask-)                  | Yes                     |
 | `0x0F` | Chlorinator mode → Touchscreen      | `0x0084` → `0x0050`                                                    | 2-byte `[01, mode]`; mirrors [§31](#31-chlorinator-cell-mode-) cell mode                    | (mentioned in [§31](#31-chlorinator-cell-mode-))         | **No (doc only)**       |
 | `0x10` | Channel Toggle Command              | `0x00F0` Gateway → Broadcast                                           |                                                                                             | [§26](#26-channel-toggle-command-)                       | Yes                     |
 | `0x12` | Device Status                       | `0x0050`, `0x0062`, `0x0084`, `0x0090`, `0x00F0` → Broadcast           | Payload layout differs per source                                                           | [§4](#4-heater-status-️), [§18](#18-internet-gateway-status-broadcast-), [§22](#22-touchscreen-unknown-1-️), [§32](#32-chlorinator-status-broadcast-️) | Yes (per-source)        |
@@ -162,7 +162,7 @@ The **In code?** column distinguishes commands that have an actual handler in `m
 | 3  | Temperature Reading (Heater)      | `0x0070` | `02 00 70 FF FF 80 00 16 0D 13`           | ✅     | Heater water temperature (1 data byte) |
 | 4  | Heater Status                     | `0x0062` | `02 00 62 FF FF 80 00 12 0F 03`           | ⚠️     |                                     |
 | 5  | Configuration                     | `0x0050` | `02 00 50 FF FF 80 00 26 0E 04`           | ⚠️     |                                     |
-| 6  | Active Channels Bitmask           | `0x0050` | `02 00 50 00 6F 80 00 0D 0D 5B`           | ⚠️     | Dst=`0x006F` (Controller)           |
+| 6  | Active Channels Bitmask           | `0x0050` | `02 00 50 00 6F 80 00 0D 0D 5B`           | ✅     | Dst=`0x006F` (Controller)           |
 | 7  | Channel Status                    | `0x0050` | `02 00 50 FF FF 80 00 0B 25 00`           | ✅     |                                     |
 | 8  | Register Messages                 | `0x0050` | `02 00 50 FF FF 80 00 38 ** **`           | ⚠️     | Incl. timers (Slot `0x04`) & labels (Slot `0x02`); see [Appendix A](#appendix-a-register-dispatch-table) |
 | 9  | Lighting Zone Configuration       | `0x0050` | `02 00 50 FF FF 80 00 06 0E E4`           | ✅     |                                     |
@@ -280,6 +280,93 @@ Firmware-version announcement (`{major, minor}` payload) broadcast by multiple d
 - Decoded by the source-agnostic `handle_firmware_version` handler (matches on `data[7] == 0x0A` regardless of source); state is stored in per-device fields on `pool_state` (`touchscreen_version_*`, `temp_sensor_version_*`, `chlor_version_*`, `gateway_version_*`). Heatpump (`0x0070`) firmware is logged only — no dedicated state field.
 - The same `{major, minor}` pair is also redundantly embedded in the Gateway Status Broadcast ([§18](#18-internet-gateway-status-broadcast-)); firmware-version state population is performed once here.
 - Broadcast at device startup; appears alongside other announcement broadcasts (mode, channel status, time).
+
+---
+
+### 0x0B — Channel Status ✅
+
+Detailed status for all configured channels. Broadcast by the Touchscreen (`0x0050`).
+
+**Pattern:** `02 00 50 FF FF 80 00 0B 25 00`
+
+**Example:**
+
+```
+02 00 50 FF FF 80 00 0B 25 00 08 01 00 00 02 00 00 FE 00 00 FE 00 00 0B 02 01 09 00 00 FD 00 00 00 00 00 1B 03
+                              ^^ Number of channels
+                                 ^^  Channel 1: Type=1 (Filter)
+                                    ^^ Channel 1: State (00 off, 01, Auto, 02 On)
+                                       ^^ Channel 1:  currently active (either on or auto timer)
+                                         ^^ Channel 2: Type=2 (Cleaner)
+                                            etc
+```
+
+**Data Fields:**
+
+- Byte 10: Number of channels
+- Bytes 11+: For each channel (3 bytes):
+  - Byte 0: Channel type — see lookup table below
+  - Byte 1: Channel state (`0x00` Off, `0x01` Auto, `0x02` On)
+  - Byte 2: Currently active (e.g. turned on by timer)
+
+**Channel Types:**
+
+- `0x00`: Unused
+- `0x01`: Filter
+- `0x02`: Cleaning
+- `0x03`: Heater Pump
+- `0x04`: Booster
+- `0x05`: Waterfall
+- `0x06`: Fountain
+- `0x07`: Spa Pump
+- `0x08`: Solar
+- `0x09`: Blower
+- `0x0A`: Swimjet
+- `0x0B`: Jets
+- `0x0C`: Spa Jets
+- `0x0D`: Overflow
+- `0x0E`: Spillway
+- `0x0F`: Audio
+- `0x11`: Hot Seat
+- `0x12`: Heater Power
+- `0x13`: Custom Name
+- `0xFB`: Secondary Heater
+- `0xFD`: Flagged as heater power
+- `0xFE`: Flagged as light channel
+
+**Channel States:**
+
+- `0x00`: Off
+- `0x01`: Auto
+- `0x02`: On
+
+---
+
+### 0x0D — Active Channels Bitmask ✅
+
+Reports which channels are currently active. Unicast from the Touchscreen (`0x0050`) to the Controller (`0x006F`).
+
+**Pattern:** `02 00 50 00 6F 80 00 0D 0D 5B`
+
+**Example:**
+
+```
+02 00 50 00 6F 80 00 0D 0D 5B 10 10 03
+                              ^^
+                              Bitmask: 0x10 = Channel 5 active
+```
+
+**Data Fields:**
+
+- Byte 10: Channel bitmask
+  - Bit 7: Channel 8
+  - Bit 6: Channel 7
+  - Bit 5: Channel 6
+  - Bit 4: Channel 5
+  - Bit 3: Channel 4
+  - Bit 2: Channel 3
+  - Bit 1: Channel 2
+  - Bit 0: Channel 1
 
 ---
 
@@ -535,93 +622,6 @@ System configuration including temperature scale.
 | `0x05` | `0000 0101`  | Celsius, heat, heater Off, **2° step**                    |
 | `0x09` | `0000 1001`  | Celsius, heat, **heater On**, 1° step                     |
 | `0x11` | `0001 0001`  | Fahrenheit, heat, heater Off, 1° step                     |
-
----
-
-### 6. Active Channels Bitmask ⚠️
-
-Reports which channels are currently active.
-
-**Pattern:** `02 00 50 00 6F 80 00 0D 0D 5B`
-
-**Example:**
-
-```
-02 00 50 00 6F 80 00 0D 0D 5B 10 10 03
-                              ^^
-                              Bitmask: 0x10 = Channel 5 active
-```
-
-**Data Fields:**
-
-- Byte 10: Channel bitmask
-  - Bit 7: Channel 8
-  - Bit 6: Channel 7
-  - Bit 5: Channel 6
-  - Bit 4: Channel 5
-  - Bit 3: Channel 4
-  - Bit 2: Channel 3
-  - Bit 1: Channel 2
-  - Bit 0: Channel 1
-
----
-
-### 7. Channel Status ✅
-
-Detailed status for all configured channels.
-
-**Pattern:** `02 00 50 FF FF 80 00 0B 25 00`
-
-**Example:**
-
-```
-02 00 50 FF FF 80 00 0B 25 00 08 01 00 00 02 00 00 FE 00 00 FE 00 00 0B 02 01 09 00 00 FD 00 00 00 00 00 1B 03
-                              ^^ Number of channels
-                                 ^^  Channel 1: Type=1 (Filter)
-                                    ^^ Channel 1: State (00 off, 01, Auto, 02 On)
-                                       ^^ Channel 1:  currently active (either on or auto timer)
-                                         ^^ Channel 2: Type=2 (Cleaner)
-                                            etc
-```
-
-**Data Fields:**
-
-- Byte 10: Number of channels
-- Bytes 11+: For each channel (3 bytes):
-  - Byte 0: Channel type - see lookup table below
-  - Byte 1: Channel state (00 off, 01, Auto, 02 One)
-  - Byte 2: Currently active (eg if turned on by timer)
-
-**Channel Types:**
-
-- `0x00`: Unused
-- `0x01`: Filter
-- `0x02`: Cleaning
-- `0x03`: Heater Pump
-- `0x04`: Booster
-- `0x05`: Waterfall
-- `0x06`: Fountain
-- `0x07`: Spa Pump
-- `0x08`: Solar
-- `0x09`: Blower
-- `0x0A`: Swimjet
-- `0x0B`: Jets
-- `0x0C`: Spa Jets
-- `0x0D`: Overflow
-- `0x0E`: Spillway
-- `0x0F`: Audio
-- `0x11`: Hot Seat
-- `0x12`: Heater Power
-- `0x13`: Custom Name
-- `0xFB`: Secondary Heater
-- `0xFD`: Flagged as heater power
-- `0xFE`: Flagged as light channel
-
-**Channel States:**
-
-- `0x00`: Off
-- `0x01`: Auto
-- `0x02`: On
 
 ---
 
@@ -1335,7 +1335,7 @@ Command to cycle a channel through its available states (Auto → On → Off, or
 **Notes:**
 
 - Sending this command always advances the state - there is no direct way to set a specific state
-- The controller will respond with an updated [Channel Status message (§7)](#7-channel-status-)
+- The controller will respond with an updated [Channel Status message (0x0B)](#0x0b--channel-status-)
 - Channel index is 0-based and corresponds to the channel's position in the controller configuration
 
 ---
@@ -1535,7 +1535,7 @@ Both patterns have LENGTH `0x0D` (13 bytes) and a single data byte.
 
 **Notes:**
 
-- ⚠️ Mode-value mapping is **tentative**. Three distinct values (`0x00`, `0x01`, `0x02`) have been observed across one capture, and they match the standard pool-channel state encoding ([§7](#7-channel-status-)), but the order seen in the capture did not unambiguously match a user-described Manual→Off→Auto sequence — see `zagnuts_analysis.md` for the timeline.
+- ⚠️ Mode-value mapping is **tentative**. Three distinct values (`0x00`, `0x01`, `0x02`) have been observed across one capture, and they match the standard pool-channel state encoding ([0x0B](#0x0b--channel-status-)), but the order seen in the capture did not unambiguously match a user-described Manual→Off→Auto sequence.
 - The chlorinator reports its current mode separately to the touchscreen via CMD `0x0F` (see below) — the two messages may briefly disagree during transitions.
 - Both messages are addressed specifically to the Cell (`0x00A0`), not broadcast.
 - The `0x0090` chlorinator variant has not been observed using this command; the `0x18` traffic appears specific to the `0x0084` / `0x00A0` two-module chlorinator topology.
@@ -1575,7 +1575,7 @@ Both patterns have LENGTH `0x0D` (13 bytes) and a single data byte. The header c
 
 **Notes:**
 
-- ⚠️ Mode-value mapping is **tentative**. It follows the standard `0x00=Off / 0x01=Auto / 0x02=On` channel-state convention used elsewhere in the protocol ([§7](#7-channel-status-)), but a single-device transition across Off ↔ Auto ↔ On has not yet been captured. `0x00` may simply not be broadcast when the chlorinator is powered off.
+- ⚠️ Mode-value mapping is **tentative**. It follows the standard `0x00=Off / 0x01=Auto / 0x02=On` channel-state convention used elsewhere in the protocol ([0x0B](#0x0b--channel-status-)), but a single-device transition across Off ↔ Auto ↔ On has not yet been captured. `0x00` may simply not be broadcast when the chlorinator is powered off.
 - This is distinct from the configured *cell* mode broadcast in [§31](#31-chlorinator-cell-mode-), which is sent over a unicast to the salt cell (`0x00A0`) with CMD `0x18`. The `0x12` broadcast here is the chlorinator's own overall mode, addressed to the broadcast destination (`0xFFFF`). The two can hold different values concurrently — e.g., the chlorinator overall = On while the cell is in Auto.
 - CMD `0x12` is also used by four other devices as a status broadcast (heater, gateway, touchscreen — see the [Device Status table](#known-command-bytes)); each is source-dependent and carries a different payload layout.
 - Observed on both chlorinator hardware variants in independent captures (round8 system: `0x0090` with payload `0x01`; zagnuts system: `0x0084` with payload `0x02`).
@@ -1593,7 +1593,7 @@ The register ID and slot together determine the message meaning. The slot distin
 | `0x08`–`0x17`  | `0x04` | Timers 1–16            | start/stop time + days bitmask (see [§8 Timer Registers](#timer-registers-slot-0x04))   |
 | `0x21`–`0x28`  | `0x03` | Favourite/Mode Enable  | 1-byte flag (`0x01`=enabled, `0x00`=disabled). Maps to CMD `0x2A` values `0x00`–`0x07` in order. Pool (`0x21`) and Spa (`0x22`) are always `0x01`. |
 | `0x31`–`0x38`  | `0x03` | Favourite/Mode Labels  | Null-terminated ASCII string. Maps to CMD `0x2A` values `0x00`–`0x07` in order. `0x31`=Pool, `0x32`=Spa, `0x33`–`0x38`=user Favourites 1–6. |
-| `0x6C`–`0x73`  | `0x02` | Channel Types          | 1-byte type code (see [Section 7](#7-channel-status-) channel types)   |
+| `0x6C`–`0x73`  | `0x02` | Channel Types          | 1-byte type code (see [0x0B](#0x0b--channel-status-) channel types)    |
 | `0x7C`–`0x83`  | `0x02` | Channel Names          | Null-terminated ASCII string                     |
 | `0x8C`–`0x93`  | `0x02` | Channel State          | 1-byte value (0=Off, 1=Auto, 2=On) — read-only; writes ignored by controller |
 | `0xA0`–`0xA7`  | `0x01` | Light Zone Multicolor  | 1-byte flag (`0x00`=No, `0x01`=Yes)              |
