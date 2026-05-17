@@ -488,7 +488,7 @@ System configuration including temperature scale.
   - Bit 6:
   - Bit 5:
   - Bit 4: `0` = Celsius, `1` = Fahrenheit
-  - Bit 3: `0` = single heater, `1` = two heaters configured
+  - Bit 3: `0` = heater Off, `1` = heater currently On (live state, not a config flag — see note below)
   - Bit 2: `0` = 1° temperature step, `1` = 2° temperature step
   - Bit 1: `0` = heat, `1` = cooler-only
   - Bit 0: Unknown — always `1` in observed samples
@@ -498,11 +498,11 @@ System configuration including temperature scale.
 
 | Value  | Binary       | Meaning                                                   |
 |--------|--------------|-----------------------------------------------------------|
-| `0x01` | `0000 0001`  | Celsius, heat, single heater, 1° step                     |
-| `0x03` | `0000 0011`  | Celsius, **cooler-only**, single heater, 1° step          |
-| `0x05` | `0000 0101`  | Celsius, heat, single heater, **2° step**                 |
-| `0x09` | `0000 1001`  | Celsius, heat, **two heaters configured**, 1° step        |
-| `0x11` | `0001 0001`  | Fahrenheit, heat, single heater, 1° step                  |
+| `0x01` | `0000 0001`  | Celsius, heat, heater Off, 1° step                        |
+| `0x03` | `0000 0011`  | Celsius, **cooler-only**, heater Off, 1° step             |
+| `0x05` | `0000 0101`  | Celsius, heat, heater Off, **2° step**                    |
+| `0x09` | `0000 1001`  | Celsius, heat, **heater On**, 1° step                     |
+| `0x11` | `0001 0001`  | Fahrenheit, heat, heater Off, 1° step                     |
 
 ---
 
@@ -1610,15 +1610,24 @@ The register ID and slot together determine the message meaning. The slot distin
 | `0xD0`–`0xD7`  | `0x01` | Light Zone Color       | 1-byte color code                                |
 | `0xE0`–`0xE7`  | `0x01` | Light Zone Active      | 1-byte binary (`0x00`=Inactive, `0x01`=Active)   |
 | `0xF4`         | `0x01` | Channel Count          | 1-byte total number of channels in the system    |
-| `0xE6`         | `0x00` | Heater State           | 1-byte (`0x00`=Off, `0x01`=On)                   |
-| `0xE7`         | `0x00` | Pool Temperature Setpoint | 1-byte °C value                               |
-| `0xE8`         | `0x00` | Spa Temperature Setpoint  | 1-byte °C value                               |
+| `0xE6`         | `0x00` | Heater State (Heater 1)   | 1-byte (`0x00`=Off, `0x01`=On)                |
+| `0xE7`         | `0x00` | Pool Temperature Setpoint (Heater 1) | 1-byte °C value                    |
+| `0xE8`         | `0x00` | Spa Temperature Setpoint (Heater 1)  | 1-byte °C value                    |
+| `0xE9` ⚠️       | `0x00` | Heater 2 State (tentative)     | 1-byte (`0x00`=Off, `0x01`=On). See note below. |
+| `0xEA` ⚠️       | `0x00` | Heater 2 Pool Setpoint (tentative) | 1-byte °C value — writable via gateway CMD `0x3A`. See note below. |
+| `0xEB` ⚠️       | `0x00` | Heater 2 Spa Setpoint (tentative)  | 1-byte °C value. See note below.   |
 
 **Notes:**
 
 - Register ranges can overlap (e.g., `0xD0`–`0xD7`) but are distinguished by the slot value
 - The same slot value (e.g., `0x02`) can represent different data formats depending on the register
 - Slot values appear to be context-dependent rather than globally defining a data type
+- **`0xE9`/`0xEA`/`0xEB` (Heater 2 trio) — tentative ⚠️**: Slot `0x00` already holds the Heater 1 trio at `0xE6` (state), `0xE7` (Pool setpoint), `0xE8` (Spa setpoint). The next three registers (`0xE9`/`0xEA`/`0xEB`) appear to be the analogous trio for a second heater, based on the following evidence:
+  - **Structural symmetry**: a 3-register block in the same slot, immediately adjacent to the Heater 1 trio.
+  - **`0xEA` is user-writable** via the gateway register-write command (CMD `0x3A` / second-byte `0xB9`). An observed write `02 00 F0 FF FF 80 00 3A 0F B9 EA 00 1B 05 03` set the value to `0x1B` (27°C) and the touchscreen immediately rebroadcast `EA 00 1B`.
+  - **Value match to H2**: that 27°C exactly matches the **H2** value carried in the heater's (`0x0070`) CMD `0x17` `[H1, H2]` broadcast (where H1=24°C also matches `0xE7`).
+  - **Mutually exclusive broadcast**: in captures observed so far the touchscreen broadcasts *either* the `E6/E7/E8` trio *or* the `E9/EA/EB` trio in slot `0x00`, but not both — consistent with a config-dependent enable (likely §5 byte 10 bit 3 = heater count).
+  - **Caveats**: `0xEB` has been observed fixed at `0x0A` (10°C) across multiple installs — an unusual spa setpoint, but explainable as an unused default when the second heater isn't actually plumbed to spa. Single-bit toggle confirmation (changing spa setpoint in the UI and watching which register updates) has not yet been performed.
 
 ### Examples by Register Type
 

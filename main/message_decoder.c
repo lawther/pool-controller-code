@@ -493,6 +493,8 @@ static bool handle_temp_setpoint(const uint8_t *data, int len, const uint8_t *pa
 static bool handle_channel_count(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 static bool handle_valve_state(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 static bool handle_touchscreen_unknown3(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
+static bool handle_heater1_state(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
+static bool handle_heater2_state(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 
 /**
  * Register message dispatch table
@@ -524,8 +526,18 @@ static const register_handler_t REGISTER_HANDLERS[] = {
     // Favourite/mode labels (slot 0x03, registers 0x31-0x38 = Pool,Spa,Fav1-6)
     {0x31, 0x38, 0x03, handle_favourite_label,        "Favourite Label"},
 
+    // Heater 1 state (slot 0x00, register 0xE6) — touchscreen register-response broadcast.
+    // The CMD 0x12 broadcast from 0x0062 is the authoritative state source that updates
+    // pool_state->heaters[0]; this entry just names the register-response broadcast so it
+    // stops being logged as "Unhandled register".
+    {0xE6, 0xE6, 0x00, handle_heater1_state,          "Heater 1 State"},
+
     // Temperature setpoints (slot 0x00, registers 0xE7=Pool, 0xE8=Spa)
     {0xE7, 0xE8, 0x00, handle_temp_setpoint,          "Temperature Setpoint"},
+
+    // Heater 2 state (slot 0x00, register 0xE9) — tentative; see PROTOCOL.md Appendix A note
+    {0xE9, 0xE9, 0x00, handle_heater2_state,          "Heater 2 State"},
+
     {0xF4, 0xF4, 0x01, handle_channel_count,          "Channel Count"},
 };
 
@@ -601,6 +613,47 @@ static bool handle_temp_setpoint(
     if (ctx->enable_mqtt) {
         mqtt_publish_temperature(&state_snapshot);
     }
+
+    return true;
+}
+
+/**
+ * Handler: Heater 1 state register-response broadcast
+ * Register 0xE6, Slot 0x00. Log-only — authoritative state still flows through
+ * the CMD 0x12 path (handle_heater) which updates pool_state->heaters[0].
+ */
+static bool handle_heater1_state(
+    const uint8_t *data, int len,
+    const uint8_t *payload, int payload_len,
+    const char *addr_info,
+    message_decoder_context_t *ctx)
+{
+    if (payload_len < 3) return false;
+
+    uint8_t state = payload[2];
+    ESP_LOGI(TAG, "%s Heater 1 state - %s (0x%02X)", addr_info,
+             state == 0x00 ? "Off" : state == 0x01 ? "On" : "Unknown",
+             state);
+
+    return true;
+}
+
+/**
+ * Handler: Heater 2 state — tentative
+ * Register 0xE9, Slot 0x00. See PROTOCOL.md Appendix A.
+ */
+static bool handle_heater2_state(
+    const uint8_t *data, int len,
+    const uint8_t *payload, int payload_len,
+    const char *addr_info,
+    message_decoder_context_t *ctx)
+{
+    if (payload_len < 3) return false;
+
+    uint8_t state = payload[2];
+    ESP_LOGI(TAG, "%s Heater 2 state (tentative) - %s (0x%02X)", addr_info,
+             state == 0x00 ? "Off" : state == 0x01 ? "On" : "Unknown",
+             state);
 
     return true;
 }
@@ -855,12 +908,12 @@ static bool handle_config(
     if (payload_len < 1) return false;
 
     uint8_t config_byte = payload[0];
-    const char *scale_str   = (config_byte & 0x10) ? "Fahrenheit"   : "Celsius";
-    const char *step_str    = (config_byte & 0x04) ? "2°"           : "1°";
-    const char *heaters_str = (config_byte & 0x08) ? "two"          : "single";
-    const char *mode_str    = (config_byte & 0x02) ? "cooler-only"  : "heat";
-    ESP_LOGI(TAG, "%s Config - temperature scale=%s, step=%s, heaters=%s, mode=%s",
-             addr_info, scale_str, step_str, heaters_str, mode_str);
+    const char *scale_str        = (config_byte & 0x10) ? "Fahrenheit"   : "Celsius";
+    const char *step_str         = (config_byte & 0x04) ? "2°"           : "1°";
+    const char *heater_active_str = (config_byte & 0x08) ? "On"          : "Off";
+    const char *mode_str         = (config_byte & 0x02) ? "cooler-only"  : "heat";
+    ESP_LOGI(TAG, "%s Config - temperature scale=%s, step=%s, heater=%s, mode=%s",
+             addr_info, scale_str, step_str, heater_active_str, mode_str);
 
     // Update state only (no MQTT publishing)
     if (ctx->state_mutex && xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) == pdTRUE) {
