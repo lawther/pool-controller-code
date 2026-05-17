@@ -23,24 +23,22 @@ This document describes the proprietary serial protocol used by the Connect 10 p
   - [0x16 — Water Temperature Reading ⚠️](#0x16--water-temperature-reading-️)
   - [0x17 — Temperature Settings ✅](#0x17--temperature-settings-)
   - [0x18 — Chlorinator Cell Mode ⚠️](#0x18--chlorinator-cell-mode-️)
+  - [0x19 — Temperature Setpoint Command ✅](#0x19--temperature-setpoint-command-)
+  - [0x1D — Chlorinator Setpoint ✅](#0x1d--chlorinator-setpoint-)
+  - [0x1F — Chlorinator Reading ✅](#0x1f--chlorinator-reading-)
+  - [0x25 — Valve Sync ⚠️](#0x25--valve-sync-️)
 - [Message Types](#message-types)
   - [3. Temperature Reading (alt — CMD 0x31) ⚠️](#3-temperature-reading-alt--cmd-0x31-️)
   - [5. Configuration ⚠️](#5-configuration-️)
   - [8. Register Messages (Universal Register System) ⚠️](#8-register-messages-universal-register-system-️)
-  - [10. Chlorinator pH Setpoint ✅](#10-chlorinator-ph-setpoint-)
-  - [11. Chlorinator pH Reading ✅](#11-chlorinator-ph-reading-)
-  - [12. Chlorinator ORP Setpoint ✅](#12-chlorinator-orp-setpoint-)
-  - [13. Chlorinator ORP Reading ✅](#13-chlorinator-orp-reading-)
   - [14. Internet Gateway Serial Number ⚠️](#14-internet-gateway-serial-number-️)
   - [15. Internet Gateway Network Config ⚠️](#15-internet-gateway-network-config-️)
   - [16. Internet Gateway Communications Status ⚠️](#16-internet-gateway-communications-status-️)
   - [19. Register Read Request/Response](#19-register-read-requestresponse)
   - [20. Controller Day/Time/Clock ✅](#20-controller-daytimeclock-)
   - [23. Valve State Broadcast ⚠️](#23-valve-state-broadcast-️)
-  - [24. Valve Sync to Controller ⚠️](#24-valve-sync-to-controller-️)
 - [Control Commands (Gateway to Controller)](#control-commands-gateway-to-controller)
   - [25. Light Zone Control Command ✅](#25-light-zone-control-command-)
-  - [27. Temperature Setpoint Command ✅](#27-temperature-setpoint-command-)
   - [28. Heater Control Command ✅](#28-heater-control-command-)
   - [29. Mode/Favourite Control Command ✅](#29-modefavourite-control-command-)
   - [30. Valve Control Command ✅](#30-valve-control-command-)
@@ -130,10 +128,10 @@ The **In code?** column distinguishes commands that have an actual handler in `m
 | `0x16` | Water Temperature Reading           | `0x0062` (LEN `0x0E`), `0x0070` (LEN `0x0D`) → Broadcast               | Source-dependent payload (`0x0062` = inbuilt heater, `0x0070` = add-on Active i25 Evo)      | [0x16](#0x16--water-temperature-reading-️)               | Yes (per-source)        |
 | `0x17` | Temperature Settings                | `0x0050` (LEN `0x10`), `0x0070` (LEN `0x0E`) → Broadcast               | Source-dependent payload layout                                                             | [0x17](#0x17--temperature-settings-)                     | Yes (per-source)        |
 | `0x18` | Chlorinator Cell Mode               | `0x0084`, `0x0050` → `0x00A0` Salt Cell                                | Inter-device unicast                                                                        | [0x18](#0x18--chlorinator-cell-mode-️)                   | **No (doc only)**       |
-| `0x19` | Temperature Setpoint Command        | `0x00F0` Gateway → Broadcast                                           |                                                                                             | [§27](#27-temperature-setpoint-command-)                 | Yes                     |
-| `0x1D` | Chlorinator Setpoint                | `0x0090` → Broadcast                                                   | Byte 10: `0x01`=pH, `0x02`=ORP                                                              | [§10](#10-chlorinator-ph-setpoint-), [§12](#12-chlorinator-orp-setpoint-) | Yes                     |
-| `0x1F` | Chlorinator Reading                 | `0x0090` → Broadcast                                                   | Byte 10: `0x01`=pH, `0x02`=ORP                                                              | [§11](#11-chlorinator-ph-reading-), [§13](#13-chlorinator-orp-reading-) | Yes                     |
-| `0x25` | Valve Sync                          | `0x0050` → `0x006F` Controller                                         | Unicast                                                                                     | [§24](#24-valve-sync-to-controller-️)                    | **No (doc only)**       |
+| `0x19` | Temperature Setpoint Command        | `0x00F0` Gateway → Broadcast                                           |                                                                                             | [0x19](#0x19--temperature-setpoint-command-)             | Yes                     |
+| `0x1D` | Chlorinator Setpoint                | `0x0090` → Broadcast                                                   | Byte 10: `0x01`=pH, `0x02`=ORP                                                              | [0x1D](#0x1d--chlorinator-setpoint-)                     | Yes                     |
+| `0x1F` | Chlorinator Reading                 | `0x0090` → Broadcast                                                   | Byte 10: `0x01`=pH, `0x02`=ORP                                                              | [0x1F](#0x1f--chlorinator-reading-)                      | Yes                     |
+| `0x25` | Valve Sync                          | `0x0050` → `0x006F` Controller                                         | Unicast                                                                                     | [0x25](#0x25--valve-sync-️)                              | **No (doc only)**       |
 | `0x26` | Configuration                       | `0x0050` → Broadcast                                                   |                                                                                             | [§5](#5-configuration-️)                                 | Yes                     |
 | `0x27` | Valve State Broadcast               | `0x0050` → Broadcast                                                   | Two LEN variants: `0x0D` (short) and `0x13` (full)                                          | [§23](#23-valve-state-broadcast-️)                       | Yes (both variants)     |
 | `0x28` | Valve Control Command               | `0x00F0` Gateway → Broadcast                                           |                                                                                             | [§30](#30-valve-control-command-)                        | **No (doc only)**       |
@@ -160,21 +158,15 @@ The **In code?** column distinguishes commands that have an actual handler in `m
 | 7  | Channel Status                    | `0x0050` | `02 00 50 FF FF 80 00 0B 25 00`           | ✅     |                                     |
 | 8  | Register Messages                 | `0x0050` | `02 00 50 FF FF 80 00 38 ** **`           | ⚠️     | Incl. timers (Slot `0x04`) & labels (Slot `0x02`); see [Appendix A](#appendix-a-register-dispatch-table) |
 | 9  | Lighting Zone Configuration       | `0x0050` | `02 00 50 FF FF 80 00 06 0E E4`           | ✅     |                                     |
-| 10 | Chlorinator pH Setpoint           | `0x0090` | `02 00 90 FF FF 80 00 1D 0F 3C`           | ✅     | Byte 10: `0x01`                     |
-| 11 | Chlorinator pH Reading            | `0x0090` | `02 00 90 FF FF 80 00 1F 0F 3E`           | ✅     | Byte 10: `0x01`                     |
-| 12 | Chlorinator ORP Setpoint          | `0x0090` | `02 00 90 FF FF 80 00 1D 0F 3C`           | ✅     | Byte 10: `0x02`; same pattern as [§10](#10-chlorinator-ph-setpoint-)|
-| 13 | Chlorinator ORP Reading           | `0x0090` | `02 00 90 FF FF 80 00 1F 0F 3E`           | ✅     | Byte 10: `0x02`; same pattern as [§11](#11-chlorinator-ph-reading-)|
 | 14 | Internet Gateway Serial Number    | `0x00F0` | `02 00 F0 FF FF 80 00 37 11 B8`           | ⚠️     |                                     |
 | 15 | Internet Gateway Network Config   | `0x00F0` | `02 00 F0 FF FF 80 00 37 15 BC`           | ⚠️     |                                     |
 | 16 | Internet Gateway Comms Status     | `0x00F0` | `02 00 F0 FF FF 80 00 37 0F B6`           | ⚠️     |                                     |
 | 17 | Firmware Version                  | any      | `02 00 ?? FF FF 80 00 0A 0E ??`           | ✅     | CMD `0x0A` broadcast by Touchscreen (`0x0050`), Inbuilt heater (`0x0062`), Heatpump (`0x0070`), Chlorinator (`0x0084`), and Internet Gateway (`0x00F0`) with identical `{major, minor}` payload — single unified handler |
-| 19 | Register Read Request             | `0x00F0` | `02 00 F0 FF FF 80 00 39 0E B7`           |        | For responses see [§10](#8-register-messages-universal-register-system-️)|
+| 19 | Register Read Request             | `0x00F0` | `02 00 F0 FF FF 80 00 39 0E B7`           |        | For responses see [§8](#8-register-messages-universal-register-system-️)|
 | 20 | Controller Day/Time/Clock         | `0x0050` | `02 00 50 FF FF 80 00 FD 0F DC`           | ✅     |                                     |
 | 23 | Valve State Broadcast             | `0x0050` | `02 00 50 FF FF 80 00 27 0D 04`           | ⚠️     | Two LENGTH variants: 0x0D (short) and 0x13 (full state) |
-| 24 | Valve Sync to Controller          | `0x0050` | `02 00 50 00 6F 80 00 25 0D 73`           | ⚠️     | Dst=`0x006F` (Controller)           |
 | 25 | Light Zone Control Command        | `0x00F0` | `02 00 F0 FF FF 80 00 3A 0F B9`           | ✅     | Same pattern as [§28](#28-heater-control-command-) |
 | 26 | Channel Toggle Command            | `0x00F0` | `02 00 F0 FF FF 80 00 10 0D 8D`           | ⚠️     | Multi-speed pumps not yet documented |
-| 27 | Temperature Setpoint Command      | `0x00F0` | `02 00 F0 FF FF 80 00 19 0F 98`           | ✅     |                                     |
 | 28 | Heater Control Command            | `0x00F0` | `02 00 F0 FF FF 80 00 3A 0F B9`           | ✅     | Same pattern as [§25](#25-light-zone-control-command-); different reg |
 | 29 | Mode/Favourite Control Command    | `0x00F0` | `02 00 F0 00 50 80 00 2A 0D F9`           | ✅     | Dst=`0x0050`; 0x00=Pool, 0x01=Spa, 0x02–0x07=Fav 1–6, 0x80=All Off, 0x81=All Auto |
 | 30 | Valve Control Command             | `0x00F0` | `02 00 F0 FF FF 80 00 28 0E A6`           | ✅     |                                     |
@@ -761,6 +753,134 @@ The touchscreen sends this when the operator changes cell mode from the UI.
 
 ---
 
+### 0x19 — Temperature Setpoint Command ✅
+
+Command from the Internet Gateway (`0x00F0`) to set the pool or spa temperature setpoint. The temperature byte is repeated twice within the payload.
+
+**Pattern:** `02 00 F0 FF FF 80 00 19 0F 98`
+
+**Examples:**
+
+```
+02 00 F0 FF FF 80 00 19 0F 98 01 1E 1E 3D 03   Set Pool to 30°C
+02 00 F0 FF FF 80 00 19 0F 98 02 25 25 4C 03   Set Spa  to 37°C
+                              ^^ Target (0x01 = Pool, 0x02 = Spa)
+                                 ^^ Temperature °C
+                                    ^^ Temperature °C (repeated)
+                                       ^^ Data checksum (sum of bytes 10–12)
+```
+
+**Data Fields:**
+
+- Byte 10: Target (`0x01` = Pool, `0x02` = Spa)
+- Byte 11: Temperature in °C
+- Byte 12: Temperature in °C (repeated)
+- Byte 13: Data checksum (sum of bytes 10–12)
+
+**Notes:**
+
+- The temperature value is repeated at bytes 11 and 12 — this is part of the message format, not two separate sends.
+- The controller will respond with an updated [Temperature Settings message (0x17)](#0x17--temperature-settings-).
+
+---
+
+### 0x1D — Chlorinator Setpoint ✅
+
+Target pH or ORP setpoint for the chlorinator (`0x0090`). The slot byte (byte 10) selects which value the message carries.
+
+**Pattern:** `02 00 90 FF FF 80 00 1D 0F 3C`
+
+**Slot variants:**
+
+| Slot | Meaning      | Value units                                     |
+|------|--------------|-------------------------------------------------|
+| `0x01` | pH setpoint | pH × 10, little-endian (e.g. `4E 00` = 78 → 7.8) |
+| `0x02` | ORP setpoint | mV, little-endian (e.g. `8A 02` = 0x028A = 650 mV) |
+
+**Examples:**
+
+```
+02 00 90 FF FF 80 00 1D 0F 3C 01 4E 00 4F 03   pH  setpoint = 7.8
+02 00 90 FF FF 80 00 1D 0F 3C 02 8A 02 8E 03   ORP setpoint = 650 mV
+                              ^^ Slot (0x01 = pH, 0x02 = ORP)
+                                 ^^ ^^ Value (little-endian)
+                                       ^^ Data checksum
+```
+
+**Data Fields:**
+
+- Byte 10: Slot (`0x01` = pH, `0x02` = ORP)
+- Bytes 11-12: Value (little-endian; pH × 10 or mV depending on slot)
+
+---
+
+### 0x1F — Chlorinator Reading ✅
+
+Current pH or ORP reading from the chlorinator's sensors (`0x0090`). The slot byte (byte 10) selects which value the message carries — same shape as [0x1D Setpoint](#0x1d--chlorinator-setpoint-).
+
+**Pattern:** `02 00 90 FF FF 80 00 1F 0F 3E`
+
+**Slot variants:**
+
+| Slot | Meaning      | Value units                                       |
+|------|--------------|---------------------------------------------------|
+| `0x01` | pH reading  | pH × 10, little-endian (e.g. `55 00` = 85 → 8.5)  |
+| `0x02` | ORP reading | mV, little-endian (e.g. `0A 02` = 0x020A = 522 mV) |
+
+**Examples:**
+
+```
+02 00 90 FF FF 80 00 1F 0F 3E 01 55 00 56 03   pH  reading = 8.5
+02 00 90 FF FF 80 00 1F 0F 3E 02 0A 02 0E 03   ORP reading = 522 mV
+                              ^^ Slot (0x01 = pH, 0x02 = ORP)
+                                 ^^ ^^ Value (little-endian)
+                                       ^^ Data checksum
+```
+
+**Data Fields:**
+
+- Byte 10: Slot (`0x01` = pH, `0x02` = ORP)
+- Bytes 11-12: Value (little-endian; pH × 10 or mV depending on slot)
+
+---
+
+### 0x25 — Valve Sync ⚠️
+
+Unicast from the Touchscreen (`0x0050`) to the Controller (`0x006F`) carrying the overall valve-active bitmask. Emitted as part of the regular broadcast cycle. No handler in `message_decoder.c` — documented only.
+
+**Pattern:** `02 00 50 00 6F 80 00 25 0D 73`
+
+**Examples:**
+
+```
+02 00 50 00 6F 80 00 25 0D 73 00 00 03   No valves active
+02 00 50 00 6F 80 00 25 0D 73 01 01 03   Valve 1 active
+                              ^^ Active bitmask
+                                 ^^ Data checksum (equals byte 10)
+```
+
+**Data Fields:**
+
+- Byte 10: Valve-active bitmask — bit 0 = valve 1, bit 1 = valve 2 (`0x00` = none active)
+- Byte 11: Data checksum (equals byte 10)
+
+**Observed values:**
+
+| Value  | Meaning              |
+|--------|----------------------|
+| `0x00` | No valves active     |
+| `0x01` | Valve 1 active only  |
+| `0x02` | Valve 2 active only  |
+| `0x03` | Both valves active   |
+
+**Notes:**
+
+- Unlike most touchscreen messages, this is addressed specifically to the Controller (`0x006F`), not broadcast.
+- Mirrors the OR of all `active` flags in [§23 Valve State Broadcast](#23-valve-state-broadcast-), encoded as a bitmask.
+- Emitted every broadcast cycle (~60 s); may lag real-time valve state changes by up to one cycle.
+
+---
+
 ## Message Types
 
 The messages that are fully decoded have a ✅ and the partially decoded ones have a ⚠️
@@ -977,94 +1097,6 @@ Assigns human-readable names to channels, lighting zones, and valves as null-ter
 
 - Registers `0xD0`–`0xD3` appear to be multipurpose — can represent either lighting zone colors or valve names depending on system configuration
 - Maximum string length appears to be limited by message size constraints
-
----
-
-### 10. Chlorinator pH Setpoint ✅
-
-Target pH level for the chlorinator.
-
-**Pattern:** `02 00 90 FF FF 80 00 1D 0F 3C` (followed by register)
-
-**Example:**
-
-```
-02 00 90 FF FF 80 00 1D 0F 3C 01 4E 00 4F 03
-                              ^^ PH Setpoint
-                                 ^^ ^^ pH value (little endian)
-                                          78 = 7.8 pH (value / 10)
-```
-
-**Data Fields:**
-
-- Byte 10: pH setpoint register (`0x01`)
-- Bytes 11-12: pH value in tenths (little endian, divide by 10 for actual pH)
-
----
-
-### 11. Chlorinator pH Reading ✅
-
-Current pH reading from the sensor.
-
-**Pattern:** `02 00 90 FF FF 80 00 1F 0F 3E` (followed by register)
-
-**Example:**
-
-```
-02 00 90 FF FF 80 00 1F 0F 3E 01 55 00 56 03
-                              ^^ pH reading
-                                 ^^ ^^ pH value (little endian)
-                                          85 = 8.5 pH
-```
-
-**Data Fields:**
-
-- Byte 10: pH setpoint register (`0x01`)
-- Bytes 11-12: pH value in tenths (little endian, divide by 10 for actual pH)
-
----
-
-### 12. Chlorinator ORP Setpoint ✅
-
-Target ORP (oxidation-reduction potential) level.
-
-**Pattern:** `02 00 90 FF FF 80 00 1D 0F 3C` (followed by register)
-
-**Example:**
-
-```
-02 00 90 FF FF 80 00 1D 0F 3C 02 8A 02 8E 03
-                              ^^ ORP setpoint register
-                                 ^^ ^^ ORP value in mV (little endian)
-                                       650 mV (0x028A)
-```
-
-**Data Fields:**
-
-- Byte 10: ORP setpoint register (`0x02`)
-- Bytes 11-12: ORP value in millivolts (little endian)
-
----
-
-### 13. Chlorinator ORP Reading ✅
-
-Current ORP reading from the sensor.
-
-**Pattern:** `02 00 90 FF FF 80 00 1F 0F 3E`
-
-**Example:**
-
-```
-02 00 90 FF FF 80 00 1F 0F 3E 02 0A 02 0E 03
-                              ^^ ORP reading register
-                                 ^^ ^^ ORP value in mV (little endian)
-                                          522 mV (0x020A)
-```
-
-**Data Fields:**
-
-- Byte 10: ORP reading register (`0x02`)
-- Bytes 11-12: ORP value in millivolts (little endian)
 
 ---
 
@@ -1320,49 +1352,7 @@ Carries live per-valve state. Each valve occupies 3 bytes (configured flag, stat
 - Valves not yet configured appear as `00 00 00` in their slot
 - Whether a valve supports Auto mode depends on its configuration; in the observed capture valve 1 was configured without Auto, valve 2 was configured with Auto
 - Valve labels are stored via the register system (`0xD0`–`0xD1`, Slot `0x02`); see [Appendix A](#appendix-a-register-dispatch-table)
-- State transitions correlate exactly with [§24 Valve Sync to Controller](#24-valve-sync-to-controller-️)
-
----
-
-### 24. Valve Sync to Controller ⚠️
-
-Sent by the touchscreen directly to the controller (destination `0x006F`) to synchronise the overall valve active status. Emitted as part of the regular broadcast cycle.
-
-**Pattern:** `02 00 50 00 6F 80 00 25 0D 73`
-
-**Example — No valve active:**
-
-```
-02 00 50 00 6F 80 00 25 0D 73 00 00 03
-                              ^^ Active flag: 0x00 = no valve active
-```
-
-**Example — At least one valve active:**
-
-```
-02 00 50 00 6F 80 00 25 0D 73 01 01 03
-                              ^^ Active flag: 0x01 = valve(s) active
-```
-
-**Data Fields:**
-
-- Byte 10: Valve active bitmask — one bit per valve slot (`0x00` = no valve active, bit 0 = valve 1, bit 1 = valve 2)
-- Byte 11: DATA_CHECKSUM (equals byte 10)
-
-**Observed values:**
-
-| Value | Meaning |
-|-------|---------|
-| `0x00` | No valves active |
-| `0x01` | Valve 1 active only |
-| `0x02` | Valve 2 active only |
-| `0x03` | Both valves active |
-
-**Notes:**
-
-- Unlike most touchscreen messages which broadcast (`FF FF`), this is addressed specifically to the Controller (`0x006F`)
-- Mirrors the OR of all `active` flags in [§23](#23-valve-state-broadcast-) encoded as a bitmask
-- Emitted every broadcast cycle (~60 s); may lag behind real-time valve state changes by up to one cycle
+- State transitions correlate exactly with [0x25 Valve Sync](#0x25--valve-sync-️)
 
 ---
 
@@ -1433,46 +1423,6 @@ Command to set light zone state (On/Off/Auto).
 - This command requires the sender to impersonate the Internet Gateway (source address 0x00F0)
 - The controller will process the command and update the light zone state accordingly
 - The command pattern `3A 0F B9` distinguishes gateway control commands from status broadcasts (`38 0F 17`)
-
----
-
-### 27. Temperature Setpoint Command ✅
-
-Command to set the pool or spa temperature setpoint. The temperature byte is repeated twice within the payload.
-
-**Pattern:** `02 00 F0 FF FF 80 00 19 0F 98`
-
-**Example - Set Pool to 30°C:**
-
-```
-02 00 F0 FF FF 80 00 19 0F 98 01 1E 1E 3D 03
-                              ^^ Target (0x01 = Pool)
-                                 ^^ Temperature °C (0x1E = 30)
-                                    ^^ Temperature °C (repeated)
-                                       ^^ Checksum (0x01 + 0x1E + 0x1E = 0x3D)
-```
-
-**Example - Set Spa to 37°C:**
-
-```
-02 00 F0 FF FF 80 00 19 0F 98 02 25 25 4C 03
-                              ^^ Target (0x02 = Spa)
-                                 ^^ Temperature °C (0x25 = 37)
-                                    ^^ Temperature °C (repeated)
-                                       ^^ Checksum (0x02 + 0x25 + 0x25 = 0x4C)
-```
-
-**Data Fields:**
-
-- Byte 10: Target (`0x01` = Pool, `0x02` = Spa)
-- Byte 11: Temperature in °C
-- Byte 12: Temperature in °C (repeated)
-- Byte 13: Checksum (sum of bytes 10-12)
-
-**Notes:**
-
-- The temperature value is repeated at bytes 11 and 12 — this is part of the message format, not two separate sends
-- The controller will respond with an updated [Temperature Settings message (0x17)](#0x17--temperature-settings-)
 
 ---
 
