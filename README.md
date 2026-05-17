@@ -36,6 +36,62 @@ Tested as working:
 - Auto-requests missing timer and light config when Internet Gateway is absent ✅
 
 
+## Getting Started
+
+The device has three connectors:
+
+- **2 × RJ12 sockets** — for the pool control bus. Use a standard flat RJ12 cable to connect either socket to your Connect 10 system; this also powers the device. The two sockets are wired in parallel, so the second one can be used to daisy-chain another device (e.g. another controller, gateway, or accessory) on the same bus.
+- **1 × USB-C socket** — for manually flashing firmware and serial monitoring from a computer. It is **not** required for normal operation.
+
+To bring the device online for the first time:
+
+1. Plug a flat RJ12 cable from the Connect 10 into either RJ12 socket on the device. This both connects it to the pool bus and powers it. (Optional: run a second cable from the other RJ12 socket to daisy-chain the next device on the bus.)
+2. Wait for the LED to turn **purple**, which indicates the device is in provisioning mode and ready for WiFi setup (see [Initial Wifi Provisioning](#initial-wifi-provisioning) below).
+
+## Initial Wifi Provisioning
+
+1. When the LED is **purple**, the device is in provisioning mode.
+2. On your phone, connect to the WiFi network named **`POOL_AABBCC`** (e.g. `POOL_A1B2C3`) — the `AABBCC` suffix is unique to each device. The password is **`poolsetup`**.
+3. In your phone's browser navigate to **http://192.168.4.1** and choose your WiFi network and enter the password.
+4. The device will save the credentials and restart. The LED will turn white then green once connected.
+
+Once on your network the device is accessible at **`http://poolcontrol-AABBCC.local`** — using the same `AABBCC` suffix as the AP you provisioned through (e.g. `http://poolcontrol-A1B2C3.local`).
+
+**Note:** If the wrong password is entered the device will retry for about 30 seconds then return to provisioning mode.
+
+**Note:** To re-provision, erase the flash ("Erase Flash Memory from device" in your IDE) to clear the saved credentials.
+
+## Visual Feedback (LED Status):
+
+### Persistent States (Solid Colors)
+* **Blue** - Startup (brief, during boot)
+* **Purple** - Unconfigured (no WiFi credentials, provisioning mode active)
+* **White** - WiFi connected, waiting for MQTT connection
+* **Green** - Fully operational (WiFi + MQTT connected) ✓
+* **Orange** - MQTT disconnected (WiFi ok, MQTT issue)
+
+### Activity Indicators (Brief Flashes)
+* **Cyan flash** - RJ12 data received (RX)
+* **Magenta flash** - RJ12 data transmitted (TX)
+
+### Boot Flow Examples
+
+**First Boot (No WiFi):**
+1. Blue (startup)
+2. Purple (unconfigured - connect to AP)
+3. Connect to AP → Configure WiFi → Device restarts
+
+**Normal Boot (WiFi Configured):**
+1. Blue (startup)
+2. White (WiFi connected)
+3. Green (MQTT connected) ✓
+
+**MQTT Connection Issue:**
+1. Blue (startup)
+2. White (WiFi connected)
+3. Orange (MQTT failed to connect)
+
+
 ## TCP Debug Connection (Port 7373)
 
 The device exposes a raw TCP server on port 7373 that streams all bus traffic as hex and forwards any bytes you send back onto the bus. It also mirrors the device's log output, so you can monitor activity without a USB cable.
@@ -128,49 +184,6 @@ I (12345) MSG_DECODER: [Controller -> Broadcast] Lighting zone 1 state - On
 ```
 
 This allows you to quickly test message patterns and verify decoder behavior without needing to send messages to the actual bus.
-
-## Initial Provisioning
-
-1. When the LED is **purple**, the device is in provisioning mode.
-2. On your phone, connect to the WiFi network named **`POOL_AABBCC`** (e.g. `POOL_A1B2C3`) — the `AABBCC` suffix is unique to each device.
-3. In your phone's browser navigate to **http://192.168.4.1** and choose your WiFi network and enter the password.
-4. The device will save the credentials and restart. The LED will turn white then green once connected.
-
-Once on your network the device is accessible at **`http://poolcontrol-AABBCC.local`** — using the same `AABBCC` suffix as the AP you provisioned through (e.g. `http://poolcontrol-A1B2C3.local`).
-
-**Note:** If the wrong password is entered the device will retry for about 30 seconds then return to provisioning mode.
-
-**Note:** To re-provision, erase the flash ("Erase Flash Memory from device" in your IDE) to clear the saved credentials.
-
-## Visual Feedback (LED Status):
-
-### Persistent States (Solid Colors)
-* **Blue** - Startup (brief, during boot)
-* **Purple** - Unconfigured (no WiFi credentials, provisioning mode active)
-* **White** - WiFi connected, waiting for MQTT connection
-* **Green** - Fully operational (WiFi + MQTT connected) ✓
-* **Orange** - MQTT disconnected (WiFi ok, MQTT issue)
-
-### Activity Indicators (Brief Flashes)
-* **Cyan flash** - RJ12 data received (RX)
-* **Magenta flash** - RJ12 data transmitted (TX)
-
-### Boot Flow Examples
-
-**First Boot (No WiFi):**
-1. Blue (startup)
-2. Purple (unconfigured - connect to AP)
-3. Connect to AP → Configure WiFi → Device restarts
-
-**Normal Boot (WiFi Configured):**
-1. Blue (startup)
-2. White (WiFi connected)
-3. Green (MQTT connected) ✓
-
-**MQTT Connection Issue:**
-1. Blue (startup)
-2. White (WiFi connected)
-3. Orange (MQTT failed to connect)
 
 
 ## General architecture
