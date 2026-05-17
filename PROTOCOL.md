@@ -26,22 +26,22 @@ This document describes the proprietary serial protocol used by the Connect 10 p
   - [0x19 — Temperature Setpoint Command ✅](#0x19--temperature-setpoint-command-)
   - [0x1D — Chlorinator Setpoint ✅](#0x1d--chlorinator-setpoint-)
   - [0x1F — Chlorinator Reading ✅](#0x1f--chlorinator-reading-)
-  - [0x25 — Valve Sync ⚠️](#0x25--valve-sync-️)
+  - [0x25 — Valve Sync ✅](#0x25--valve-sync-)
+  - [0x26 — Configuration ⚠️](#0x26--configuration-️)
+  - [0x27 — Valve State Broadcast ✅](#0x27--valve-state-broadcast-)
+  - [0x28 — Valve Control Command ✅](#0x28--valve-control-command-)
+  - [0x2A — Mode/Favourite Control Command ✅](#0x2a--modefavourite-control-command-)
 - [Message Types](#message-types)
   - [3. Temperature Reading (alt — CMD 0x31) ⚠️](#3-temperature-reading-alt--cmd-0x31-️)
-  - [5. Configuration ⚠️](#5-configuration-️)
   - [8. Register Messages (Universal Register System) ⚠️](#8-register-messages-universal-register-system-️)
   - [14. Internet Gateway Serial Number ⚠️](#14-internet-gateway-serial-number-️)
   - [15. Internet Gateway Network Config ⚠️](#15-internet-gateway-network-config-️)
   - [16. Internet Gateway Communications Status ⚠️](#16-internet-gateway-communications-status-️)
   - [19. Register Read Request/Response](#19-register-read-requestresponse)
   - [20. Controller Day/Time/Clock ✅](#20-controller-daytimeclock-)
-  - [23. Valve State Broadcast ⚠️](#23-valve-state-broadcast-️)
 - [Control Commands (Gateway to Controller)](#control-commands-gateway-to-controller)
   - [25. Light Zone Control Command ✅](#25-light-zone-control-command-)
   - [28. Heater Control Command ✅](#28-heater-control-command-)
-  - [29. Mode/Favourite Control Command ✅](#29-modefavourite-control-command-)
-  - [30. Valve Control Command ✅](#30-valve-control-command-)
 - [Appendix A: Register Dispatch Table](#appendix-a-register-dispatch-table)
 - [Implementation Notes](#implementation-notes)
 
@@ -131,11 +131,11 @@ The **In code?** column distinguishes commands that have an actual handler in `m
 | `0x19` | Temperature Setpoint Command        | `0x00F0` Gateway → Broadcast                                           |                                                                                             | [0x19](#0x19--temperature-setpoint-command-)             | Yes                     |
 | `0x1D` | Chlorinator Setpoint                | `0x0090` → Broadcast                                                   | Byte 10: `0x01`=pH, `0x02`=ORP                                                              | [0x1D](#0x1d--chlorinator-setpoint-)                     | Yes                     |
 | `0x1F` | Chlorinator Reading                 | `0x0090` → Broadcast                                                   | Byte 10: `0x01`=pH, `0x02`=ORP                                                              | [0x1F](#0x1f--chlorinator-reading-)                      | Yes                     |
-| `0x25` | Valve Sync                          | `0x0050` → `0x006F` Controller                                         | Unicast                                                                                     | [0x25](#0x25--valve-sync-️)                              | **No (doc only)**       |
-| `0x26` | Configuration                       | `0x0050` → Broadcast                                                   |                                                                                             | [§5](#5-configuration-️)                                 | Yes                     |
-| `0x27` | Valve State Broadcast               | `0x0050` → Broadcast                                                   | Two LEN variants: `0x0D` (short) and `0x13` (full)                                          | [§23](#23-valve-state-broadcast-️)                       | Yes (both variants)     |
-| `0x28` | Valve Control Command               | `0x00F0` Gateway → Broadcast                                           |                                                                                             | [§30](#30-valve-control-command-)                        | **No (doc only)**       |
-| `0x2A` | Mode/Favourite Control Command      | `0x00F0` Gateway → `0x0050` Touchscreen                                | Unicast                                                                                     | [§29](#29-modefavourite-control-command-)                | Yes                     |
+| `0x25` | Valve Sync                          | `0x0050` → `0x006F` Controller                                         | Unicast                                                                                     | [0x25](#0x25--valve-sync-)                               | **No (doc only)**       |
+| `0x26` | Configuration                       | `0x0050` → Broadcast                                                   |                                                                                             | [0x26](#0x26--configuration-️)                           | Yes                     |
+| `0x27` | Valve State Broadcast               | `0x0050` → Broadcast                                                   | Two LEN variants: `0x0D` (short) and `0x13` (full)                                          | [0x27](#0x27--valve-state-broadcast-)                    | Yes (both variants)     |
+| `0x28` | Valve Control Command               | `0x00F0` Gateway → Broadcast                                           |                                                                                             | [0x28](#0x28--valve-control-command-)                    | **No (doc only)**       |
+| `0x2A` | Mode/Favourite Control Command      | `0x00F0` Gateway → `0x0050` Touchscreen                                | Unicast                                                                                     | [0x2A](#0x2a--modefavourite-control-command-)            | Yes                     |
 | `0x31` | Water Temperature Reading (alt)     | `0x0062` → Broadcast                                                   | Second variant alongside `0x16`                                                             | [§3](#3-temperature-reading-alt--cmd-0x31-️)             | Yes                     |
 | `0x37` | Gateway Info Messages               | `0x00F0` → Broadcast                                                   | LEN distinguishes serial/IP/comms variants                                                  | [§14](#14-internet-gateway-serial-number-️), [§15](#15-internet-gateway-network-config-️), [§16](#16-internet-gateway-communications-status-️) | Yes (3 handlers)        |
 | `0x38` | Register Data (Response)            | `0x0050` → Broadcast                                                   | Universal register system — sub-dispatched by register + slot                               | [§8](#8-register-messages-universal-register-system-️), [Appendix A](#appendix-a-register-dispatch-table) | Yes                     |
@@ -153,7 +153,6 @@ The **In code?** column distinguishes commands that have an actual handler in `m
 |----|-----------------------------------|----------|-------------------------------------------|--------|-------------------------------------|
 | 3  | Temperature Reading (B)           | `0x0062` | `02 00 62 FF FF 80 00 31 0E 21`           | ⚠️     | Two pattern variants                |
 | 3  | Temperature Reading (Heater)      | `0x0070` | `02 00 70 FF FF 80 00 16 0D 13`           | ✅     | Heater water temperature (1 data byte) |
-| 5  | Configuration                     | `0x0050` | `02 00 50 FF FF 80 00 26 0E 04`           | ⚠️     |                                     |
 | 6  | Active Channels Bitmask           | `0x0050` | `02 00 50 00 6F 80 00 0D 0D 5B`           | ✅     | Dst=`0x006F` (Controller)           |
 | 7  | Channel Status                    | `0x0050` | `02 00 50 FF FF 80 00 0B 25 00`           | ✅     |                                     |
 | 8  | Register Messages                 | `0x0050` | `02 00 50 FF FF 80 00 38 ** **`           | ⚠️     | Incl. timers (Slot `0x04`) & labels (Slot `0x02`); see [Appendix A](#appendix-a-register-dispatch-table) |
@@ -164,12 +163,9 @@ The **In code?** column distinguishes commands that have an actual handler in `m
 | 17 | Firmware Version                  | any      | `02 00 ?? FF FF 80 00 0A 0E ??`           | ✅     | CMD `0x0A` broadcast by Touchscreen (`0x0050`), Inbuilt heater (`0x0062`), Heatpump (`0x0070`), Chlorinator (`0x0084`), and Internet Gateway (`0x00F0`) with identical `{major, minor}` payload — single unified handler |
 | 19 | Register Read Request             | `0x00F0` | `02 00 F0 FF FF 80 00 39 0E B7`           |        | For responses see [§8](#8-register-messages-universal-register-system-️)|
 | 20 | Controller Day/Time/Clock         | `0x0050` | `02 00 50 FF FF 80 00 FD 0F DC`           | ✅     |                                     |
-| 23 | Valve State Broadcast             | `0x0050` | `02 00 50 FF FF 80 00 27 0D 04`           | ⚠️     | Two LENGTH variants: 0x0D (short) and 0x13 (full state) |
 | 25 | Light Zone Control Command        | `0x00F0` | `02 00 F0 FF FF 80 00 3A 0F B9`           | ✅     | Same pattern as [§28](#28-heater-control-command-) |
 | 26 | Channel Toggle Command            | `0x00F0` | `02 00 F0 FF FF 80 00 10 0D 8D`           | ⚠️     | Multi-speed pumps not yet documented |
 | 28 | Heater Control Command            | `0x00F0` | `02 00 F0 FF FF 80 00 3A 0F B9`           | ✅     | Same pattern as [§25](#25-light-zone-control-command-); different reg |
-| 29 | Mode/Favourite Control Command    | `0x00F0` | `02 00 F0 00 50 80 00 2A 0D F9`           | ✅     | Dst=`0x0050`; 0x00=Pool, 0x01=Spa, 0x02–0x07=Fav 1–6, 0x80=All Off, 0x81=All Auto |
-| 30 | Valve Control Command             | `0x00F0` | `02 00 F0 FF FF 80 00 28 0E A6`           | ✅     |                                     |
 
 ---
 
@@ -199,7 +195,7 @@ Single-byte broadcast emitted by the Touchscreen (`0x0050`) immediately after a 
 **Notes:**
 
 - Decoded in code by `handle_touchscreen_unknown3` — log-only, no `pool_state` update.
-- Triggered by Mode/Favourite Control Commands ([§29](#29-modefavourite-control-command-)); see that section for the full activation sequence.
+- Triggered by [0x2A Mode/Favourite Control Command](#0x2a--modefavourite-control-command-); see that section for the full activation sequence.
 - Status ⚠️ because the meaning of the constant `0x01` is unconfirmed — it could be a fixed "ack" sentinel or a single-value-observed flags field.
 
 ---
@@ -644,7 +640,7 @@ Data fields:
 - Byte 12: Spa setpoint temperature (°F)
 - Byte 13: Pool setpoint temperature (°F)
 
-Temperature scale (Celsius vs Fahrenheit) is set by [§5 Configuration](#5-configuration-️).
+Temperature scale (Celsius vs Fahrenheit) is set by [0x26 Configuration](#0x26--configuration-️).
 
 ---
 
@@ -844,7 +840,7 @@ Current pH or ORP reading from the chlorinator's sensors (`0x0090`). The slot by
 
 ---
 
-### 0x25 — Valve Sync ⚠️
+### 0x25 — Valve Sync ✅
 
 Unicast from the Touchscreen (`0x0050`) to the Controller (`0x006F`) carrying the overall valve-active bitmask. Emitted as part of the regular broadcast cycle. No handler in `message_decoder.c` — documented only.
 
@@ -876,8 +872,128 @@ Unicast from the Touchscreen (`0x0050`) to the Controller (`0x006F`) carrying th
 **Notes:**
 
 - Unlike most touchscreen messages, this is addressed specifically to the Controller (`0x006F`), not broadcast.
-- Mirrors the OR of all `active` flags in [§23 Valve State Broadcast](#23-valve-state-broadcast-), encoded as a bitmask.
+- Mirrors the OR of all `active` flags in [0x27 Valve State Broadcast](#0x27--valve-state-broadcast-), encoded as a bitmask.
 - Emitted every broadcast cycle (~60 s); may lag real-time valve state changes by up to one cycle.
+
+---
+
+### 0x26 — Configuration ⚠️
+
+Broadcast from the Touchscreen (`0x0050`) carrying system configuration including temperature scale, heater type, and current heater on/off state.
+
+**Pattern:** `02 00 50 FF FF 80 00 26 0E 04`
+
+**Example — Celsius:**
+
+```
+02 00 50 FF FF 80 00 26 0E 04 01 06 07 03
+                              ^^ 0x01 - Celsius
+                                 ^^ Unknown
+```
+
+**Example — Fahrenheit:**
+
+```
+02 00 50 FF FF 80 00 26 0E 04 11 06 17 03
+                              ^^ 0x11 - Fahrenheit
+                                 ^^ Unknown
+```
+
+**Data Fields:**
+
+- Byte 10: Configuration bitmask
+  - Bit 7:
+  - Bit 6:
+  - Bit 5:
+  - Bit 4: `0` = Celsius, `1` = Fahrenheit
+  - Bit 3: `0` = heater Off, `1` = heater currently On (live state, not a config flag)
+  - Bit 2: `0` = 1° temperature step, `1` = 2° temperature step
+  - Bit 1: `0` = heat, `1` = cooler-only
+  - Bit 0: Unknown — always `1` in observed samples
+- Byte 11: Unknown (consistently `0x06`)
+
+**Observed Byte 10 values:**
+
+| Value  | Binary       | Meaning                                                   |
+|--------|--------------|-----------------------------------------------------------|
+| `0x01` | `0000 0001`  | Celsius, heat, heater Off, 1° step                        |
+| `0x03` | `0000 0011`  | Celsius, **cooler-only**, heater Off, 1° step             |
+| `0x05` | `0000 0101`  | Celsius, heat, heater Off, **2° step**                    |
+| `0x09` | `0000 1001`  | Celsius, heat, **heater On**, 1° step                     |
+| `0x11` | `0001 0001`  | Fahrenheit, heat, heater Off, 1° step                     |
+
+---
+
+### 0x27 — Valve State Broadcast ✅
+
+Broadcast by the Touchscreen (`0x0050`) to report the configured and active state of all valve zones. Appears in two LENGTH variants.
+
+**Pattern (short form):** `02 00 50 FF FF 80 00 27 0D 04`
+
+Used at startup before valve state is available; always carries a single zero data byte.
+
+**Pattern (long form):** `02 00 50 FF FF 80 00 27 13 0A`
+
+Carries live per-valve state. Each valve occupies 3 bytes (configured flag, state, active flag).
+
+**Example — Short form:**
+
+```
+02 00 50 FF FF 80 00 27 0D 04 00 00 03
+                              ^^ Data (always 0x00)
+```
+
+**Example — Long form, both valves off:**
+
+```
+02 00 50 FF FF 80 00 27 13 0A 02 01 00 00 01 00 00 04 03
+                              ^^ Slot count (0x02 = 2 slots)
+                                 ^^ Valve 1 configured (0x01 = yes)
+                                    ^^ Valve 1 state (0x00 = Off)
+                                       ^^ Valve 1 active (0x00 = Inactive)
+                                          ^^ Valve 2 configured (0x01 = yes)
+                                             ^^ Valve 2 state (0x00 = Off)
+                                                ^^ Valve 2 active (0x00 = Inactive)
+```
+
+**Example — Long form, Valve 1 On and active:**
+
+```
+02 00 50 FF FF 80 00 27 13 0A 02 01 02 01 01 00 00 07 03
+                                    ^^ Valve 1 state: 0x02 = On
+                                       ^^ Valve 1 active: 0x01 = Active
+```
+
+**Example — Long form, Valve 2 On and active:**
+
+```
+02 00 50 FF FF 80 00 27 13 0A 02 01 00 00 01 02 01 07 03
+                                          ^^ Valve 2 state: 0x02 = On
+                                             ^^ Valve 2 active: 0x01 = Active
+```
+
+**Data Fields (long form):**
+
+- Byte 10: Valve slot count (0x02 = 2 slots)
+- Bytes 11–13: Valve 1 entry:
+  - Byte 11: Configured (`0x00` = not present, `0x01` = configured)
+  - Byte 12: State (`0x00` = Off, `0x01` = Auto, `0x02` = On)
+  - Byte 13: Active (`0x00` = Inactive, `0x01` = Active)
+- Bytes 14–16: Valve 2 entry (same layout as bytes 11–13)
+
+**State Values:**
+
+- `0x00`: Off
+- `0x01`: Auto (only for valves configured with Auto mode)
+- `0x02`: On
+
+**Notes:**
+
+- The short form (LENGTH=`0x0D`) appears at startup; the long form (LENGTH=`0x13`) carries live state
+- Valves not yet configured appear as `00 00 00` in their slot
+- Whether a valve supports Auto mode depends on its configuration; in the observed capture valve 1 was configured without Auto, valve 2 was configured with Auto
+- Valve labels are stored via the register system (`0xD0`–`0xD1`, Slot `0x02`); see [Appendix A](#appendix-a-register-dispatch-table)
+- State transitions correlate exactly with [0x25 Valve Sync](#0x25--valve-sync-)
 
 ---
 
@@ -906,53 +1022,6 @@ Second water-temperature variant from the inbuilt heater (`0x0062`), broadcast i
 
 - The purpose of byte 11 is not yet understood
 - Byte 10 has been observed decreasing as pool water cools (30→25°C), confirming it as the current temperature
-
----
-
-### 5. Configuration ⚠️
-
-System configuration including temperature scale.
-
-**Pattern:** `02 00 50 FF FF 80 00 26 0E 04`
-
-**Example - Celsius:**
-
-```
-02 00 50 FF FF 80 00 26 0E 04 01 06 07 03
-                              ^^ 0x01 - Celcius
-                                 ^^ Unknown
-```
-
-**Example - Fahrenheit:**
-
-```
-02 00 50 FF FF 80 00 26 0E 04 11 06 17 03
-                              ^^ 0x11 - Fahrenheit
-                                 ^^ Unknown
-```
-
-**Data Fields:**
-
-- Byte 10: Configuration bitmask
-  - Bit 7:
-  - Bit 6:
-  - Bit 5:
-  - Bit 4: `0` = Celsius, `1` = Fahrenheit
-  - Bit 3: `0` = heater Off, `1` = heater currently On (live state, not a config flag — see note below)
-  - Bit 2: `0` = 1° temperature step, `1` = 2° temperature step
-  - Bit 1: `0` = heat, `1` = cooler-only
-  - Bit 0: Unknown — always `1` in observed samples
-- Byte 11: Unknown (consistently `0x06`)
-
-**Observed Byte 10 values:**
-
-| Value  | Binary       | Meaning                                                   |
-|--------|--------------|-----------------------------------------------------------|
-| `0x01` | `0000 0001`  | Celsius, heat, heater Off, 1° step                        |
-| `0x03` | `0000 0011`  | Celsius, **cooler-only**, heater Off, 1° step             |
-| `0x05` | `0000 0101`  | Celsius, heat, heater Off, **2° step**                    |
-| `0x09` | `0000 1001`  | Celsius, heat, **heater On**, 1° step                     |
-| `0x11` | `0001 0001`  | Fahrenheit, heat, heater Off, 1° step                     |
 
 ---
 
@@ -1283,79 +1352,6 @@ Current time from the controller's internal clock. Broadcast periodically for sy
 
 ---
 
-### 23. Valve State Broadcast ✅
-
-Broadcast by the touchscreen to report the configured and active state of all valve zones. Appears in two LENGTH variants.
-
-**Pattern (short form):** `02 00 50 FF FF 80 00 27 0D 04`
-
-Used at startup before valve state is available; always carries a single zero data byte.
-
-**Pattern (long form):** `02 00 50 FF FF 80 00 27 13 0A`
-
-Carries live per-valve state. Each valve occupies 3 bytes (configured flag, state, active flag).
-
-**Example — Short form:**
-
-```
-02 00 50 FF FF 80 00 27 0D 04 00 00 03
-                              ^^ Data (always 0x00)
-```
-
-**Example — Long form, both valves off:**
-
-```
-02 00 50 FF FF 80 00 27 13 0A 02 01 00 00 01 00 00 04 03
-                              ^^ Slot count (0x02 = 2 slots)
-                                 ^^ Valve 1 configured (0x01 = yes)
-                                    ^^ Valve 1 state (0x00 = Off)
-                                       ^^ Valve 1 active (0x00 = Inactive)
-                                          ^^ Valve 2 configured (0x01 = yes)
-                                             ^^ Valve 2 state (0x00 = Off)
-                                                ^^ Valve 2 active (0x00 = Inactive)
-```
-
-**Example — Long form, Valve 1 On and active:**
-
-```
-02 00 50 FF FF 80 00 27 13 0A 02 01 02 01 01 00 00 07 03
-                                    ^^ Valve 1 state: 0x02 = On
-                                       ^^ Valve 1 active: 0x01 = Active
-```
-
-**Example — Long form, Valve 2 On and active:**
-
-```
-02 00 50 FF FF 80 00 27 13 0A 02 01 00 00 01 02 01 07 03
-                                          ^^ Valve 2 state: 0x02 = On
-                                             ^^ Valve 2 active: 0x01 = Active
-```
-
-**Data Fields (long form):**
-
-- Byte 10: Valve slot count (0x02 = 2 slots)
-- Bytes 11–13: Valve 1 entry:
-  - Byte 11: Configured (`0x00` = not present, `0x01` = configured)
-  - Byte 12: State (`0x00` = Off, `0x01` = Auto, `0x02` = On)
-  - Byte 13: Active (`0x00` = Inactive, `0x01` = Active)
-- Bytes 14–16: Valve 2 entry (same layout as bytes 11–13)
-
-**State Values:**
-
-- `0x00`: Off
-- `0x01`: Auto (only for valves configured with Auto mode)
-- `0x02`: On
-
-**Notes:**
-
-- The short form (LENGTH=`0x0D`) appears at startup; the long form (LENGTH=`0x13`) carries live state
-- Valves not yet configured appear as `00 00 00` in their slot
-- Whether a valve supports Auto mode depends on its configuration; in the observed capture valve 1 was configured without Auto, valve 2 was configured with Auto
-- Valve labels are stored via the register system (`0xD0`–`0xD1`, Slot `0x02`); see [Appendix A](#appendix-a-register-dispatch-table)
-- State transitions correlate exactly with [0x25 Valve Sync](#0x25--valve-sync-️)
-
----
-
 ## Control Commands (Gateway to Controller)
 
 The following commands can be sent from the Internet Gateway (or emulated gateway) to control pool equipment.
@@ -1467,60 +1463,9 @@ Command to turn the heater on or off. Uses the same `3A 0F B9` command pattern a
 
 ---
 
-### 29. Mode/Favourite Control Command ✅
+### 0x28 — Valve Control Command ✅
 
-Command sent by the Internet Gateway to the Touch Screen to switch modes or activate a stored Favourite preset. A single data byte encodes the target mode or favourite index.
-
-**Pattern:** `02 00 F0 00 50 80 00 2A 0D F9`
-
-**Examples:**
-
-```
-02 00 F0 00 50 80 00 2A 0D F9 00 00 03   Pool mode (all extras off)
-02 00 F0 00 50 80 00 2A 0D F9 01 01 03   Spa mode
-02 00 F0 00 50 80 00 2A 0D F9 02 02 03   Activate Favourite 1
-02 00 F0 00 50 80 00 2A 0D F9 80 80 03   All Off mode
-02 00 F0 00 50 80 00 2A 0D F9 81 81 03   All Auto mode
-                              ^^ Mode/favourite byte
-                                 ^^ Data checksum (equals the mode byte)
-```
-
-**Data Fields:**
-
-- Bytes 1-2: `00 F0` - Source (Internet Gateway = `0x00F0`)
-- Bytes 3-4: `00 50` - Destination (Touch Screen = `0x0050`) — **not broadcast**
-- Byte 10: Mode/favourite value (see table below)
-- Byte 11: Data checksum (equals byte 10 since it is the only data byte)
-
-**Mode/Favourite Values:**
-
-| Value  | Meaning       | Label register (slot `0x03`) | Enable register (slot `0x03`) |
-|--------|---------------|------------------------------|-------------------------------|
-| `0x00` | Pool mode     | `0x31` — always `"Pool"`     | `0x21` — always `0x01`        |
-| `0x01` | Spa mode      | `0x32` — always `"Spa"`      | `0x22` — always `0x01`        |
-| `0x02` | Favourite 1   | `0x33` — user-defined label  | `0x23` — `0x01`=enabled, `0x00`=disabled |
-| `0x03` | Favourite 2   | `0x34` — user-defined label  | `0x24` — `0x01`=enabled, `0x00`=disabled |
-| `0x04` | Favourite 3   | `0x35` — user-defined label  | `0x25` — `0x01`=enabled, `0x00`=disabled |
-| `0x05` | Favourite 4   | `0x36` — user-defined label  | `0x26` — `0x01`=enabled, `0x00`=disabled |
-| `0x06` | Favourite 5   | `0x37` — user-defined label  | `0x27` — `0x01`=enabled, `0x00`=disabled |
-| `0x07` | Favourite 6   | `0x38` — user-defined label  | `0x28` — `0x01`=enabled, `0x00`=disabled |
-| `0x80` | All Off mode  | — (no label register)        | — (always available)          |
-| `0x81` | All Auto mode | — (no label register)        | — (always available)          |
-
-**Notes:**
-
-- **Destination is Touch Screen (`0x0050`), not broadcast** — This is addressed specifically to the touch screen, which holds the stored Favourite presets and applies them
-- **Command values are inverted from status values** — In status messages ([0x14 Mode](#0x14--mode-spapool-)), Spa=`0x00` and Pool=`0x01`; in this command, Pool=`0x00` and Spa=`0x01`
-- The Touch Screen acknowledges each activation with an immediate CMD `0x05` broadcast (value `0x01`) followed by the relevant mode, active-channel, and channel-status broadcasts
-- Up to 6 user Favourites are supported (`0x02`–`0x07`). The labels for all 8 slots (including the Pool and Spa built-ins) are stored in registers `0x31`–`0x38` (slot `0x03`), readable via the register protocol (§8)
-- Each slot's enabled/disabled state is stored in registers `0x21`–`0x28` (slot `0x03`), with `0x01` = enabled and `0x00` = disabled. Pool (`0x21`) and Spa (`0x22`) are always `0x01`. All Off (`0x80`) and All Auto (`0x81`) have no corresponding enable registers and are always available
-- This command requires the sender to impersonate the Internet Gateway (source address `0x00F0`)
-
----
-
-### 30. Valve Control Command ✅
-
-Sent by the Internet Gateway to set a valve to a specific state directly. Unlike the [Channel Toggle Command (0x10)](#0x10--channel-toggle-command-️) which cycles through states, this sets the target state explicitly.
+Sent by the Internet Gateway (`0x00F0`) to set a valve to a specific state directly. Unlike the [Channel Toggle Command (0x10)](#0x10--channel-toggle-command-️) which cycles through states, this sets the target state explicitly. No handler in `message_decoder.c` — documented only.
 
 **Pattern:** `02 00 F0 FF FF 80 00 28 0E A6`
 
@@ -1544,7 +1489,58 @@ Sent by the Internet Gateway to set a valve to a specific state directly. Unlike
 **Notes:**
 
 - Whether Auto is accepted by the controller depends on the valve's configuration
-- The controller responds immediately with an updated Valve State Broadcast (§23)
+- The controller responds immediately with an updated Valve State Broadcast ([0x27](#0x27--valve-state-broadcast-))
+
+---
+
+### 0x2A — Mode/Favourite Control Command ✅
+
+Command sent by the Internet Gateway (`0x00F0`) to the Touchscreen (`0x0050`) to switch modes or activate a stored Favourite preset. A single data byte encodes the target mode or favourite index.
+
+**Pattern:** `02 00 F0 00 50 80 00 2A 0D F9`
+
+**Examples:**
+
+```
+02 00 F0 00 50 80 00 2A 0D F9 00 00 03   Pool mode (all extras off)
+02 00 F0 00 50 80 00 2A 0D F9 01 01 03   Spa mode
+02 00 F0 00 50 80 00 2A 0D F9 02 02 03   Activate Favourite 1
+02 00 F0 00 50 80 00 2A 0D F9 80 80 03   All Off mode
+02 00 F0 00 50 80 00 2A 0D F9 81 81 03   All Auto mode
+                              ^^ Mode/favourite byte
+                                 ^^ Data checksum (equals the mode byte)
+```
+
+**Data Fields:**
+
+- Bytes 1-2: `00 F0` — Source (Internet Gateway = `0x00F0`)
+- Bytes 3-4: `00 50` — Destination (Touchscreen = `0x0050`) — **not broadcast**
+- Byte 10: Mode/favourite value (see table below)
+- Byte 11: Data checksum (equals byte 10 since it is the only data byte)
+
+**Mode/Favourite Values:**
+
+| Value  | Meaning       | Label register (slot `0x03`) | Enable register (slot `0x03`) |
+|--------|---------------|------------------------------|-------------------------------|
+| `0x00` | Pool mode     | `0x31` — always `"Pool"`     | `0x21` — always `0x01`        |
+| `0x01` | Spa mode      | `0x32` — always `"Spa"`      | `0x22` — always `0x01`        |
+| `0x02` | Favourite 1   | `0x33` — user-defined label  | `0x23` — `0x01`=enabled, `0x00`=disabled |
+| `0x03` | Favourite 2   | `0x34` — user-defined label  | `0x24` — `0x01`=enabled, `0x00`=disabled |
+| `0x04` | Favourite 3   | `0x35` — user-defined label  | `0x25` — `0x01`=enabled, `0x00`=disabled |
+| `0x05` | Favourite 4   | `0x36` — user-defined label  | `0x26` — `0x01`=enabled, `0x00`=disabled |
+| `0x06` | Favourite 5   | `0x37` — user-defined label  | `0x27` — `0x01`=enabled, `0x00`=disabled |
+| `0x07` | Favourite 6   | `0x38` — user-defined label  | `0x28` — `0x01`=enabled, `0x00`=disabled |
+| `0x80` | All Off mode  | — (no label register)        | — (always available)          |
+| `0x81` | All Auto mode | — (no label register)        | — (always available)          |
+
+**Notes:**
+
+- **Destination is Touchscreen (`0x0050`), not broadcast** — addressed specifically to the touchscreen, which holds the stored Favourite presets and applies them
+- **Command values are inverted from status values** — in status messages ([0x14 Mode](#0x14--mode-spapool-)), Spa=`0x00` and Pool=`0x01`; in this command, Pool=`0x00` and Spa=`0x01`
+- The Touchscreen acknowledges each activation with an immediate [0x05 Touchscreen Activation Ack](#0x05--touchscreen-activation-ack-️) (value `0x01`) followed by the relevant mode, active-channel, and channel-status broadcasts
+- Up to 6 user Favourites are supported (`0x02`–`0x07`). The labels for all 8 slots (including the Pool and Spa built-ins) are stored in registers `0x31`–`0x38` (slot `0x03`), readable via the register protocol ([§8](#8-register-messages-universal-register-system-️))
+- Each slot's enabled/disabled state is stored in registers `0x21`–`0x28` (slot `0x03`), with `0x01` = enabled and `0x00` = disabled. Pool (`0x21`) and Spa (`0x22`) are always `0x01`. All Off (`0x80`) and All Auto (`0x81`) have no corresponding enable registers and are always available
+- This command requires the sender to impersonate the Internet Gateway (source address `0x00F0`)
 
 ---
 
@@ -1585,7 +1581,7 @@ The register ID and slot together determine the message meaning. The slot distin
   - **Structural symmetry**: a 3-register block in the same slot, immediately adjacent to the Heater 1 trio.
   - **`0xEA` is user-writable** via the gateway register-write command (CMD `0x3A` / second-byte `0xB9`). An observed write `02 00 F0 FF FF 80 00 3A 0F B9 EA 00 1B 05 03` set the value to `0x1B` (27°C) and the touchscreen immediately rebroadcast `EA 00 1B`.
   - **Value match to H2**: that 27°C exactly matches the **H2** value carried in the heater's (`0x0070`) CMD `0x17` `[H1, H2]` broadcast (where H1=24°C also matches `0xE7`).
-  - **Mutually exclusive broadcast**: in captures observed so far the touchscreen broadcasts *either* the `E6/E7/E8` trio *or* the `E9/EA/EB` trio in slot `0x00`, but not both — consistent with a config-dependent enable (likely §5 byte 10 bit 3 = heater count).
+  - **Mutually exclusive broadcast**: in captures observed so far the touchscreen broadcasts *either* the `E6/E7/E8` trio *or* the `E9/EA/EB` trio in slot `0x00`, but not both — consistent with a config-dependent enable (likely [0x26](#0x26--configuration-️) byte 10 bit 3 = heater count).
   - **Caveats**: `0xEB` has been observed fixed at `0x0A` (10°C) across multiple installs — an unusual spa setpoint, but explainable as an unused default when the second heater isn't actually plumbed to spa. Single-bit toggle confirmation (changing spa setpoint in the UI and watching which register updates) has not yet been performed.
 
 ### Examples by Register Type
