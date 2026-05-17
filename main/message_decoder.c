@@ -159,6 +159,63 @@ const char* get_channel_type_name(uint8_t type_code) {
     return "Unknown";
 }
 
+// Command byte name lookup table — used to annotate unhandled messages in logs.
+// Some CMD bytes are source-dependent (e.g. 0x16 from 0x0062 vs 0x0070, 0x12
+// from 0x0050 vs 0x00F0 vs 0x0062); the labels here are generic. See
+// PROTOCOL.md for the full per-source semantics.
+typedef struct {
+    uint8_t cmd;
+    const char *name;
+} cmd_name_entry_t;
+
+static const cmd_name_entry_t CMD_NAME_TABLE[] = {
+    {0x05, "Touchscreen Unknown 3"},
+    {0x06, "Lighting Zone Config"},
+    {0x0A, "Firmware Version"},
+    {0x0B, "Channel Status"},
+    {0x0D, "Active Channels Bitmask"},
+    {0x10, "Channel Toggle Cmd"},
+    {0x12, "Status/Other"},
+    {0x14, "Mode"},
+    {0x16, "Temperature Reading"},
+    {0x17, "Temperature Setting"},
+    {0x18, "Chlorinator Cell Mode"},
+    {0x19, "Temp Set Cmd"},
+    {0x1D, "Chlorinator Setpoint"},
+    {0x1F, "Chlorinator Reading"},
+    {0x25, "Valve Sync"},
+    {0x26, "Configuration"},
+    {0x27, "Valve State"},
+    {0x2A, "Mode/Favourite Cmd"},
+    {0x31, "Temperature Reading (alt)"},
+    {0x37, "Gateway Info Req/Resp"},
+    {0x38, "Register Response"},
+    {0x39, "Register Request"},
+    {0x3A, "Light Zone Control Cmd"},
+    {0xFD, "Controller Day/Time"},
+};
+
+#define CMD_NAME_TABLE_SIZE (sizeof(CMD_NAME_TABLE) / sizeof(CMD_NAME_TABLE[0]))
+
+/**
+ * Get a generic name for a CMD byte.
+ *
+ * If the CMD is in the table, returns the static table label.
+ * Otherwise formats "Unknown CMD 0xXX" into the caller-supplied buffer and
+ * returns a pointer to it. The buffer must be at least 20 bytes.
+ *
+ * Labels are intentionally generic since many CMDs are source-dependent.
+ */
+static const char* get_cmd_name(uint8_t cmd, char *fallback_buf, size_t buf_size) {
+    for (int i = 0; i < CMD_NAME_TABLE_SIZE; i++) {
+        if (CMD_NAME_TABLE[i].cmd == cmd) {
+            return CMD_NAME_TABLE[i].name;
+        }
+    }
+    snprintf(fallback_buf, buf_size, "Unknown CMD 0x%02X", cmd);
+    return fallback_buf;
+}
+
 // Channel state names
 const char *CHANNEL_STATE_NAMES[] = {
     "Off",          // 0
@@ -904,7 +961,16 @@ static bool handle_touchscreen_unknown1(
 
 /**
  * Handler: Unknown/unhandled message
- * Logs the raw hex bytes for messages that don't match any known pattern
+ *
+ * Logs everything we *can* identify about an unknown message so it can be
+ * triaged from logs without a full hex re-read:
+ *   - addr_info: source/destination, resolved to device names when known
+ *   - CMD byte (data[7]): the protocol command byte
+ *   - LEN byte (data[8]): the frame's declared length
+ *   - payload bytes only (between header and frame checksum)
+ *
+ * The full raw frame is already emitted as "RX MSG" by decode_message()
+ * before dispatch, so it's not repeated here.
  */
 static bool handle_unknown(
     const uint8_t *data, int len,
@@ -912,15 +978,24 @@ static bool handle_unknown(
     const char *addr_info,
     message_decoder_context_t *ctx)
 {
-    // Format message as hex string — stack buffer sized to the worst case (BUS_MESSAGE_MAX_SIZE bytes)
-    char hex_str[3 * BUS_MESSAGE_MAX_SIZE + 1];
+    // Format payload bytes as hex string (data section only)
+    char payload_hex[3 * BUS_MESSAGE_MAX_SIZE + 1];
     int pos = 0;
-    for (int i = 0; i < len && pos < (int)sizeof(hex_str) - 3; i++) {
-        pos += snprintf(&hex_str[pos], sizeof(hex_str) - pos, "%02X ", data[i]);
+    for (int i = 0; i < payload_len && pos < (int)sizeof(payload_hex) - 3; i++) {
+        pos += snprintf(&payload_hex[pos], sizeof(payload_hex) - pos, "%02X ", payload[i]);
     }
-    hex_str[pos] = '\0';
+    // Strip trailing space if any payload was written
+    if (pos > 0) payload_hex[pos - 1] = '\0';
+    else payload_hex[0] = '\0';
 
-    ESP_LOGW(TAG, "Unhandled: %s", hex_str);
+    uint8_t cmd = data[7];
+    uint8_t length_byte = data[8];
+
+    char cmd_name_buf[24];
+    const char *cmd_name = get_cmd_name(cmd, cmd_name_buf, sizeof(cmd_name_buf));
+
+    ESP_LOGW(TAG, "Unhandled %s CMD=0x%02X (%s) LEN=%u payload=[%s]",
+             addr_info, cmd, cmd_name, length_byte, payload_hex);
 
     return false;  // Not decoded
 }
@@ -1153,6 +1228,13 @@ static bool handle_gateway_version(
 /**
  * Handler: Internet Gateway status broadcast
  * Pattern: "02 00 F0 FF FF 80 00 12 0F 91"
+ *
+ * Payload (3 bytes): { major, minor, embedded_checksum }
+ * where embedded_checksum == major + minor. The frame checksum at byte 13
+ * is handled by the framing layer and is not part of the payload.
+ *
+ * Firmware-version state is populated by §17 (handle_gateway_version), so
+ * this handler is log-only.
  */
 static bool handle_gateway_status(
     const uint8_t *data, int len,
@@ -1162,8 +1244,18 @@ static bool handle_gateway_status(
 {
     if (payload_len < 3) return false;
 
-    ESP_LOGI(TAG, "%s Internet Gateway status - 0x%02X 0x%02X 0x%02X",
-             addr_info, payload[0], payload[1], payload[2]);
+    uint8_t major = payload[0];
+    uint8_t minor = payload[1];
+    uint8_t embedded_checksum = payload[2];
+    uint8_t expected_checksum = (uint8_t)(major + minor);
+
+    if (embedded_checksum == expected_checksum) {
+        ESP_LOGI(TAG, "%s Internet Gateway status - firmware %d.%d (checksum 0x%02X OK)",
+                 addr_info, major, minor, embedded_checksum);
+    } else {
+        ESP_LOGW(TAG, "%s Internet Gateway status - firmware %d.%d (checksum 0x%02X, expected 0x%02X)",
+                 addr_info, major, minor, embedded_checksum, expected_checksum);
+    }
 
     return true;
 }

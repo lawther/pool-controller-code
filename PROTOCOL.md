@@ -234,7 +234,7 @@ The command byte (byte 7) identifies the message type. Some command values are s
 | 15 | Internet Gateway Network Config   | `0x00F0` | `02 00 F0 FF FF 80 00 37 15 BC`           | ⚠️     |                                     |
 | 16 | Internet Gateway Comms Status     | `0x00F0` | `02 00 F0 FF FF 80 00 37 0F B6`           | ⚠️     |                                     |
 | 17 | Internet Gateway Firmware Version | `0x00F0` | `02 00 F0 FF FF 80 00 0A 0E 88`           | ✅     | Same cmd byte as §21                |
-| 18 | Internet Gateway Status Broadcast | `0x00F0` | `02 00 F0 FF FF 80 00 12 0F 91`           | ⚠️     | Same cmd byte as §22                |
+| 18 | Internet Gateway Status Broadcast | `0x00F0` | `02 00 F0 FF FF 80 00 12 0F 91`           | ✅     | Same cmd byte as §22                |
 | 19 | Register Read Request             | `0x00F0` | `02 00 F0 FF FF 80 00 39 0E B7`           |        | For responses see [§10](#8-register-messages-universal-register-system-️)|
 | 20 | Controller Day/Time/Clock         | `0x0050` | `02 00 50 FF FF 80 00 FD 0F DC`           | ✅     |                                     |
 | 21 | Touchscreen Firmware Version      | `0x0050` | `02 00 50 FF FF 80 00 0A 0E E8`           | ✅     | Same cmd byte as §17                |
@@ -964,13 +964,14 @@ Firmware version announcement broadcast by the Internet Gateway on startup. Uses
 **Notes:**
 
 - Uses the same command byte (`0x0A`) as the Touchscreen Firmware Version message ([Section 21](#21-touchscreen-firmware-version-))
-- Broadcast at startup, paired with the Gateway Status Broadcast ([Section 18](#18-internet-gateway-status-broadcast-️))
+- Broadcast at startup, paired with the Gateway Status Broadcast ([Section 18](#18-internet-gateway-status-broadcast-))
+- The same `{major, minor}` pair is also embedded in the Gateway Status Broadcast ([Section 18](#18-internet-gateway-status-broadcast-))
 
 ---
 
-### 18. Internet Gateway Status Broadcast ⚠️
+### 18. Internet Gateway Status Broadcast ✅
 
-Status broadcast by the Internet Gateway on startup. Uses the same command byte (`0x12`) as the Touchscreen Unknown 1 message, but carries an additional third data byte and originates from source `0x00F0`.
+Firmware version broadcast by the Internet Gateway on startup. Uses the same command byte (`0x12`) as the Touchscreen Unknown 1 message, but carries an extra payload byte and originates from source `0x00F0`. The payload repeats the `{major, minor}` pair from the Gateway Firmware Version message ([Section 17](#17-internet-gateway-firmware-version-)) and follows it with an embedded data-level checksum.
 
 **Pattern:** `02 00 F0 FF FF 80 00 12 0F 91`
 
@@ -978,23 +979,31 @@ Status broadcast by the Internet Gateway on startup. Uses the same command byte 
 
 ```
 02 00 F0 FF FF 80 00 12 0F 91 05 01 06 0C 03
-                              ^^ Unknown (always 0x05)
-                                 ^^ Unknown (always 0x01)
-                                    ^^ Unknown (always 0x06)
+                              ^^ Major version (5)
+                                 ^^ Minor version (1)
+                                    ^^ Embedded checksum (major + minor)
+                                       → Version 5.1
 ```
 
 **Data Fields:**
 
-- Byte 10: Unknown (always `0x05` in observed samples)
-- Byte 11: Unknown (always `0x01` in observed samples)
-- Byte 12: Unknown (always `0x06` in observed samples)
+- Byte 10: Major version number
+- Byte 11: Minor version number
+- Byte 12: Embedded checksum — sum of bytes 10 and 11 (`major + minor`)
+
+**Observed samples:**
+
+| Sample (bytes 10–12) | Major | Minor | Embedded checksum |
+|----------------------|-------|-------|-------------------|
+| `05 01 06`           | 5     | 1     | `0x06` (=5+1)     |
+| `05 00 05`           | 5     | 0     | `0x05` (=5+0)     |
 
 **Notes:**
 
 - Uses the same command byte (`0x12`) as Touchscreen Unknown 1 ([Section 22](#22-touchscreen-unknown-1-️)), but is 1 byte longer (15 vs 14 bytes total)
-- The touchscreen version carries only 2 bytes (`0x05 0x00`); the gateway version carries 3 bytes
 - Broadcast at startup, paired with the Gateway Firmware Version message ([Section 17](#17-internet-gateway-firmware-version-))
-- Field meanings are unknown; `0x05` may be a shared protocol constant
+- The embedded checksum at byte 12 is a data-level field, distinct from the standard frame checksum at byte 13 (`major + minor + embedded_checksum`, computed by the framing layer over all payload bytes)
+- Carries redundant firmware-version information already announced by §17; firmware-version state population is left to §17 alone
 
 ---
 

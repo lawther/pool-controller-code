@@ -24,6 +24,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 ### Security
 
+## [1.2.0] - 2026-05-17
+### Added
+- Decoded the Internet Gateway Status Broadcast (CMD `0x12` from `0x00F0`) — payload is `{major, minor, embedded_checksum}` where the third byte equals `major + minor`; `handle_gateway_status` now logs the firmware version and validates the embedded checksum, while firmware-version state population remains with §17. PROTOCOL.md §18 promoted from ⚠️ to ✅, with two confirming samples (5.1 → `05 01 06`, 5.0 → `05 00 05`) and a note clarifying that byte 13 is the standard frame checksum, not a data field
+### Changed
+- Improved unhandled-message logging in `handle_unknown` to include the resolved source/destination device names (via `addr_info`), the CMD byte plus a human-readable name (`get_cmd_name` table covering 0x05–0xFD; CMDs not in the table render as "Unknown CMD 0xXX"), the declared length byte, and the payload section only — making unknown messages triagable from a single log line without duplicating the raw frame already printed as "RX MSG"
+
 ## [1.1.0] - 2026-05-16
 ### Added
 - Added device address `0x0070` ("Heatpump", e.g. Active i25 Evo electric heater) to the device-name lookup, plus decoders for its three observed broadcasts: CMD `0x0A` firmware version, CMD `0x16` water-temperature reading (1-byte payload, distinct from the `0x0062` Temp Sensor variant), and CMD `0x17` two-byte `[Heater 1 setpoint, Heater 2 setpoint]` payload
