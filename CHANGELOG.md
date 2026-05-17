@@ -18,14 +18,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
-- Added register-dispatch entries for Heater 1 state (`0xE6` slot `0x00`) and tentative Heater 2 state (`0xE9` slot `0x00`) so touchscreen CMD `0x38` broadcasts log as `Heater 1/2 state - Off/On` instead of falling through to "Unhandled register"; both are log-only — authoritative Heater 1 state still flows through the CMD `0x12` path that updates `pool_state->heaters[0]`
-- Added PROTOCOL.md Appendix A entries for the suspected Heater 2 trio (`0xE9` State, `0xEA` Pool Setpoint, `0xEB` Spa Setpoint) in slot `0x00` — marked tentative (⚠️) based on structural symmetry with the Heater 1 `0xE6`/`0xE7`/`0xE8` trio, a confirmed gateway register-write to `0xEA = 27°C` (CMD `0x3A`), and the matching H2 value in the heater's CMD `0x17` `[H1, H2]` broadcast
 ### Changed
 ### Deprecated
 ### Removed
 ### Fixed
-- Corrected the §5 Configuration message byte 10 bit 3 interpretation from "heater count (single/two)" to "heater currently active (Off/On)" after direct same-system observation showed bit 3 toggling with heater on/off transitions (heater On → `0x09`, heater Off → `0x01`); `handle_config` now logs `heater=Off/On` and the §5 byte 10 example table is updated accordingly
 ### Security
+
+
+## [1.2.1] - 2026-05-17
+### Added
+- Added register-dispatch entries for Heater 1 state (`0xE6` slot `0x00`) and tentative Heater 2 state (`0xE9` slot `0x00`) so touchscreen CMD `0x38` broadcasts log as `Heater 1/2 state - Off/On` instead of falling through to "Unhandled register"; both are log-only — authoritative Heater 1 state still flows through the CMD `0x12` path that updates `pool_state->heaters[0]`
+- Added PROTOCOL.md Appendix A entries for the suspected Heater 2 trio (`0xE9` State, `0xEA` Pool Setpoint, `0xEB` Spa Setpoint) in slot `0x00` — marked tentative (⚠️) based on structural symmetry with the Heater 1 `0xE6`/`0xE7`/`0xE8` trio, a confirmed gateway register-write to `0xEA = 27°C` (CMD `0x3A`), and the matching H2 value in the heater's CMD `0x17` `[H1, H2]` broadcast
+### Fixed
+- Corrected the §5 Configuration message byte 10 bit 3 interpretation from "heater count (single/two)" to "heater currently active (Off/On)" after direct same-system observation showed bit 3 toggling with heater on/off transitions (heater On → `0x09`, heater Off → `0x01`); `handle_config` now logs `heater=Off/On` and the §5 byte 10 example table is updated accordingly
 
 ## [1.2.0] - 2026-05-17
 ### Added
