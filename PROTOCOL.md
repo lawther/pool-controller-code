@@ -8,7 +8,7 @@ This document describes the proprietary serial protocol used by the Connect 10 p
   - [Message Format](#message-format)
   - [Checksum Calculation](#checksum-calculation)
   - [Device Addresses](#device-addresses)
-  - [Known Command Bytes](#known-command-bytes)
+- [Command Summary](#command-summary)
 - [Commands](#commands)
   - [0x05 — Touchscreen Activation Ack ⚠️](#0x05--touchscreen-activation-ack-️)
   - [0x06 — Lighting Zone Configuration ✅](#0x06--lighting-zone-configuration-)
@@ -102,7 +102,9 @@ uint8_t data_checksum = sum & 0xFF;
 | `0x00F0` | Internet GW  | Internet gateway module           |
 | `0xFFFF` | Broadcast    | Broadcast to all devices          |
 
-### Known Command Bytes
+---
+
+## Command Summary
 
 The command byte (byte 7) identifies the message type. Some commands are universal across sources (same payload layout regardless of who sends — e.g. `0x0A`); others are source-dependent (same CMD byte, different payload per source — e.g. `0x12`, `0x16`, `0x17`).
 
@@ -145,7 +147,7 @@ The protocol is organised around a single-byte CMD identifier carried in byte 7 
 
 Read this section linearly to learn the protocol bottom-up, or jump in via:
 
-- the [Known Command Bytes](#known-command-bytes) master table for a one-line summary of every CMD plus its source/destination directions and whether it has a handler in `message_decoder.c`;
+- the [Command Summary](#command-summary) master table for a one-line summary of every CMD plus its source/destination directions and whether it has a handler in `message_decoder.c`;
 - the [Table of Contents](#table-of-contents) for direct links;
 - [Appendix A](#appendix-a-register-dispatch-table) when you're looking for a specific register inside the universal register message ([0x38](#0x38--register-data-️)).
 
