@@ -27,11 +27,10 @@ This document describes the proprietary serial protocol used by the Connect 10 p
   - [14. Internet Gateway Serial Number ⚠️](#14-internet-gateway-serial-number-️)
   - [15. Internet Gateway Network Config ⚠️](#15-internet-gateway-network-config-️)
   - [16. Internet Gateway Communications Status ⚠️](#16-internet-gateway-communications-status-️)
-  - [17. Internet Gateway Firmware Version ✅](#17-internet-gateway-firmware-version-)
+  - [17. Firmware Version ✅](#17-firmware-version-)
   - [18. Internet Gateway Status Broadcast ⚠️](#18-internet-gateway-status-broadcast-️)
   - [19. Register Read Request/Response](#19-register-read-requestresponse)
   - [20. Controller Day/Time/Clock ✅](#20-controller-daytimeclock-)
-  - [21. Touchscreen Firmware Version ✅](#21-touchscreen-firmware-version-)
   - [22. Touchscreen Unknown 1 ⚠️](#22-touchscreen-unknown-1-️)
   - [23. Valve State Broadcast ⚠️](#23-valve-state-broadcast-️)
   - [24. Valve Sync to Controller ⚠️](#24-valve-sync-to-controller-️)
@@ -44,8 +43,6 @@ This document describes the proprietary serial protocol used by the Connect 10 p
   - [30. Valve Control Command ✅](#30-valve-control-command-)
   - [31. Chlorinator Cell Mode ⚠️](#31-chlorinator-cell-mode-️)
   - [32. Chlorinator Status Broadcast ⚠️](#32-chlorinator-status-broadcast-️)
-  - [33. Chlorinator Firmware Version ✅](#33-chlorinator-firmware-version-)
-  - [34. Temp Sensor Firmware Version ✅](#34-temp-sensor-firmware-version-)
 - [Appendix A: Register Dispatch Table](#appendix-a-register-dispatch-table)
 - [Implementation Notes](#implementation-notes)
 
@@ -114,108 +111,38 @@ uint8_t data_checksum = sum & 0xFF;
 
 ### Known Command Bytes
 
-The command byte (byte 7) identifies the message type. Some command values are shared across devices — the source address distinguishes them.
+The command byte (byte 7) identifies the message type. Some commands are universal across sources (same payload layout regardless of who sends — e.g. `0x0A`); others are source-dependent (same CMD byte, different payload per source — e.g. `0x12`, `0x16`, `0x17`).
 
-**Register protocol (0x38–0x3A)**
+The **In code?** column distinguishes commands that have an actual handler in `message_decoder.c` from those that are only documented in this file. Source-dependent commands list each known source/destination on its own line in the **Direction** column.
 
-| CMD    | Name                  | Direction              | Section(s) |
-|--------|-----------------------|------------------------|------------|
-| `0x38` | Register Data         | Touchscreen → Broadcast | [§8](#8-register-messages-universal-register-system-️) |
-| `0x39` | Register Read Request | Gateway → Touchscreen  | [§19](#19-register-read-requestresponse) |
-| `0x3A` | Register Write        | Gateway → Controller   | [§25](#25-light-zone-control-command-), [§28](#28-heater-control-command-) |
-
-**Device status (0x12, shared across five devices)**
-
-| CMD    | Source       | Meaning                       | Section |
-|--------|--------------|-------------------------------|---------|
-| `0x12` | `0x0062`     | Heater Status                 | [§4](#4-heater-status-️) |
-| `0x12` | `0x00F0`     | Gateway Status Broadcast      | [§18](#18-internet-gateway-status-broadcast-️) |
-| `0x12` | `0x0050`     | Touchscreen Status            | [§22](#22-touchscreen-unknown-1-️) |
-| `0x12` | `0x0090`     | Chlorinator Status (variant A)| [§32](#32-chlorinator-status-broadcast-️) |
-| `0x12` | `0x0084`     | Chlorinator Status (variant B)| [§32](#32-chlorinator-status-broadcast-️) |
-
-**Firmware version (0x0A, shared across five devices)**
-
-| CMD    | Source       | Meaning                       | Section |
-|--------|--------------|-------------------------------|---------|
-| `0x0A` | `0x0050`     | Touchscreen Firmware Version  | [§21](#21-touchscreen-firmware-version-) |
-| `0x0A` | `0x0062`     | Temp Sensor Firmware Version  | [§34](#34-temp-sensor-firmware-version-) |
-| `0x0A` | `0x0070`     | Heatpump Firmware Version     | (log-only, no dedicated section) |
-| `0x0A` | `0x0084`     | Chlorinator Firmware Version  | [§33](#33-chlorinator-firmware-version-) |
-| `0x0A` | `0x00F0`     | Gateway Firmware Version      | [§17](#17-internet-gateway-firmware-version-) |
-
-**Temperature reading (0x16, shared across two sources — different payload layout)**
-
-| CMD    | Source   | LENGTH | Meaning                           | Section |
-|--------|----------|--------|-----------------------------------|---------|
-| `0x16` | `0x0062` | `0x0E` | Temp sensor current reading       | [§3](#3-temperature-reading-️) |
-| `0x16` | `0x0070` | `0x0D` | Heater current water temperature  | [§3](#3-temperature-reading-️) |
-
-**Temperature setpoint (0x17, shared across two sources — different payload layout)**
-
-| CMD    | Source   | LENGTH | Meaning                                   | Section |
-|--------|----------|--------|-------------------------------------------|---------|
-| `0x17` | `0x0050` | `0x10` | Touchscreen spa/pool setpoints (°C + °F)  | [§2](#2-temperature-settings-) |
-| `0x17` | `0x0070` | `0x0E` | Heater 1 and Heater 2 setpoints (°C only) | [§2](#2-temperature-settings-) |
-
-**Chlorinator → cell mode (0x18, inter-device unicast)**
-
-| CMD    | Source   | Destination | Meaning                                          | Section |
-|--------|----------|-------------|--------------------------------------------------|---------|
-| `0x18` | `0x0084` | `0x00A0`    | Chlorinator commands salt cell — current mode    | [§31](#31-chlorinator-cell-mode-️) |
-| `0x18` | `0x0050` | `0x00A0`    | Touchscreen echoes mode change to salt cell      | [§31](#31-chlorinator-cell-mode-️) |
-
-**Touchscreen state broadcasts**
-
-| CMD    | Meaning                   | Section |
-|--------|---------------------------|---------|
-| `0x06` | Lighting Zone Config      | [§9](#9-lighting-zone-configuration-) |
-| `0x0B` | Channel Status            | [§7](#7-channel-status-) |
-| `0x0D` | Active Channels Bitmask   | [§6](#6-active-channels-bitmask-️) |
-| `0x14` | Mode (Spa/Pool)           | [§1](#1-mode-message-spapool-) |
-| `0x17` | Temperature Settings      | [§2](#2-temperature-settings-) |
-| `0x25` | Valve Sync (to Controller)| [§24](#24-valve-sync-to-controller-️) |
-| `0x26` | Configuration             | [§5](#5-configuration-️) |
-| `0x27` | Valve State Broadcast     | [§23](#23-valve-state-broadcast-️) |
-| `0x38` | Register Data             | [§8](#8-register-messages-universal-register-system-️) |
-| `0xFD` | Controller Clock          | [§20](#20-controller-daytimeclock-) |
-
-**Temperature sensor broadcasts**
-
-| CMD    | Meaning                   | Section |
-|--------|---------------------------|---------|
-| `0x0A` | Firmware Version          | [§34](#34-temp-sensor-firmware-version-) |
-| `0x12` | Heater Status             | [§4](#4-heater-status-️) |
-| `0x16` | Temperature Reading (A)   | [§3](#3-temperature-reading-️) |
-| `0x31` | Temperature Reading (B)   | [§3](#3-temperature-reading-️) |
-
-**Chlorinator broadcasts**
-
-| CMD    | Meaning                   | Section |
-|--------|---------------------------|---------|
-| `0x0A` | Firmware Version          | [§33](#33-chlorinator-firmware-version-) |
-| `0x12` | Status (mode)             | [§32](#32-chlorinator-status-broadcast-️) |
-| `0x1D` | Setpoint (pH or ORP)      | [§10](#10-chlorinator-ph-setpoint-), [§12](#12-chlorinator-orp-setpoint-) |
-| `0x1F` | Reading (pH or ORP)       | [§11](#11-chlorinator-ph-reading-), [§13](#13-chlorinator-orp-reading-) |
-
-**Internet Gateway broadcasts**
-
-| CMD    | Meaning                          | Section |
-|--------|----------------------------------|---------|
-| `0x0A` | Firmware Version                 | [§17](#17-internet-gateway-firmware-version-) |
-| `0x12` | Status Broadcast                 | [§18](#18-internet-gateway-status-broadcast-️) |
-| `0x37` | Info messages (serial/net/comms) | [§14](#14-internet-gateway-serial-number-️)–[§16](#16-internet-gateway-communications-status-️) |
-
-**Internet Gateway control commands (to controller)**
-
-| CMD    | Meaning                   | Section |
-|--------|---------------------------|---------|
-| `0x10` | Channel Toggle            | [§26](#26-channel-toggle-command-) |
-| `0x19` | Temperature Setpoint      | [§27](#27-temperature-setpoint-command-) |
-| `0x28` | Valve Control             | [§30](#30-valve-control-command-) |
-| `0x2A` | Mode/Favourite Control    | [§29](#29-modefavourite-control-command-) |
-| `0x39` | Register Read Request     | [§19](#19-register-read-requestresponse) |
-| `0x3A` | Register Write            | [§25](#25-light-zone-control-command-), [§28](#28-heater-control-command-) |
+| CMD    | Name                                | Direction                                                              | Variants / Notes                                                                            | Section(s)               | In code?                |
+|--------|-------------------------------------|------------------------------------------------------------------------|---------------------------------------------------------------------------------------------|--------------------------|-------------------------|
+| `0x05` | Touchscreen Activation Ack          | `0x0050` → Broadcast                                                   | 1-byte payload `0x01`; sent after mode/favourite changes                                    | (mentioned in [§29](#29-modefavourite-control-command-)) | Yes (log-only)          |
+| `0x06` | Lighting Zone Config                | `0x0050` → Broadcast                                                   |                                                                                             | [§9](#9-lighting-zone-configuration-)                    | Yes                     |
+| `0x0A` | Firmware Version                    | `0x0050`, `0x0062`, `0x0070`, `0x0084`, `0x00F0` → Broadcast           | Same `{major, minor}` payload across all 5 sources; dispatched on CMD byte alone            | [§17](#17-firmware-version-) | Yes (unified handler)   |
+| `0x0B` | Channel Status                      | `0x0050` → Broadcast                                                   |                                                                                             | [§7](#7-channel-status-)                                 | Yes                     |
+| `0x0D` | Active Channels Bitmask             | `0x0050` → `0x006F` Controller                                         | Unicast                                                                                     | [§6](#6-active-channels-bitmask-️)                       | Yes                     |
+| `0x0F` | Chlorinator mode → Touchscreen      | `0x0084` → `0x0050`                                                    | 2-byte `[01, mode]`; mirrors [§31](#31-chlorinator-cell-mode-) cell mode                    | (mentioned in [§31](#31-chlorinator-cell-mode-))         | **No (doc only)**       |
+| `0x10` | Channel Toggle Command              | `0x00F0` Gateway → Broadcast                                           |                                                                                             | [§26](#26-channel-toggle-command-)                       | Yes                     |
+| `0x12` | Device Status                       | `0x0050`, `0x0062`, `0x0084`, `0x0090`, `0x00F0` → Broadcast           | Payload layout differs per source                                                           | [§4](#4-heater-status-️), [§18](#18-internet-gateway-status-broadcast-), [§22](#22-touchscreen-unknown-1-️), [§32](#32-chlorinator-status-broadcast-️) | Yes (per-source)        |
+| `0x14` | Mode (Spa/Pool)                     | `0x0050` → Broadcast                                                   |                                                                                             | [§1](#1-mode-message-spapool-)                           | Yes                     |
+| `0x16` | Water Temperature Reading           | `0x0062` (LEN `0x0E`), `0x0070` (LEN `0x0D`) → Broadcast               | Source-dependent payload (`0x0062` = inbuilt heater, `0x0070` = add-on Active i25 Evo)      | [§3](#3-temperature-reading-️)                           | Yes (per-source)        |
+| `0x17` | Temperature Settings                | `0x0050` (LEN `0x10`), `0x0070` (LEN `0x0E`) → Broadcast               | Source-dependent payload layout                                                             | [§2](#2-temperature-settings-)                           | Yes (per-source)        |
+| `0x18` | Chlorinator Cell Mode               | `0x0084`, `0x0050` → `0x00A0` Salt Cell                                | Inter-device unicast                                                                        | [§31](#31-chlorinator-cell-mode-)                        | **No (doc only)**       |
+| `0x19` | Temperature Setpoint Command        | `0x00F0` Gateway → Broadcast                                           |                                                                                             | [§27](#27-temperature-setpoint-command-)                 | Yes                     |
+| `0x1D` | Chlorinator Setpoint                | `0x0090` → Broadcast                                                   | Byte 10: `0x01`=pH, `0x02`=ORP                                                              | [§10](#10-chlorinator-ph-setpoint-), [§12](#12-chlorinator-orp-setpoint-) | Yes                     |
+| `0x1F` | Chlorinator Reading                 | `0x0090` → Broadcast                                                   | Byte 10: `0x01`=pH, `0x02`=ORP                                                              | [§11](#11-chlorinator-ph-reading-), [§13](#13-chlorinator-orp-reading-) | Yes                     |
+| `0x25` | Valve Sync                          | `0x0050` → `0x006F` Controller                                         | Unicast                                                                                     | [§24](#24-valve-sync-to-controller-️)                    | **No (doc only)**       |
+| `0x26` | Configuration                       | `0x0050` → Broadcast                                                   |                                                                                             | [§5](#5-configuration-️)                                 | Yes                     |
+| `0x27` | Valve State Broadcast               | `0x0050` → Broadcast                                                   | Two LEN variants: `0x0D` (short) and `0x13` (full)                                          | [§23](#23-valve-state-broadcast-️)                       | Yes (both variants)     |
+| `0x28` | Valve Control Command               | `0x00F0` Gateway → Broadcast                                           |                                                                                             | [§30](#30-valve-control-command-)                        | **No (doc only)**       |
+| `0x2A` | Mode/Favourite Control Command      | `0x00F0` Gateway → `0x0050` Touchscreen                                | Unicast                                                                                     | [§29](#29-modefavourite-control-command-)                | Yes                     |
+| `0x31` | Water Temperature Reading (alt)     | `0x0062` → Broadcast                                                   | Second variant alongside `0x16`                                                             | [§3](#3-temperature-reading-️)                           | Yes                     |
+| `0x37` | Gateway Info Messages               | `0x00F0` → Broadcast                                                   | LEN distinguishes serial/IP/comms variants                                                  | [§14](#14-internet-gateway-serial-number-️), [§15](#15-internet-gateway-network-config-️), [§16](#16-internet-gateway-communications-status-️) | Yes (3 handlers)        |
+| `0x38` | Register Data (Response)            | `0x0050` → Broadcast                                                   | Universal register system — sub-dispatched by register + slot                               | [§8](#8-register-messages-universal-register-system-️), [Appendix A](#appendix-a-register-dispatch-table) | Yes                     |
+| `0x39` | Register Read Request               | `0x00F0` Gateway → Broadcast                                           |                                                                                             | [§19](#19-register-read-requestresponse) | Yes                     |
+| `0x3A` | Register Write / Control            | `0x00F0` Gateway → Broadcast                                           | Used for both Light Zone Control and Heater Control                                         | [§25](#25-light-zone-control-command-), [§28](#28-heater-control-command-) | Yes (both)              |
+| `0xFD` | Controller Day/Time/Clock           | `0x0050` → Broadcast                                                   |                                                                                             | [§20](#20-controller-daytimeclock-)      | Yes                     |
 
 ---
 
@@ -244,11 +171,10 @@ The command byte (byte 7) identifies the message type. Some command values are s
 | 14 | Internet Gateway Serial Number    | `0x00F0` | `02 00 F0 FF FF 80 00 37 11 B8`           | ⚠️     |                                     |
 | 15 | Internet Gateway Network Config   | `0x00F0` | `02 00 F0 FF FF 80 00 37 15 BC`           | ⚠️     |                                     |
 | 16 | Internet Gateway Comms Status     | `0x00F0` | `02 00 F0 FF FF 80 00 37 0F B6`           | ⚠️     |                                     |
-| 17 | Internet Gateway Firmware Version | `0x00F0` | `02 00 F0 FF FF 80 00 0A 0E 88`           | ✅     | Same cmd byte as §21                |
+| 17 | Firmware Version                  | any      | `02 00 ?? FF FF 80 00 0A 0E ??`           | ✅     | CMD `0x0A` broadcast by Touchscreen (`0x0050`), Inbuilt heater (`0x0062`), Heatpump (`0x0070`), Chlorinator (`0x0084`), and Internet Gateway (`0x00F0`) with identical `{major, minor}` payload — single unified handler |
 | 18 | Internet Gateway Status Broadcast | `0x00F0` | `02 00 F0 FF FF 80 00 12 0F 91`           | ✅     | Same cmd byte as §22                |
 | 19 | Register Read Request             | `0x00F0` | `02 00 F0 FF FF 80 00 39 0E B7`           |        | For responses see [§10](#8-register-messages-universal-register-system-️)|
 | 20 | Controller Day/Time/Clock         | `0x0050` | `02 00 50 FF FF 80 00 FD 0F DC`           | ✅     |                                     |
-| 21 | Touchscreen Firmware Version      | `0x0050` | `02 00 50 FF FF 80 00 0A 0E E8`           | ✅     | Same cmd byte as §17                |
 | 22 | Touchscreen Unknown 1             | `0x0050` | `02 00 50 FF FF 80 00 12 0E F0`           | ⚠️     | Same cmd byte as §18                |
 | 23 | Valve State Broadcast             | `0x0050` | `02 00 50 FF FF 80 00 27 0D 04`           | ⚠️     | Two LENGTH variants: 0x0D (short) and 0x13 (full state) |
 | 24 | Valve Sync to Controller          | `0x0050` | `02 00 50 00 6F 80 00 25 0D 73`           | ⚠️     | Dst=`0x006F` (Controller)           |
@@ -261,8 +187,6 @@ The command byte (byte 7) identifies the message type. Some command values are s
 | 31 | Chlorinator Cell Mode             | `0x0084` | `02 00 84 00 A0 80 00 18 0D CB`           | ⚠️     | Dst=`0x00A0` (Salt Cell); 1-byte mode (`0x00`=Off, `0x01`=Manual, `0x02`=Auto — tentative). Also seen from `0x0050` |
 | 32 | Chlorinator Status (variant A)    | `0x0090` | `02 00 90 FF FF 80 00 12 0D 2F`           | ⚠️     | 1-byte mode payload — observed `0x01` (Auto, tentative) |
 | 32 | Chlorinator Status (variant B)    | `0x0084` | `02 00 84 FF FF 80 00 12 0D 23`           | ⚠️     | 1-byte mode payload — observed `0x02` (On, tentative) |
-| 33 | Chlorinator Firmware Version      | `0x0084` | `02 00 84 FF FF 80 00 0A 0E 1C`           | ✅     | Same shape as §17/§21; `{major, minor}` payload |
-| 34 | Temp Sensor Firmware Version      | `0x0062` | `02 00 62 FF FF 80 00 0A 0E FA`           | ✅     | Same shape as §17/§21/§33; `{major, minor}` payload |
 
 ---
 
@@ -956,13 +880,29 @@ Status of the gateway's internet connection.
 
 ---
 
-### 17. Internet Gateway Firmware Version ✅
+### 17. Firmware Version ✅
 
-Firmware version announcement broadcast by the Internet Gateway on startup. Uses the same command byte (`0x0A`) as the Touchscreen Firmware Version message, but originates from source `0x00F0`.
+Firmware-version announcement (`{major, minor}` payload) broadcast by multiple devices on the bus. CMD byte (`0x0A`) and payload layout are identical across every observed source — the source address selects which device is announcing its firmware. Dispatched in code by a single source-agnostic handler.
 
-**Pattern:** `02 00 F0 FF FF 80 00 0A 0E 88`
+**Common pattern:** `02 00 ?? FF FF 80 00 0A 0E ??` (first `??` is the source LO byte; last `??` is the header checksum)
 
-**Example:**
+**Data Fields:**
+
+- Byte 10: Major version number
+- Byte 11: Minor version number
+- Byte 12: Standard frame data checksum (`major + minor`)
+
+**Known sources and observed samples:**
+
+| Source   | Device                                   | Full prefix (bytes 0–9)                 | Observed payload (bytes 10–12) | Version       |
+|----------|------------------------------------------|-----------------------------------------|--------------------------------|---------------|
+| `0x0050` | Touchscreen                              | `02 00 50 FF FF 80 00 0A 0E E8`         | `02 08 0A`                     | 2.8           |
+| `0x0062` | Inbuilt heater (also labelled Temp Sensor in the address table) | `02 00 62 FF FF 80 00 0A 0E FA` | `02 06 08`               | 2.6           |
+| `0x0070` | Active i25 Evo heater (heatpump)         | `02 00 70 FF FF 80 00 0A 0E 08`         | _(observed; log-only, no dedicated state field)_ | —    |
+| `0x0084` | Chlorinator (two-module variant)         | `02 00 84 FF FF 80 00 0A 0E 1C`         | `05 07 0C`                     | 5.7           |
+| `0x00F0` | Internet Gateway                         | `02 00 F0 FF FF 80 00 0A 0E 88`         | `05 01 06` / `05 00 05`        | 5.1 / 5.0     |
+
+**Example (Internet Gateway, v5.1):**
 
 ```
 02 00 F0 FF FF 80 00 0A 0E 88 05 01 06 03
@@ -971,22 +911,17 @@ Firmware version announcement broadcast by the Internet Gateway on startup. Uses
                                     → Version 5.1
 ```
 
-**Data Fields:**
-
-- Byte 10: Major version number
-- Byte 11: Minor version number
-
 **Notes:**
 
-- Uses the same command byte (`0x0A`) as the Touchscreen Firmware Version message ([Section 21](#21-touchscreen-firmware-version-))
-- Broadcast at startup, paired with the Gateway Status Broadcast ([Section 18](#18-internet-gateway-status-broadcast-))
-- The same `{major, minor}` pair is also embedded in the Gateway Status Broadcast ([Section 18](#18-internet-gateway-status-broadcast-))
+- Decoded by the source-agnostic `handle_firmware_version` handler (matches on `data[7] == 0x0A` regardless of source); state is stored in per-device fields on `pool_state` (`touchscreen_version_*`, `temp_sensor_version_*`, `chlor_version_*`, `gateway_version_*`). Heatpump (`0x0070`) firmware is logged only — no dedicated state field.
+- The same `{major, minor}` pair is also redundantly embedded in the Gateway Status Broadcast ([§18](#18-internet-gateway-status-broadcast-)); firmware-version state population is performed once here.
+- Broadcast at device startup; appears alongside other announcement broadcasts (mode, channel status, time).
 
 ---
 
 ### 18. Internet Gateway Status Broadcast ✅
 
-Firmware version broadcast by the Internet Gateway on startup. Uses the same command byte (`0x12`) as the Touchscreen Unknown 1 message, but carries an extra payload byte and originates from source `0x00F0`. The payload repeats the `{major, minor}` pair from the Gateway Firmware Version message ([Section 17](#17-internet-gateway-firmware-version-)) and follows it with an embedded data-level checksum.
+Firmware version broadcast by the Internet Gateway on startup. Uses the same command byte (`0x12`) as the Touchscreen Unknown 1 message, but carries an extra payload byte and originates from source `0x00F0`. The payload repeats the `{major, minor}` pair from the generic Firmware Version message ([§17](#17-firmware-version-)) and follows it with an embedded data-level checksum.
 
 **Pattern:** `02 00 F0 FF FF 80 00 12 0F 91`
 
@@ -1016,7 +951,7 @@ Firmware version broadcast by the Internet Gateway on startup. Uses the same com
 **Notes:**
 
 - Uses the same command byte (`0x12`) as Touchscreen Unknown 1 ([Section 22](#22-touchscreen-unknown-1-️)), but is 1 byte longer (15 vs 14 bytes total)
-- Broadcast at startup, paired with the Gateway Firmware Version message ([Section 17](#17-internet-gateway-firmware-version-))
+- Broadcast at startup, paired with the gateway's firmware-version announcement ([§17](#17-firmware-version-))
 - The embedded checksum at byte 12 is a data-level field, distinct from the standard frame checksum at byte 13 (`major + minor + embedded_checksum`, computed by the framing layer over all payload bytes)
 - Carries redundant firmware-version information already announced by §17; firmware-version state population is left to §17 alone
 
@@ -1107,35 +1042,6 @@ Current time from the controller's internal clock. Broadcast periodically for sy
 - This message is broadcast by the controller for device time synchronization
 - Used by connected devices (touchscreen, internet gateway) to maintain consistent time
 - Appears to be sent every minute
-
----
-
-### 21. Touchscreen Firmware Version ✅
-
-Touchscreen firmware version announcement. Broadcast periodically by the controller.
-
-**Pattern:** `02 00 50 FF FF 80 00 0A 0E E8`
-
-**Example:**
-
-```
-02 00 50 FF FF 80 00 0A 0E E8 02 08 0A 03
-                              ^^ Major version (2)
-                                 ^^ Minor version (8)
-                                    → Version 2.8
-```
-
-**Data Fields:**
-
-- Byte 10: Major version number
-- Byte 11: Minor version number
-
-**Notes:**
-
-- This message is broadcast by the controller as part of the regular system status sequence
-- Appears alongside other system announcements (firmware version, system status, time)
-- The version reflects the touchscreen/display interface firmware version
-- Value remains constant unless the touchscreen firmware is updated
 
 ---
 
@@ -1640,61 +1546,6 @@ Both patterns have LENGTH `0x0D` (13 bytes) and a single data byte. The header c
 - This is distinct from the configured *cell* mode broadcast in [§31](#31-chlorinator-cell-mode-), which is sent over a unicast to the salt cell (`0x00A0`) with CMD `0x18`. The `0x12` broadcast here is the chlorinator's own overall mode, addressed to the broadcast destination (`0xFFFF`). The two can hold different values concurrently — e.g., the chlorinator overall = On while the cell is in Auto.
 - CMD `0x12` is also used by four other devices as a status broadcast (heater, gateway, touchscreen — see the [Device Status table](#known-command-bytes)); each is source-dependent and carries a different payload layout.
 - Observed on both chlorinator hardware variants in independent captures (round8 system: `0x0090` with payload `0x01`; zagnuts system: `0x0084` with payload `0x02`).
-
----
-
-### 33. Chlorinator Firmware Version ✅
-
-Firmware version announcement broadcast by the chlorinator. Uses the same command byte (`0x0A`) as the Touchscreen and Internet Gateway firmware-version messages but originates from source `0x0084`. Structurally identical to those two — `{major, minor}` payload, standard frame checksum.
-
-**Pattern:** `02 00 84 FF FF 80 00 0A 0E 1C`
-
-**Example:**
-
-```
-02 00 84 FF FF 80 00 0A 0E 1C 05 07 0C 03
-                              ^^ Major version (5)
-                                 ^^ Minor version (7)
-                                    → Version 5.7
-```
-
-**Data Fields:**
-
-- Byte 10: Major version number
-- Byte 11: Minor version number
-
-**Notes:**
-
-- Uses the same command byte (`0x0A`) as the Touchscreen ([§21](#21-touchscreen-firmware-version-)) and Gateway ([§17](#17-internet-gateway-firmware-version-)) firmware-version messages — distinguished by source address.
-- Byte 12 (`0x0C` in the example) is the standard frame data checksum (`major + minor`), not an embedded data-level field — distinct from [§18](#18-internet-gateway-status-broadcast-)'s gateway status message which carries an explicit embedded checksum *in addition to* the frame checksum.
-- Observed from the `0x0084` chlorinator variant; the `0x0090` variant has not yet been seen broadcasting CMD `0x0A` but may do so equivalently.
-
----
-
-### 34. Temp Sensor Firmware Version ✅
-
-Firmware version announcement broadcast by the temperature sensor (`0x0062`). Uses the same command byte (`0x0A`) as the Touchscreen, Gateway, Heatpump, and Chlorinator firmware-version messages — structurally identical with a 2-byte `{major, minor}` payload.
-
-**Pattern:** `02 00 62 FF FF 80 00 0A 0E FA`
-
-**Example:**
-
-```
-02 00 62 FF FF 80 00 0A 0E FA 02 06 08 03
-                              ^^ Major version (2)
-                                 ^^ Minor version (6)
-                                    → Version 2.6
-```
-
-**Data Fields:**
-
-- Byte 10: Major version number
-- Byte 11: Minor version number
-
-**Notes:**
-
-- Decoded by the source-agnostic `handle_firmware_version` handler (dispatched on CMD `0x0A` regardless of source); state is stored in `pool_state->temp_sensor_version_*`.
-- See [§17](#17-internet-gateway-firmware-version-), [§21](#21-touchscreen-firmware-version-), [§33](#33-chlorinator-firmware-version-) for the equivalent broadcasts from other devices.
 
 ---
 
