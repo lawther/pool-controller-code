@@ -31,12 +31,10 @@ This document describes the proprietary serial protocol used by the Connect 10 p
   - [0x27 — Valve State Broadcast ✅](#0x27--valve-state-broadcast-)
   - [0x28 — Valve Control Command ✅](#0x28--valve-control-command-)
   - [0x2A — Mode/Favourite Control Command ✅](#0x2a--modefavourite-control-command-)
+  - [0x31 — Water Temperature Reading (alt) ⚠️](#0x31--water-temperature-reading-alt-️)
+  - [0x37 — Internet Gateway Info ⚠️](#0x37--internet-gateway-info-️)
 - [Message Types](#message-types)
-  - [3. Temperature Reading (alt — CMD 0x31) ⚠️](#3-temperature-reading-alt--cmd-0x31-️)
   - [8. Register Messages (Universal Register System) ⚠️](#8-register-messages-universal-register-system-️)
-  - [14. Internet Gateway Serial Number ⚠️](#14-internet-gateway-serial-number-️)
-  - [15. Internet Gateway Network Config ⚠️](#15-internet-gateway-network-config-️)
-  - [16. Internet Gateway Communications Status ⚠️](#16-internet-gateway-communications-status-️)
   - [19. Register Read Request/Response](#19-register-read-requestresponse)
   - [20. Controller Day/Time/Clock ✅](#20-controller-daytimeclock-)
 - [Control Commands (Gateway to Controller)](#control-commands-gateway-to-controller)
@@ -136,8 +134,8 @@ The **In code?** column distinguishes commands that have an actual handler in `m
 | `0x27` | Valve State Broadcast               | `0x0050` → Broadcast                                                   | Two LEN variants: `0x0D` (short) and `0x13` (full)                                          | [0x27](#0x27--valve-state-broadcast-)                    | Yes (both variants)     |
 | `0x28` | Valve Control Command               | `0x00F0` Gateway → Broadcast                                           |                                                                                             | [0x28](#0x28--valve-control-command-)                    | **No (doc only)**       |
 | `0x2A` | Mode/Favourite Control Command      | `0x00F0` Gateway → `0x0050` Touchscreen                                | Unicast                                                                                     | [0x2A](#0x2a--modefavourite-control-command-)            | Yes                     |
-| `0x31` | Water Temperature Reading (alt)     | `0x0062` → Broadcast                                                   | Second variant alongside `0x16`                                                             | [§3](#3-temperature-reading-alt--cmd-0x31-️)             | Yes                     |
-| `0x37` | Gateway Info Messages               | `0x00F0` → Broadcast                                                   | LEN distinguishes serial/IP/comms variants                                                  | [§14](#14-internet-gateway-serial-number-️), [§15](#15-internet-gateway-network-config-️), [§16](#16-internet-gateway-communications-status-️) | Yes (3 handlers)        |
+| `0x31` | Water Temperature Reading (alt)     | `0x0062` → Broadcast                                                   | Second variant alongside `0x16`                                                             | [0x31](#0x31--water-temperature-reading-alt-️)           | Yes                     |
+| `0x37` | Internet Gateway Info               | `0x00F0` → Broadcast                                                   | LEN distinguishes serial (`0x11`), network config (`0x15`), comms status (`0x0F`) variants  | [0x37](#0x37--internet-gateway-info-️)                   | Yes (3 handlers)        |
 | `0x38` | Register Data (Response)            | `0x0050` → Broadcast                                                   | Universal register system — sub-dispatched by register + slot                               | [§8](#8-register-messages-universal-register-system-️), [Appendix A](#appendix-a-register-dispatch-table) | Yes                     |
 | `0x39` | Register Read Request               | `0x00F0` Gateway → Broadcast                                           |                                                                                             | [§19](#19-register-read-requestresponse) | Yes                     |
 | `0x3A` | Register Write / Control            | `0x00F0` Gateway → Broadcast                                           | Used for both Light Zone Control and Heater Control                                         | [§25](#25-light-zone-control-command-), [§28](#28-heater-control-command-) | Yes (both)              |
@@ -151,15 +149,10 @@ The **In code?** column distinguishes commands that have an actual handler in `m
 
 | #  | Name                              | Source   | Pattern (bytes 0–9)                       | Status | Notes                               |
 |----|-----------------------------------|----------|-------------------------------------------|--------|-------------------------------------|
-| 3  | Temperature Reading (B)           | `0x0062` | `02 00 62 FF FF 80 00 31 0E 21`           | ⚠️     | Two pattern variants                |
-| 3  | Temperature Reading (Heater)      | `0x0070` | `02 00 70 FF FF 80 00 16 0D 13`           | ✅     | Heater water temperature (1 data byte) |
 | 6  | Active Channels Bitmask           | `0x0050` | `02 00 50 00 6F 80 00 0D 0D 5B`           | ✅     | Dst=`0x006F` (Controller)           |
 | 7  | Channel Status                    | `0x0050` | `02 00 50 FF FF 80 00 0B 25 00`           | ✅     |                                     |
 | 8  | Register Messages                 | `0x0050` | `02 00 50 FF FF 80 00 38 ** **`           | ⚠️     | Incl. timers (Slot `0x04`) & labels (Slot `0x02`); see [Appendix A](#appendix-a-register-dispatch-table) |
 | 9  | Lighting Zone Configuration       | `0x0050` | `02 00 50 FF FF 80 00 06 0E E4`           | ✅     |                                     |
-| 14 | Internet Gateway Serial Number    | `0x00F0` | `02 00 F0 FF FF 80 00 37 11 B8`           | ⚠️     |                                     |
-| 15 | Internet Gateway Network Config   | `0x00F0` | `02 00 F0 FF FF 80 00 37 15 BC`           | ⚠️     |                                     |
-| 16 | Internet Gateway Comms Status     | `0x00F0` | `02 00 F0 FF FF 80 00 37 0F B6`           | ⚠️     |                                     |
 | 17 | Firmware Version                  | any      | `02 00 ?? FF FF 80 00 0A 0E ??`           | ✅     | CMD `0x0A` broadcast by Touchscreen (`0x0050`), Inbuilt heater (`0x0062`), Heatpump (`0x0070`), Chlorinator (`0x0084`), and Internet Gateway (`0x00F0`) with identical `{major, minor}` payload — single unified handler |
 | 19 | Register Read Request             | `0x00F0` | `02 00 F0 FF FF 80 00 39 0E B7`           |        | For responses see [§8](#8-register-messages-universal-register-system-️)|
 | 20 | Controller Day/Time/Clock         | `0x0050` | `02 00 50 FF FF 80 00 FD 0F DC`           | ✅     |                                     |
@@ -561,7 +554,7 @@ Current water temperature broadcast by the device that measures it. Two sources 
 | `0x0062` Inbuilt heater | `0x0E` | 2 bytes — temp + unknown | ⚠️ | `handle_temp_reading`    |
 | `0x0070` Heatpump       | `0x0D` | 1 byte — temp only       | ✅ | `handle_heatpump_temp_reading` |
 
-The inbuilt heater also emits a second water-temperature variant under [CMD 0x31](#0x31--water-temperature-reading-alt-) (to be documented).
+The inbuilt heater also emits a second water-temperature variant under [0x31 — Water Temperature Reading (alt)](#0x31--water-temperature-reading-alt-️).
 
 ---
 
@@ -1001,30 +994,6 @@ Carries live per-valve state. Each valve occupies 3 bytes (configured flag, stat
 
 The messages that are fully decoded have a ✅ and the partially decoded ones have a ⚠️
 
-### 3. Temperature Reading (alt — CMD 0x31) ⚠️
-
-Second water-temperature variant from the inbuilt heater (`0x0062`), broadcast in parallel to the [0x16](#0x16--water-temperature-reading-️) reading.
-
-**Pattern:** `02 00 62 FF FF 80 00 31 0E 21`
-
-```
-02 00 62 FF FF 80 00 31 0E 21 1E A6 C4 03
-                              ^^ Current temperature (0x1E = 30°C)
-                                 ^^ Unknown (always 0xA6 in observed samples)
-```
-
-**Data Fields:**
-
-- Byte 10: Current water temperature in °C
-- Byte 11: Unknown — always `0xA6` in observed samples
-
-**Notes:**
-
-- The purpose of byte 11 is not yet understood
-- Byte 10 has been observed decreasing as pool water cools (30→25°C), confirming it as the current temperature
-
----
-
 ### 8. Register Messages (Universal Register System) ⚠️
 
 The controller uses a unified register-based system for configuration and state. All register messages share the same base pattern `02 00 50 FF FF 80 00 38` — only the register ID, slot, and data payload vary.
@@ -1166,101 +1135,6 @@ Assigns human-readable names to channels, lighting zones, and valves as null-ter
 
 - Registers `0xD0`–`0xD3` appear to be multipurpose — can represent either lighting zone colors or valve names depending on system configuration
 - Maximum string length appears to be limited by message size constraints
-
----
-
-### 14. Internet Gateway Serial Number ⚠️
-
-Serial number of the internet gateway module.
-
-**Pattern:** `02 00 F0 FF FF 80 00 37 11 B8`
-
-**Example:**
-
-```
-02 00 F0 FF FF 80 00 37 11 B8 04 A3 15 21 00 DD 03
-                              ^^ Unknown
-                                 ^^ ^^ ^^ ^^ Serial number (little endian)
-                                               0x002115A3 = 2168227
-```
-
-**Data Fields:**
-
-- Byte 10: Unknown (Maybe a type `0x04`)
-- Bytes 11-14: Serial number (32-bit little endian)
-
----
-
-### 15. Internet Gateway Network Config ⚠️
-
-IP address and signal strength of the gateway.
-
-**Pattern:** `02 00 F0 FF FF 80 00 37 15 BC`
-
-**Example - On startup (no connection):**
-
-```
-02 00 F0 FF FF 80 00 37 15 BC 01 01 01 03 00 00 00 00 00 06 03
-```
-
-**Example - With IP address (wifi connected):**
-
-```
-02 00 F0 FF FF 80 00 37 15 BC 01 01 01 07 C0 A8 00 17 2B B4 03
-                              ^^ Unknown
-                                 ^^ Unknown
-                                    ^^ Unknown
-                                       ^^ Unknown
-                                          ^^ ^^ ^^ ^^ IP address (192.168.1.23)
-                                                      ^^ Signal level (43)
-```
-
-**Data Fields:**
-
-- Byte 10: Unknown
-- Byte 11: Unknown
-- Byte 12: Unknown
-- Byte 13: Unknown
-- Bytes 14-17: IP address (4 bytes, standard order)
-- Byte 18: WiFi signal level (0-100)
-
----
-
-### 16. Internet Gateway Communications Status ⚠️
-
-Status of the gateway's internet connection.
-
-**Pattern:** `02 00 F0 FF FF 80 00 37 0F B6`
-
-**Example - Communicating with server:**
-
-```
-02 00 F0 FF FF 80 00 37 0F B6 02 01 80 83 03
-                              ^^ Unknown
-                                 ^^ ^^ Status code (little endian)
-                                          0x8001 = 32769: Communicating with server
-```
-
-**Data Fields:**
-
-- Byte 10: Unknown (observed as always `0x02`)
-- Bytes 11-12: Communications status code (little endian)
-
-**Status Codes:**
-
-- `0x0000`: `0` Idle
-- `0x0100`: `256` No suitable interfaces ready
-- `0x0201`: `513` DNS resolve error
-- `0x0301`: `769` Internal error creating local socket
-- `0x0400`: `1024` Connecting to server
-- `0x0401`: `1025` Failed to connect
-- `0x8000`: `32768` Connection open
-- `0x8001`: `32769` Communicating with server
-- `0xF000`: `61440` Connection closed
-- `0xF001`: `61441` Communication error with server
-- `0xF002`: `61442` Communication error with server
-- `0xF003`: `61443` Communication error with server
-- `0xF004`: `61444` Communication error with server
 
 ---
 
@@ -1541,6 +1415,137 @@ Command sent by the Internet Gateway (`0x00F0`) to the Touchscreen (`0x0050`) to
 - Up to 6 user Favourites are supported (`0x02`–`0x07`). The labels for all 8 slots (including the Pool and Spa built-ins) are stored in registers `0x31`–`0x38` (slot `0x03`), readable via the register protocol ([§8](#8-register-messages-universal-register-system-️))
 - Each slot's enabled/disabled state is stored in registers `0x21`–`0x28` (slot `0x03`), with `0x01` = enabled and `0x00` = disabled. Pool (`0x21`) and Spa (`0x22`) are always `0x01`. All Off (`0x80`) and All Auto (`0x81`) have no corresponding enable registers and are always available
 - This command requires the sender to impersonate the Internet Gateway (source address `0x00F0`)
+
+---
+
+### 0x31 — Water Temperature Reading (alt) ⚠️
+
+Second water-temperature variant broadcast by the inbuilt heater (`0x0062`), in parallel to the [0x16](#0x16--water-temperature-reading-️) reading.
+
+**Pattern:** `02 00 62 FF FF 80 00 31 0E 21`
+
+```
+02 00 62 FF FF 80 00 31 0E 21 1E A6 C4 03
+                              ^^ Current temperature (0x1E = 30°C)
+                                 ^^ Unknown (always 0xA6 in observed samples)
+```
+
+**Data Fields:**
+
+- Byte 10: Current water temperature in °C
+- Byte 11: Unknown — always `0xA6` in observed samples
+
+**Notes:**
+
+- The purpose of byte 11 is not yet understood
+- Byte 10 has been observed decreasing as pool water cools (30→25°C), confirming it as the current temperature
+
+---
+
+### 0x37 — Internet Gateway Info ⚠️
+
+Broadcast by the Internet Gateway (`0x00F0`) reporting gateway-level information. Three variants share the same CMD `0x37` and source, distinguished by the LENGTH byte.
+
+| LENGTH | Variant                                                           | Purpose                       |
+|--------|-------------------------------------------------------------------|-------------------------------|
+| `0x11` | [Serial Number](#serial-number-len-0x11-)                         | Gateway module serial         |
+| `0x15` | [Network Config](#network-config-len-0x15-)                       | IP address + WiFi signal      |
+| `0x0F` | [Communications Status](#communications-status-len-0x0f-)         | Internet connection state     |
+
+---
+
+#### Serial Number (LEN `0x11`) ⚠️
+
+Serial number of the internet gateway module.
+
+**Pattern:** `02 00 F0 FF FF 80 00 37 11 B8`
+
+**Example:**
+
+```
+02 00 F0 FF FF 80 00 37 11 B8 04 A3 15 21 00 DD 03
+                              ^^ Unknown
+                                 ^^ ^^ ^^ ^^ Serial number (little endian)
+                                               0x002115A3 = 2168227
+```
+
+**Data Fields:**
+
+- Byte 10: Unknown (maybe a type `0x04`)
+- Bytes 11-14: Serial number (32-bit little endian)
+
+---
+
+#### Network Config (LEN `0x15`) ⚠️
+
+IP address and signal strength of the gateway.
+
+**Pattern:** `02 00 F0 FF FF 80 00 37 15 BC`
+
+**Example — On startup (no connection):**
+
+```
+02 00 F0 FF FF 80 00 37 15 BC 01 01 01 03 00 00 00 00 00 06 03
+```
+
+**Example — With IP address (wifi connected):**
+
+```
+02 00 F0 FF FF 80 00 37 15 BC 01 01 01 07 C0 A8 00 17 2B B4 03
+                              ^^ Unknown
+                                 ^^ Unknown
+                                    ^^ Unknown
+                                       ^^ Unknown
+                                          ^^ ^^ ^^ ^^ IP address (192.168.1.23)
+                                                      ^^ Signal level (43)
+```
+
+**Data Fields:**
+
+- Byte 10: Unknown
+- Byte 11: Unknown
+- Byte 12: Unknown
+- Byte 13: Unknown
+- Bytes 14-17: IP address (4 bytes, standard order)
+- Byte 18: WiFi signal level (0-100)
+
+---
+
+#### Communications Status (LEN `0x0F`) ⚠️
+
+Status of the gateway's internet connection.
+
+**Pattern:** `02 00 F0 FF FF 80 00 37 0F B6`
+
+**Example — Communicating with server:**
+
+```
+02 00 F0 FF FF 80 00 37 0F B6 02 01 80 83 03
+                              ^^ Unknown
+                                 ^^ ^^ Status code (little endian)
+                                          0x8001 = 32769: Communicating with server
+```
+
+**Data Fields:**
+
+- Byte 10: Unknown (observed as always `0x02`)
+- Bytes 11-12: Communications status code (little endian)
+
+**Status Codes:**
+
+- `0x0000`: `0` Idle
+- `0x0100`: `256` No suitable interfaces ready
+- `0x0201`: `513` DNS resolve error
+- `0x0301`: `769` Internal error creating local socket
+- `0x0400`: `1024` Connecting to server
+- `0x0401`: `1025` Failed to connect
+- `0x8000`: `32768` Connection open
+- `0x8001`: `32769` Communicating with server
+- `0xF000`: `61440` Connection closed
+- `0xF001`: `61441` Communication error with server
+- `0xF002`: `61442` Communication error with server
+- `0xF003`: `61443` Communication error with server
+- `0xF004`: `61444` Communication error with server
 
 ---
 
