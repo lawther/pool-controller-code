@@ -537,7 +537,7 @@ Current water temperature broadcast by the device that measures it. Two sources 
 | Source                          | LENGTH | Payload          | Status | Handler                  |
 |---------------------------------|--------|------------------|--------|--------------------------|
 | `0x0062` Connect 8/10 Controller| `0x0E` | 2 bytes — temp + unknown | ⚠️ | `handle_temp_reading`    |
-| `0x0070` Genus Heater           | `0x0D` | 1 byte — temp only       | ✅ | `handle_heatpump_temp_reading` |
+| `0x0070` Genus Heater           | `0x0D` | 1 byte — temp only       | ✅ | `handle_genus_heater_temp_reading` |
 
 The controller also emits a second water-temperature variant under [0x31 — Water Temperature Reading (alt)](#0x31--water-temperature-reading-alt-️).
 
@@ -592,7 +592,7 @@ Setpoint broadcast. CMD `0x17` is shared across two sources with different paylo
 | Source                | LENGTH | Payload                                | Status | Handler                       |
 |-----------------------|--------|----------------------------------------|--------|-------------------------------|
 | `0x0050` Touchscreen  | `0x10` | 4 bytes — spa/pool °C + spa/pool °F    | ✅     | `handle_temp_setting`         |
-| `0x0070` Genus Heater | `0x0E` | 2 bytes — Heater 1 °C, Heater 2 °C     | ✅     | `handle_heatpump_temp_setting`|
+| `0x0070` Genus Heater | `0x0E` | 2 bytes — Heater 1 °C, Heater 2 °C     | ✅     | `handle_genus_heater_temp_setting`|
 
 The same setpoints are also broadcast individually via the register system — see the [Register-based variant](#register-based-temperature-setpoints) below.
 

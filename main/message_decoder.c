@@ -80,8 +80,8 @@ static const char *MSG_TYPE_TEMP_READING2 =         "02 00 62 FF FF 80 00 31 0E 
 static const char *MSG_TYPE_HEATER =                "02 00 62 FF FF 80 00 12 0F 03";
 
 // 70 Genus Heater (Active i25 Evo)
-static const char *MSG_TYPE_HEATPUMP_TEMP_READING = "02 00 70 FF FF 80 00 16 0D 13";
-static const char *MSG_TYPE_HEATPUMP_TEMP_SETTING = "02 00 70 FF FF 80 00 17 0E 15";
+static const char *MSG_TYPE_GENUS_HEATER_TEMP_READING = "02 00 70 FF FF 80 00 16 0D 13";
+static const char *MSG_TYPE_GENUS_HEATER_TEMP_SETTING = "02 00 70 FF FF 80 00 17 0E 15";
 
 // 90 RolaChem Chlorinator (pH, ORP)
 static const char *MSG_TYPE_CHLOR = "02 00 90 FF FF 80 00";
@@ -732,7 +732,7 @@ static bool handle_temp_reading2(
  * from the 0x0062 Connect 8/10 Controller reading; the two devices may report different
  * values depending on where each sensor is sited in the plumbing.
  */
-static bool handle_heatpump_temp_reading(
+static bool handle_genus_heater_temp_reading(
     const uint8_t *data, int len,
     const uint8_t *payload, int payload_len,
     const char *addr_info,
@@ -751,7 +751,7 @@ static bool handle_heatpump_temp_reading(
  *
  * Two-byte payload carrying both heater setpoints in °C.
  */
-static bool handle_heatpump_temp_setting(
+static bool handle_genus_heater_temp_setting(
     const uint8_t *data, int len,
     const uint8_t *payload, int payload_len,
     const char *addr_info,
@@ -2534,12 +2534,12 @@ bool decode_message(const uint8_t *data, int len, message_decoder_context_t *ctx
     }
 
     // Genus Heater (0x0070) messages
-    if (match_pattern(data, len, MSG_TYPE_HEATPUMP_TEMP_READING)) {
-        return handle_heatpump_temp_reading(data, len, payload, payload_len, addr_info, ctx);
+    if (match_pattern(data, len, MSG_TYPE_GENUS_HEATER_TEMP_READING)) {
+        return handle_genus_heater_temp_reading(data, len, payload, payload_len, addr_info, ctx);
     }
 
-    if (match_pattern(data, len, MSG_TYPE_HEATPUMP_TEMP_SETTING)) {
-        return handle_heatpump_temp_setting(data, len, payload, payload_len, addr_info, ctx);
+    if (match_pattern(data, len, MSG_TYPE_GENUS_HEATER_TEMP_SETTING)) {
+        return handle_genus_heater_temp_setting(data, len, payload, payload_len, addr_info, ctx);
     }
 
     // Chlorinator messages

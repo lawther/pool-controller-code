@@ -28,7 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
-- Fixed up the internal naming of devices based on new knowledge and understanding of which codes and firmware versions tie to which device.
+- Corrected device-address labels in `get_device_name()` and across PROTOCOL.md to reflect new understanding: `0x0062` Temp Sensor → Connect 8/10 Controller (now framed as controller-sourced heater/water-temperature broadcasts rather than messages from an "inbuilt heater"), `0x006F` Controller → Internal Channels (logical destination tag), `0x0070` Heatpump → Genus Heater, `0x0084` Chlorinator → Viron Chlorinator, `0x0090` Chlorinator → RolaChem, `0x00A0` Salt Cell → Internal Salt Cell, `0x00F0` Internet GW → Internet Gateway; renamed `pool_state->temp_sensor_version_*` to `controller_version_*`, `MSG_TYPE_HEATPUMP_*` to `MSG_TYPE_GENUS_HEATER_*`, and `handle_heatpump_*` to `handle_genus_heater_*` to match
 ### Security
 
 
