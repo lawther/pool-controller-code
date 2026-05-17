@@ -16,11 +16,13 @@ This document describes the proprietary serial protocol used by the Connect 10 p
   - [0x0A — Firmware Version ✅](#0x0a--firmware-version-)
   - [0x0B — Channel Status ✅](#0x0b--channel-status-)
   - [0x0D — Active Channels Bitmask ✅](#0x0d--active-channels-bitmask-)
+  - [0x0F — Chlorinator Mode → Touchscreen ⚠️](#0x0f--chlorinator-mode--touchscreen-️)
+  - [0x10 — Channel Toggle Command ⚠️](#0x10--channel-toggle-command-️)
+  - [0x12 — Device Status ⚠️](#0x12--device-status-️)
 - [Message Types](#message-types)
   - [1. Mode Message (Spa/Pool) ✅](#1-mode-message-spapool-)
   - [2. Temperature Settings ✅](#2-temperature-settings-)
   - [3. Temperature Reading ⚠️](#3-temperature-reading-️)
-  - [4. Heater Status ⚠️](#4-heater-status-️)
   - [5. Configuration ⚠️](#5-configuration-️)
   - [8. Register Messages (Universal Register System) ⚠️](#8-register-messages-universal-register-system-️)
   - [10. Chlorinator pH Setpoint ✅](#10-chlorinator-ph-setpoint-)
@@ -30,21 +32,17 @@ This document describes the proprietary serial protocol used by the Connect 10 p
   - [14. Internet Gateway Serial Number ⚠️](#14-internet-gateway-serial-number-️)
   - [15. Internet Gateway Network Config ⚠️](#15-internet-gateway-network-config-️)
   - [16. Internet Gateway Communications Status ⚠️](#16-internet-gateway-communications-status-️)
-  - [18. Internet Gateway Status Broadcast ⚠️](#18-internet-gateway-status-broadcast-️)
   - [19. Register Read Request/Response](#19-register-read-requestresponse)
   - [20. Controller Day/Time/Clock ✅](#20-controller-daytimeclock-)
-  - [22. Touchscreen Unknown 1 ⚠️](#22-touchscreen-unknown-1-️)
   - [23. Valve State Broadcast ⚠️](#23-valve-state-broadcast-️)
   - [24. Valve Sync to Controller ⚠️](#24-valve-sync-to-controller-️)
 - [Control Commands (Gateway to Controller)](#control-commands-gateway-to-controller)
   - [25. Light Zone Control Command ✅](#25-light-zone-control-command-)
-  - [26. Channel Toggle Command ✅](#26-channel-toggle-command-)
   - [27. Temperature Setpoint Command ✅](#27-temperature-setpoint-command-)
   - [28. Heater Control Command ✅](#28-heater-control-command-)
   - [29. Mode/Favourite Control Command ✅](#29-modefavourite-control-command-)
   - [30. Valve Control Command ✅](#30-valve-control-command-)
   - [31. Chlorinator Cell Mode ⚠️](#31-chlorinator-cell-mode-️)
-  - [32. Chlorinator Status Broadcast ⚠️](#32-chlorinator-status-broadcast-️)
 - [Appendix A: Register Dispatch Table](#appendix-a-register-dispatch-table)
 - [Implementation Notes](#implementation-notes)
 
@@ -124,9 +122,9 @@ The **In code?** column distinguishes commands that have an actual handler in `m
 | `0x0A` | Firmware Version                    | `0x0050`, `0x0062`, `0x0070`, `0x0084`, `0x00F0` → Broadcast           | Same `{major, minor}` payload across all 5 sources; dispatched on CMD byte alone            | [0x0A](#0x0a--firmware-version-) | Yes (unified handler)   |
 | `0x0B` | Channel Status                      | `0x0050` → Broadcast                                                   |                                                                                             | [0x0B](#0x0b--channel-status-)                           | Yes                     |
 | `0x0D` | Active Channels Bitmask             | `0x0050` → `0x006F` Controller                                         | Unicast                                                                                     | [0x0D](#0x0d--active-channels-bitmask-)                  | Yes                     |
-| `0x0F` | Chlorinator mode → Touchscreen      | `0x0084` → `0x0050`                                                    | 2-byte `[01, mode]`; mirrors [§31](#31-chlorinator-cell-mode-) cell mode                    | (mentioned in [§31](#31-chlorinator-cell-mode-))         | **No (doc only)**       |
-| `0x10` | Channel Toggle Command              | `0x00F0` Gateway → Broadcast                                           |                                                                                             | [§26](#26-channel-toggle-command-)                       | Yes                     |
-| `0x12` | Device Status                       | `0x0050`, `0x0062`, `0x0084`, `0x0090`, `0x00F0` → Broadcast           | Payload layout differs per source                                                           | [§4](#4-heater-status-️), [§18](#18-internet-gateway-status-broadcast-), [§22](#22-touchscreen-unknown-1-️), [§32](#32-chlorinator-status-broadcast-️) | Yes (per-source)        |
+| `0x0F` | Chlorinator Mode → Touchscreen      | `0x0084` → `0x0050`                                                    | 2-byte `[01, mode]`; mirrors [§31](#31-chlorinator-cell-mode-) cell mode                    | [0x0F](#0x0f--chlorinator-mode--touchscreen-️)           | **No (doc only)**       |
+| `0x10` | Channel Toggle Command              | `0x00F0` Gateway → Broadcast                                           |                                                                                             | [0x10](#0x10--channel-toggle-command-️)                  | Yes                     |
+| `0x12` | Device Status                       | `0x0050`, `0x0062`, `0x0084`, `0x0090`, `0x00F0` → Broadcast           | Payload layout differs per source                                                           | [0x12](#0x12--device-status-️) | Yes (per-source)        |
 | `0x14` | Mode (Spa/Pool)                     | `0x0050` → Broadcast                                                   |                                                                                             | [§1](#1-mode-message-spapool-)                           | Yes                     |
 | `0x16` | Water Temperature Reading           | `0x0062` (LEN `0x0E`), `0x0070` (LEN `0x0D`) → Broadcast               | Source-dependent payload (`0x0062` = inbuilt heater, `0x0070` = add-on Active i25 Evo)      | [§3](#3-temperature-reading-️)                           | Yes (per-source)        |
 | `0x17` | Temperature Settings                | `0x0050` (LEN `0x10`), `0x0070` (LEN `0x0E`) → Broadcast               | Source-dependent payload layout                                                             | [§2](#2-temperature-settings-)                           | Yes (per-source)        |
@@ -160,7 +158,6 @@ The **In code?** column distinguishes commands that have an actual handler in `m
 | 3  | Temperature Reading (A)           | `0x0062` | `02 00 62 FF FF 80 00 16 0E 06`           | ⚠️     | Source-dependent CMD `0x16` — see [§3](#3-temperature-reading-️) |
 | 3  | Temperature Reading (B)           | `0x0062` | `02 00 62 FF FF 80 00 31 0E 21`           | ⚠️     | Two pattern variants                |
 | 3  | Temperature Reading (Heater)      | `0x0070` | `02 00 70 FF FF 80 00 16 0D 13`           | ✅     | Heater water temperature (1 data byte) |
-| 4  | Heater Status                     | `0x0062` | `02 00 62 FF FF 80 00 12 0F 03`           | ⚠️     |                                     |
 | 5  | Configuration                     | `0x0050` | `02 00 50 FF FF 80 00 26 0E 04`           | ⚠️     |                                     |
 | 6  | Active Channels Bitmask           | `0x0050` | `02 00 50 00 6F 80 00 0D 0D 5B`           | ✅     | Dst=`0x006F` (Controller)           |
 | 7  | Channel Status                    | `0x0050` | `02 00 50 FF FF 80 00 0B 25 00`           | ✅     |                                     |
@@ -174,21 +171,17 @@ The **In code?** column distinguishes commands that have an actual handler in `m
 | 15 | Internet Gateway Network Config   | `0x00F0` | `02 00 F0 FF FF 80 00 37 15 BC`           | ⚠️     |                                     |
 | 16 | Internet Gateway Comms Status     | `0x00F0` | `02 00 F0 FF FF 80 00 37 0F B6`           | ⚠️     |                                     |
 | 17 | Firmware Version                  | any      | `02 00 ?? FF FF 80 00 0A 0E ??`           | ✅     | CMD `0x0A` broadcast by Touchscreen (`0x0050`), Inbuilt heater (`0x0062`), Heatpump (`0x0070`), Chlorinator (`0x0084`), and Internet Gateway (`0x00F0`) with identical `{major, minor}` payload — single unified handler |
-| 18 | Internet Gateway Status Broadcast | `0x00F0` | `02 00 F0 FF FF 80 00 12 0F 91`           | ✅     | Same cmd byte as §22                |
 | 19 | Register Read Request             | `0x00F0` | `02 00 F0 FF FF 80 00 39 0E B7`           |        | For responses see [§10](#8-register-messages-universal-register-system-️)|
 | 20 | Controller Day/Time/Clock         | `0x0050` | `02 00 50 FF FF 80 00 FD 0F DC`           | ✅     |                                     |
-| 22 | Touchscreen Unknown 1             | `0x0050` | `02 00 50 FF FF 80 00 12 0E F0`           | ⚠️     | Same cmd byte as §18                |
 | 23 | Valve State Broadcast             | `0x0050` | `02 00 50 FF FF 80 00 27 0D 04`           | ⚠️     | Two LENGTH variants: 0x0D (short) and 0x13 (full state) |
 | 24 | Valve Sync to Controller          | `0x0050` | `02 00 50 00 6F 80 00 25 0D 73`           | ⚠️     | Dst=`0x006F` (Controller)           |
 | 25 | Light Zone Control Command        | `0x00F0` | `02 00 F0 FF FF 80 00 3A 0F B9`           | ✅     | Same pattern as [§28](#28-heater-control-command-) |
-| 26 | Channel Toggle Command            | `0x00F0` | `02 00 F0 FF FF 80 00 10 0D 8D`           | ✅     |                                     |
+| 26 | Channel Toggle Command            | `0x00F0` | `02 00 F0 FF FF 80 00 10 0D 8D`           | ⚠️     | Multi-speed pumps not yet documented |
 | 27 | Temperature Setpoint Command      | `0x00F0` | `02 00 F0 FF FF 80 00 19 0F 98`           | ✅     |                                     |
 | 28 | Heater Control Command            | `0x00F0` | `02 00 F0 FF FF 80 00 3A 0F B9`           | ✅     | Same pattern as [§25](#25-light-zone-control-command-); different reg |
 | 29 | Mode/Favourite Control Command    | `0x00F0` | `02 00 F0 00 50 80 00 2A 0D F9`           | ✅     | Dst=`0x0050`; 0x00=Pool, 0x01=Spa, 0x02–0x07=Fav 1–6, 0x80=All Off, 0x81=All Auto |
 | 30 | Valve Control Command             | `0x00F0` | `02 00 F0 FF FF 80 00 28 0E A6`           | ✅     |                                     |
 | 31 | Chlorinator Cell Mode             | `0x0084` | `02 00 84 00 A0 80 00 18 0D CB`           | ⚠️     | Dst=`0x00A0` (Salt Cell); 1-byte mode (`0x00`=Off, `0x01`=Manual, `0x02`=Auto — tentative). Also seen from `0x0050` |
-| 32 | Chlorinator Status (variant A)    | `0x0090` | `02 00 90 FF FF 80 00 12 0D 2F`           | ⚠️     | 1-byte mode payload — observed `0x01` (Auto, tentative) |
-| 32 | Chlorinator Status (variant B)    | `0x0084` | `02 00 84 FF FF 80 00 12 0D 23`           | ⚠️     | 1-byte mode payload — observed `0x02` (On, tentative) |
 
 ---
 
@@ -278,7 +271,7 @@ Firmware-version announcement (`{major, minor}` payload) broadcast by multiple d
 **Notes:**
 
 - Decoded by the source-agnostic `handle_firmware_version` handler (matches on `data[7] == 0x0A` regardless of source); state is stored in per-device fields on `pool_state` (`touchscreen_version_*`, `temp_sensor_version_*`, `chlor_version_*`, `gateway_version_*`). Heatpump (`0x0070`) firmware is logged only — no dedicated state field.
-- The same `{major, minor}` pair is also redundantly embedded in the Gateway Status Broadcast ([§18](#18-internet-gateway-status-broadcast-)); firmware-version state population is performed once here.
+- The same `{major, minor}` pair is also redundantly embedded in the Internet Gateway variant of [0x12 — Device Status](#0x12--device-status-️); firmware-version state population is performed once here.
 - Broadcast at device startup; appears alongside other announcement broadcasts (mode, channel status, time).
 
 ---
@@ -367,6 +360,188 @@ Reports which channels are currently active. Unicast from the Touchscreen (`0x00
   - Bit 2: Channel 3
   - Bit 1: Channel 2
   - Bit 0: Channel 1
+
+---
+
+### 0x0F — Chlorinator Mode → Touchscreen ⚠️
+
+Inter-device unicast from the Chlorinator (`0x0084`) to the Touchscreen (`0x0050`) reporting the chlorinator's current mode. Counterpart to the `0x18` cell-mode unicast that the chlorinator sends to the Salt Cell (`0x00A0`) — the two messages carry the same mode value and may briefly disagree during transitions.
+
+**Pattern (provisional):** `02 00 84 00 50 80 00 0F ?? ??` (LENGTH and HDR_CHK to be confirmed from a capture)
+
+**Data Fields (provisional):**
+
+- Byte 10: Fixed `0x01` in observed captures (purpose unknown)
+- Byte 11: Mode value — same encoding as the `0x18` cell-mode broadcast (`0x00`=Off, `0x01`=Auto, `0x02`=On — tentative)
+
+**Notes:**
+
+- ⚠️ Documented only — no handler in `message_decoder.c` yet. The layout came from contemporaneous capture analysis but a definitive sample pair has not been pinned down.
+- Mode encoding follows the protocol-wide channel-state convention (see [0x0B](#0x0b--channel-status-)).
+- The companion `0x18` cell-mode unicast is documented at [§31](#31-chlorinator-cell-mode-).
+
+---
+
+### 0x10 — Channel Toggle Command ⚠️
+
+Command from the Internet Gateway (`0x00F0`) to cycle a channel through its available states (Auto → On → Off, or On → Off depending on channel type).
+
+**Pattern:** `02 00 F0 FF FF 80 00 10 0D 8D`
+
+**Examples:**
+
+| Channel    | Index | Command                                   | States        |
+| ---------- | ----- | ----------------------------------------- | ------------- |
+| Filter     | 0x00  | `02 00 F0 FF FF 80 00 10 0D 8D 00 00 03`  | Auto, On, Off |
+| Cleaning   | 0x01  | `02 00 F0 FF FF 80 00 10 0D 8D 01 01 03`  | Auto, On, Off |
+| Pool Light | 0x02  | `02 00 F0 FF FF 80 00 10 0D 8D 02 02 03`  | Auto, On, Off |
+| Spa Light  | 0x03  | `02 00 F0 FF FF 80 00 10 0D 8D 03 03 03`  | Auto, On, Off |
+| Jets       | 0x04  | `02 00 F0 FF FF 80 00 10 0D 8D 04 04 03`  | On, Off       |
+| Blower     | 0x05  | `02 00 F0 FF FF 80 00 10 0D 8D 05 05 03`  | On, Off       |
+
+**Data Fields:**
+
+- Byte 10: Channel index (0-based)
+- Byte 11: Data checksum (equals channel index, as that is the only data byte)
+
+**Channel Index Mapping:**
+
+- `0x00`: Channel 1 (Filter)
+- `0x01`: Channel 2 (Cleaning)
+- `0x02`: Channel 3 (Pool Light)
+- `0x03`: Channel 4 (Spa Light)
+- `0x04`: Channel 5 (Jets)
+- `0x05`: Channel 6 (Blower)
+
+**Behaviour:**
+
+- Each send **cycles** the channel to its next state; it does not set a specific state
+- Channels with Auto support cycle: Auto → On → Off → Auto → ...
+- Channels without Auto cycle: On → Off → On → ...
+- The controller broadcasts the new channel state after processing the toggle
+
+**Notes:**
+
+- Sending this command always advances the state — there is no direct way to set a specific state.
+- The controller will respond with an updated [Channel Status message (0x0B)](#0x0b--channel-status-).
+- Channel index is 0-based and corresponds to the channel's position in the controller configuration.
+- ⚠️ Multi-speed pump channels are not yet documented — only the simple On/Off and Auto/On/Off state cycles above have been captured. Status is ⚠️ pending characterisation of how multi-speed channels respond to this command.
+
+---
+
+### 0x12 — Device Status ⚠️
+
+Status broadcast emitted by multiple devices. The CMD byte is shared but the **payload layout differs per source** — there is no unified handler; each variant is dispatched by its own `MSG_TYPE_*` pattern and documented separately below.
+
+**Source variants:**
+
+| Source                          | LENGTH | Payload shape                            | Status | Handler                       |
+|---------------------------------|--------|------------------------------------------|--------|-------------------------------|
+| `0x0050` Touchscreen            | `0x0E` | 2 bytes — always `05 00` observed        | ⚠️     | `handle_touchscreen_unknown1` |
+| `0x0062` Inbuilt heater         | `0x0F` | 3 bytes — heater state + unknowns        | ⚠️     | `handle_heater`               |
+| `0x0084` / `0x0090` Chlorinator | `0x0D` | 1 byte — operational mode                | ⚠️     | `handle_chlor_status`         |
+| `0x00F0` Internet Gateway       | `0x0F` | 3 bytes — `{major, minor, checksum}`     | ✅     | `handle_gateway_status`       |
+
+---
+
+#### Touchscreen (`0x0050`) ⚠️
+
+Broadcast consistently after the firmware version message. Currently appears to always carry data `05 00`.
+
+Pattern: `02 00 50 FF FF 80 00 12 0E F0`
+
+Example: `02 00 50 FF FF 80 00 12 0E F0 05 00 05 03`
+
+Data fields:
+- Byte 10: Unknown (always `0x05` in observed samples)
+- Byte 11: Unknown (always `0x00` in observed samples)
+
+Part of the regular touchscreen status sequence.
+
+---
+
+#### Inbuilt heater (`0x0062`) ⚠️
+
+Reports whether the heater is on or off. Source `0x0062` is labelled "Temp Sensor" in the address table but the bus traffic is consistent with the inbuilt heater module.
+
+Pattern: `02 00 62 FF FF 80 00 12 0F 03`
+
+Examples:
+
+```
+02 00 62 FF FF 80 00 12 0F 03 00 01 08 09 03   Heater On
+02 00 62 FF FF 80 00 12 0F 03 00 00 08 08 03   Heater Off
+                                 ^^ Heater state (0x00 = Off, 0x01 = On)
+                                    ^^ Unknown (always 0x08 observed)
+```
+
+Data fields:
+- Byte 10: Padding/unused
+- Byte 11: Heater state (`0x00` = Off, `0x01` = On)
+- Byte 12: Unknown (maybe bitmask or interlock?)
+
+---
+
+#### Chlorinator (`0x0084` / `0x0090`) ⚠️
+
+Carries the chlorinator's current operating mode. Both chlorinator address variants (mutually exclusive; see [Device Addresses](#device-addresses)) emit this with the same structure — the header checksum differs (`0x23` vs `0x2F`) purely because the source byte changes.
+
+Patterns:
+- Variant A (`0x0090`): `02 00 90 FF FF 80 00 12 0D 2F`
+- Variant B (`0x0084`): `02 00 84 FF FF 80 00 12 0D 23`
+
+Examples:
+
+```
+02 00 90 FF FF 80 00 12 0D 2F 01 01 03   Chlorinator 0x0090, mode = 0x01 (Auto)
+02 00 84 FF FF 80 00 12 0D 23 02 02 03   Chlorinator 0x0084, mode = 0x02 (On)
+```
+
+Data fields:
+- Byte 10: Mode value
+- Byte 11: Data checksum (equals byte 10 — only one data byte)
+
+Observed mode values (tentative; follows the standard channel-state convention from [0x0B](#0x0b--channel-status-)):
+
+| Value  | Meaning |
+|--------|---------|
+| `0x00` | Off (not yet observed) |
+| `0x01` | Auto    |
+| `0x02` | On      |
+
+Distinct from the configured *cell* mode at [§31](#31-chlorinator-cell-mode-) (CMD `0x18` unicast to the salt cell at `0x00A0`). The two can hold different values concurrently — e.g. chlorinator overall = On while cell = Auto. ⚠️ Tentative because a single-device Off↔Auto↔On transition has not been captured.
+
+---
+
+#### Internet Gateway (`0x00F0`) ✅
+
+Firmware version broadcast by the Internet Gateway on startup. One byte longer than the other variants because it carries an embedded data-level checksum in addition to the standard frame checksum.
+
+Pattern: `02 00 F0 FF FF 80 00 12 0F 91`
+
+Example:
+
+```
+02 00 F0 FF FF 80 00 12 0F 91 05 01 06 0C 03
+                              ^^ Major version (5)
+                                 ^^ Minor version (1)
+                                    ^^ Embedded checksum (major + minor)
+                                       → Version 5.1
+```
+
+Data fields:
+- Byte 10: Major version number
+- Byte 11: Minor version number
+- Byte 12: Embedded checksum — sum of bytes 10 and 11 (`major + minor`)
+
+Observed samples:
+
+| Sample (bytes 10–12) | Major | Minor | Embedded checksum |
+|----------------------|-------|-------|-------------------|
+| `05 01 06`           | 5     | 1     | `0x06` (=5+1)     |
+| `05 00 05`           | 5     | 0     | `0x05` (=5+0)     |
+
+Carries redundant firmware-version information already announced by [0x0A](#0x0a--firmware-version-); firmware-version state population is left to that handler alone. Broadcast at startup, paired with the gateway's `0x0A` firmware-version announcement.
 
 ---
 
@@ -545,36 +720,6 @@ When an Active i25 Evo heater (source `0x0070`) is fitted, it broadcasts its own
 
 - LENGTH is `0x0D` (13 bytes) — one byte shorter than the Temp Sensor variant
 - This is the heater's own water-temperature reading; it is independent of the `0x0062` Temp Sensor reading and may differ if the two are sited differently in the plumbing
-
----
-
-### 4. Heater Status ⚠️
-
-Reports whether the heater is on or off.
-
-**Pattern:** `02 00 62 FF FF 80 00 12 0F 03`
-
-**Example - Heater On:**
-
-```
-02 00 62 FF FF 80 00 12 0F 03 00 01 08 09 03
-                                 ^^ 0x01 = On, 0x00 = Off
-                                    ^^ Unknown
-```
-
-**Example - Heater Off:**
-
-```
-02 00 62 FF FF 80 00 12 0F 03 00 00 08 08 03
-                                 ^^ 0x01 = On, 0x00 = Off
-                                    ^^ Unknown
-```
-
-**Data Fields:**
-
-- Byte 10: Padding/unused
-- Byte 11: Heater state (`0x00` = Off, `0x01` = On)
-- Byte 12: Unknown (maybe bitmask or interlock?)
 
 ---
 
@@ -952,44 +1097,6 @@ Status of the gateway's internet connection.
 
 ---
 
-### 18. Internet Gateway Status Broadcast ✅
-
-Firmware version broadcast by the Internet Gateway on startup. Uses the same command byte (`0x12`) as the Touchscreen Unknown 1 message, but carries an extra payload byte and originates from source `0x00F0`. The payload repeats the `{major, minor}` pair from the generic Firmware Version message ([0x0A](#0x0a--firmware-version-)) and follows it with an embedded data-level checksum.
-
-**Pattern:** `02 00 F0 FF FF 80 00 12 0F 91`
-
-**Example:**
-
-```
-02 00 F0 FF FF 80 00 12 0F 91 05 01 06 0C 03
-                              ^^ Major version (5)
-                                 ^^ Minor version (1)
-                                    ^^ Embedded checksum (major + minor)
-                                       → Version 5.1
-```
-
-**Data Fields:**
-
-- Byte 10: Major version number
-- Byte 11: Minor version number
-- Byte 12: Embedded checksum — sum of bytes 10 and 11 (`major + minor`)
-
-**Observed samples:**
-
-| Sample (bytes 10–12) | Major | Minor | Embedded checksum |
-|----------------------|-------|-------|-------------------|
-| `05 01 06`           | 5     | 1     | `0x06` (=5+1)     |
-| `05 00 05`           | 5     | 0     | `0x05` (=5+0)     |
-
-**Notes:**
-
-- Uses the same command byte (`0x12`) as Touchscreen Unknown 1 ([Section 22](#22-touchscreen-unknown-1-️)), but is 1 byte longer (15 vs 14 bytes total)
-- Broadcast at startup, paired with the gateway's firmware-version announcement ([0x0A](#0x0a--firmware-version-))
-- The embedded checksum at byte 12 is a data-level field, distinct from the standard frame checksum at byte 13 (`major + minor + embedded_checksum`, computed by the framing layer over all payload bytes)
-- Carries redundant firmware-version information already announced by [0x0A](#0x0a--firmware-version-); firmware-version state population is left to that handler alone
-
----
-
 ### 19. Register Read Request/Response
 
 The Internet Gateway periodically polls controller registers to sync state with the cloud service. This uses a request-response pattern.
@@ -1075,31 +1182,6 @@ Current time from the controller's internal clock. Broadcast periodically for sy
 - This message is broadcast by the controller for device time synchronization
 - Used by connected devices (touchscreen, internet gateway) to maintain consistent time
 - Appears to be sent every minute
-
----
-
-### 22. Touchscreen Unknown 1 ⚠️
-
-Broadcast consistently after the firmware version message (`0A 0E E8`). Currently appears to always have data value `05 00`.
-
-**Pattern:** `02 00 50 FF FF 80 00 12 0E F0`
-
-**Example:**
-
-```
-02 00 50 FF FF 80 00 12 0E F0 05 00 05 03
-                              ^^ Unknown (always 0x05)
-                                 ^^ Unknown (always 0x00)
-```
-
-**Data Fields:**
-
-- Byte 10: Unknown (always `0x05` in observed samples)
-- Byte 11: Unknown (always `0x00` in observed samples)
-
-**Notes:**
-
-- This message is broadcast by the controller as part of the regular system status sequence
 
 ---
 
@@ -1288,58 +1370,6 @@ Command to set light zone state (On/Off/Auto).
 
 ---
 
-### 26. Channel Toggle Command ✅
-
-Command to cycle a channel through its available states (Auto → On → Off, or On → Off depending on channel type).
-
-**Pattern:** `02 00 F0 FF FF 80 00 10 0D 8D`
-
-**Examples:**
-
-| Channel    | Index | Command                                   | States        |
-| ---------- | ----- | ----------------------------------------- | ------------- |
-| Filter     | 0x00  | `02 00 F0 FF FF 80 00 10 0D 8D 00 00 03`  | Auto, On, Off |
-| Cleaning   | 0x01  | `02 00 F0 FF FF 80 00 10 0D 8D 01 01 03`  | Auto, On, Off |
-| Pool Light | 0x02  | `02 00 F0 FF FF 80 00 10 0D 8D 02 02 03`  | Auto, On, Off |
-| Spa Light  | 0x03  | `02 00 F0 FF FF 80 00 10 0D 8D 03 03 03`  | Auto, On, Off |
-| Jets       | 0x04  | `02 00 F0 FF FF 80 00 10 0D 8D 04 04 03`  | On, Off       |
-| Blower     | 0x05  | `02 00 F0 FF FF 80 00 10 0D 8D 05 05 03`  | On, Off       |
-
-**Data Fields:**
-
-- Bytes 0-1: `02 00` - Start + Source High
-- Byte 2: `F0` - Source Low (Internet Gateway = 0x00F0)
-- Bytes 3-4: `FF FF` - Destination (Broadcast)
-- Bytes 5-6: `80 00` - Control bytes
-- Bytes 7-9: `10 0D 8D` - Command pattern for channel toggle
-- Byte 10: Channel index (0-based)
-- Byte 11: Checksum (equals channel index, as that is the only data byte)
-- Byte 12: `03` - End byte
-
-**Channel Index Mapping:**
-
-- `0x00`: Channel 1 (Filter)
-- `0x01`: Channel 2 (Cleaning)
-- `0x02`: Channel 3 (Pool Light)
-- `0x03`: Channel 4 (Spa Light)
-- `0x04`: Channel 5 (Jets)
-- `0x05`: Channel 6 (Blower)
-
-**Behaviour:**
-
-- Each send **cycles** the channel to its next state; it does not set a specific state
-- Channels with Auto support cycle: Auto → On → Off → Auto → ...
-- Channels without Auto cycle: On → Off → On → ...
-- The controller broadcasts the new channel state after processing the toggle
-
-**Notes:**
-
-- Sending this command always advances the state - there is no direct way to set a specific state
-- The controller will respond with an updated [Channel Status message (0x0B)](#0x0b--channel-status-)
-- Channel index is 0-based and corresponds to the channel's position in the controller configuration
-
----
-
 ### 27. Temperature Setpoint Command ✅
 
 Command to set the pool or spa temperature setpoint. The temperature byte is repeated twice within the payload.
@@ -1417,7 +1447,7 @@ Command to turn the heater on or off. Uses the same `3A 0F B9` command pattern a
 
 - This command uses the same pattern as Light Zone Control (`3A 0F B9`) but register `0xE6` with slot `0x00` identifies it as the heater
 - Unlike light zones (slot `0x01`), the heater uses slot `0x00`
-- The controller will respond with an updated [Heater Status message (§4)](#4-heater-status-️)
+- The controller will respond with an updated heater state via the inbuilt-heater variant of [0x12 — Device Status](#0x12--device-status-️)
 
 ---
 
@@ -1474,7 +1504,7 @@ Command sent by the Internet Gateway to the Touch Screen to switch modes or acti
 
 ### 30. Valve Control Command ✅
 
-Sent by the Internet Gateway to set a valve to a specific state directly. Unlike the Channel Toggle Command (§26) which cycles through states, this sets the target state explicitly.
+Sent by the Internet Gateway to set a valve to a specific state directly. Unlike the [Channel Toggle Command (0x10)](#0x10--channel-toggle-command-️) which cycles through states, this sets the target state explicitly.
 
 **Pattern:** `02 00 F0 FF FF 80 00 28 0E A6`
 
@@ -1536,51 +1566,13 @@ Both patterns have LENGTH `0x0D` (13 bytes) and a single data byte.
 **Notes:**
 
 - ⚠️ Mode-value mapping is **tentative**. Three distinct values (`0x00`, `0x01`, `0x02`) have been observed across one capture, and they match the standard pool-channel state encoding ([0x0B](#0x0b--channel-status-)), but the order seen in the capture did not unambiguously match a user-described Manual→Off→Auto sequence.
-- The chlorinator reports its current mode separately to the touchscreen via CMD `0x0F` (see below) — the two messages may briefly disagree during transitions.
+- The chlorinator reports its current mode separately to the touchscreen via [CMD 0x0F](#0x0f--chlorinator-mode--touchscreen-️) — the two messages may briefly disagree during transitions.
 - Both messages are addressed specifically to the Cell (`0x00A0`), not broadcast.
 - The `0x0090` chlorinator variant has not been observed using this command; the `0x18` traffic appears specific to the `0x0084` / `0x00A0` two-module chlorinator topology.
-- A related CMD `0x0F` is sent from `0x0084` to the touchscreen (`0x0050`) carrying the same mode value as a 2-byte payload `[01, mode]`. Not yet a separate section pending more captures.
+- A related [CMD 0x0F](#0x0f--chlorinator-mode--touchscreen-️) is sent from `0x0084` to the touchscreen (`0x0050`) carrying the same mode value.
 
 ---
 
-### 32. Chlorinator Status Broadcast ⚠️
-
-Broadcast from the chlorinator carrying its current operating mode. Both chlorinator address variants (`0x0090` and `0x0084` — mutually exclusive; see [Device Addresses](#device-addresses)) emit this message with the same structure, distinguished only by the source address and the resulting header checksum.
-
-**Pattern (variant A — `0x0090`):** `02 00 90 FF FF 80 00 12 0D 2F`
-
-**Pattern (variant B — `0x0084`):** `02 00 84 FF FF 80 00 12 0D 23`
-
-Both patterns have LENGTH `0x0D` (13 bytes) and a single data byte. The header checksum differs (`0x2F` vs `0x23`) purely because the source byte changes (`0x90` vs `0x84`).
-
-**Examples:**
-
-```
-02 00 90 FF FF 80 00 12 0D 2F 01 01 03   Chlorinator 0x0090 -> Broadcast, mode = 0x01 (Auto)
-02 00 84 FF FF 80 00 12 0D 23 02 02 03   Chlorinator 0x0084 -> Broadcast, mode = 0x02 (On)
-```
-
-**Data Fields:**
-
-- Byte 10: Mode value
-- Byte 11: Data checksum (equals byte 10 — only one data byte)
-
-**Observed Mode Values:**
-
-| Value  | Meaning (tentative) |
-|--------|---------------------|
-| `0x00` | Off (not yet observed) |
-| `0x01` | Auto                |
-| `0x02` | On                  |
-
-**Notes:**
-
-- ⚠️ Mode-value mapping is **tentative**. It follows the standard `0x00=Off / 0x01=Auto / 0x02=On` channel-state convention used elsewhere in the protocol ([0x0B](#0x0b--channel-status-)), but a single-device transition across Off ↔ Auto ↔ On has not yet been captured. `0x00` may simply not be broadcast when the chlorinator is powered off.
-- This is distinct from the configured *cell* mode broadcast in [§31](#31-chlorinator-cell-mode-), which is sent over a unicast to the salt cell (`0x00A0`) with CMD `0x18`. The `0x12` broadcast here is the chlorinator's own overall mode, addressed to the broadcast destination (`0xFFFF`). The two can hold different values concurrently — e.g., the chlorinator overall = On while the cell is in Auto.
-- CMD `0x12` is also used by four other devices as a status broadcast (heater, gateway, touchscreen — see the [Device Status table](#known-command-bytes)); each is source-dependent and carries a different payload layout.
-- Observed on both chlorinator hardware variants in independent captures (round8 system: `0x0090` with payload `0x01`; zagnuts system: `0x0084` with payload `0x02`).
-
----
 
 ## Appendix A: Register Dispatch Table
 
@@ -1747,7 +1739,7 @@ State values: `0x00` = Off, `0x01` = Auto, `0x02` = On
 | …        | …       | —             | —             | ✅ read-only   |
 | `0x93`   | 8       | —             | —             | ✅ read-only   |
 
-> Channel state is **read-only** via the register system. To change channel state, use the [Channel Toggle Command (§26)](#26-channel-toggle-command-).
+> Channel state is **read-only** via the register system. To change channel state, use the [Channel Toggle Command (0x10)](#0x10--channel-toggle-command-️).
 
 **Lighting Zones:**
 
