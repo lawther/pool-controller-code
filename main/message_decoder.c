@@ -942,7 +942,7 @@ static bool handle_controller_time(
 /**
  * Handler: Firmware version (CMD 0x0A, source-agnostic)
  *
- * Covers PROTOCOL.md §17 (consolidated). Same 2-byte `{major, minor}`
+ * Covers PROTOCOL.md command `0x0A` (consolidated). Same 2-byte `{major, minor}`
  * payload shape across every observed source — the source address selects
  * which `pool_state->*_version_*` field is populated.
  *
@@ -2441,8 +2441,8 @@ bool decode_message(const uint8_t *data, int len, message_decoder_context_t *ctx
 
     // Firmware version (CMD 0x0A) — universal across sources; payload layout
     // is identical regardless of which device is broadcasting, so dispatched
-    // by command byte rather than per-source pattern. See PROTOCOL.md §17
-    // and the Known Command Bytes "Firmware version" row.
+    // by command byte rather than per-source pattern. See PROTOCOL.md
+    // command `0x0A` section and the Known Command Bytes "Firmware version" row.
     if (data[7] == 0x0A) {
         return handle_firmware_version(data, len, payload, payload_len, addr_info, ctx);
     }
