@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 ### Changed
+- Pulled out the CMD 0x38 and 0x39 to be handled as commands rather than patterns as other devices send these now.
 - Pulled out the temperature setpoint command (CMD 0x19) to be source agnostic as the Genus Heater also sends this.
 - Consolidated the chlorinator pH/ORP setpoint (CMD `0x1D`) and reading (CMD `0x1F`) dispatch into source-agnostic CMD-byte routing in `dispatch_message`, so the existing four `handle_chlor_{ph,orp}_{setpoint,reading}` handlers now fire for both `0x0090` RolaChem and `0x0084` Viron sources — payload shape `{channel, value_lo, value_hi}` is identical across the two variants, only the source address (and resulting checksum1 byte) differed. Removed the `MSG_TYPE_CHLOR` prefix pattern and the four `CHLOR_*_{SETPOINT,READING}` sub-type pattern constants
 ### Deprecated

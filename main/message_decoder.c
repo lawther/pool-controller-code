@@ -59,9 +59,12 @@ static bool match_pattern(const uint8_t *data, int data_len, const char *pattern
 // Message type patterns (as hex strings for readability)
 // ======================================================
 
+// Register data (CMD 0x38) is dispatched source-agnostically in
+// dispatch_message() — see PROTOCOL.md command `0x38`. Routing is by
+// (reg_id, slot) via REGISTER_HANDLERS, independent of the source device.
+
 // Message type patterns (messages start with 0x02, end with 0x03)
 // 50 Main Controller (Connect 10)
-static const char *MSG_TYPE_REGISTER =              "02 00 50 FF FF 80 00 38"; 
 static const char *MSG_TYPE_TEMP_SETTING =          "02 00 50 FF FF 80 00 17 10 F7";
 static const char *MSG_TYPE_CONFIG =                "02 00 50 FF FF 80 00 26 0E 04";
 static const char *MSG_TYPE_MODE =                  "02 00 50 FF FF 80 00 14 0D F1";
@@ -96,7 +99,11 @@ static const char *MSG_TYPE_SERIAL_NUMBER =           "02 00 F0 FF FF 80 00 37 1
 static const char *MSG_TYPE_GATEWAY_IP =              "02 00 F0 FF FF 80 00 37 15 BC";
 static const char *MSG_TYPE_GATEWAY_COMMS =           "02 00 F0 FF FF 80 00 37 0F B6";
 static const char *MSG_TYPE_GATEWAY_STATUS =          "02 00 F0 FF FF 80 00 12 0F 91";
-static const char *MSG_TYPE_REGISTER_READ_REQUEST =   "02 00 F0 FF FF 80 00 39 0E B7";
+
+// Register read request (CMD 0x39) is dispatched source-agnostically in
+// dispatch_message() — see PROTOCOL.md command `0x39`. Observed from the
+// Internet Gateway (0x00F0) and the Genus Heater (0x0070); payload shape
+// `{reg_id, slot_id}` is identical.
 
 // Temperature setpoint command (CMD 0x19) is dispatched source-agnostically
 // in dispatch_message() — see PROTOCOL.md command `0x19`. Slot byte (payload[0])
@@ -1323,8 +1330,12 @@ static bool handle_gateway_status(
 }
 
 /**
- * Handler: Register read request message
- * Pattern: "02 00 F0 FF FF 80 00 39 0E B7"
+ * Handler: Register read request (CMD 0x39) — source-agnostic.
+ *
+ * Observed from both the Internet Gateway (`0x00F0`) and the Genus Heater
+ * (`0x0070`); payload shape `{reg_id, slot_id}` is identical, only the source
+ * address (and resulting checksum1 byte) differs. Dispatched in
+ * dispatch_message() by CMD byte.
  */
 static bool handle_register_read_request(
     const uint8_t *data, int len,
@@ -2580,10 +2591,18 @@ static bool dispatch_message(
         }
     }
 
-    // Register messages (dispatch table approach)
-    if (match_pattern(data, len, MSG_TYPE_REGISTER)) {
-        // Header checksum already validated above
+    // Register read request (CMD 0x39) — source-agnostic. Observed from the
+    // Internet Gateway (0x00F0) and the Genus Heater (0x0070); same
+    // `{reg_id, slot_id}` payload from either source.
+    if (data[7] == 0x39) {
+        return handle_register_read_request(data, len, payload, payload_len, addr_info, ctx);
+    }
 
+    // Register data (CMD 0x38) — source-agnostic. Routed by (reg_id, slot)
+    // via REGISTER_HANDLERS. The Touchscreen (0x0050) is the canonical
+    // responder to gateway 0x39 reads, but the same payload shape is used
+    // wherever 0x38 originates.
+    if (data[7] == 0x38) {
         // Extract register ID and slot
         if (payload_len < 2) {
             ESP_LOGW(TAG, "%s Register message - Payload too short", addr_info);
@@ -2696,10 +2715,6 @@ static bool dispatch_message(
 
     if (match_pattern(data, len, MSG_TYPE_GATEWAY_STATUS)) {
         return handle_gateway_status(data, len, payload, payload_len, addr_info, ctx);
-    }
-
-    if (match_pattern(data, len, MSG_TYPE_REGISTER_READ_REQUEST)) {
-        return handle_register_read_request(data, len, payload, payload_len, addr_info, ctx);
     }
 
     // Gateway control commands
