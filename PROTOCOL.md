@@ -96,6 +96,7 @@ uint8_t data_checksum = sum & 0xFF;
 | `0x0062` | Connect 8/10      | Main pool controller (Connect 10) |
 | `0x006F` | Internal Channels | Internal messages for active channels sent to this address |
 | `0x0070` | Genus Heater      | Active i25 Evo electric heater    |
+| `0x007F` | Internal Genus?   | Internal temperature setpoint messages go to this address  |
 | `0x0084` | Viron Chlorinator | Chemistry/chlorinator module (alternate variant; mutually exclusive with `0x0090`) |
 | `0x0090` | RolaChem          | Chemistry/chlorinator module      |
 | `0x00A0` | Internal Salt Cell | Chlorine generator / salt cell (suspected; subordinate to `0x0084`) |

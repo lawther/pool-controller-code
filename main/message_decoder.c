@@ -98,9 +98,13 @@ static const char *MSG_TYPE_GATEWAY_COMMS =           "02 00 F0 FF FF 80 00 37 0
 static const char *MSG_TYPE_GATEWAY_STATUS =          "02 00 F0 FF FF 80 00 12 0F 91";
 static const char *MSG_TYPE_REGISTER_READ_REQUEST =   "02 00 F0 FF FF 80 00 39 0E B7";
 
+// Temperature setpoint command (CMD 0x19) is dispatched source-agnostically
+// in dispatch_message() — see PROTOCOL.md command `0x19`. Slot byte (payload[0])
+// selects Pool/Spa (0x01/0x02, 3-byte payload from 0x00F0 Gateway) or heater
+// pair (0x03, 5-byte payload from 0x0050 Touch Screen to 0x007F).
+
 // F0 Gateway Control Commands (Gateway -> Controller)
 static const char *MSG_TYPE_CHANNEL_TOGGLE_CMD =      "02 00 F0 FF FF 80 00 10 0D 8D";
-static const char *MSG_TYPE_TEMP_SET_CMD =            "02 00 F0 FF FF 80 00 19 0F 98";
 static const char *MSG_TYPE_LIGHT_CONTROL_CMD =       "02 00 F0 FF FF 80 00 3A 0F B9";
 static const char *MSG_TYPE_MODE_CONTROL_CMD =        "02 00 F0 00 50 80 00 2A 0D F9";
 
@@ -1392,10 +1396,13 @@ static bool handle_channel_toggle_cmd(
 }
 
 /**
- * Handler: Temperature setpoint command (Gateway -> Controller)
- * Pattern: "02 00 F0 FF FF 80 00 19 0F 98"
+ * Handler: Temperature setpoint command — Pool/Spa target (CMD 0x19, slot 0x01/0x02) — source-agnostic.
+ * Used by the Internet Gateway (0x00F0) to set the Pool or Spa setpoint; the
+ * temperature is repeated at payload[1] and payload[2]. The controller
+ * responds with an updated Temperature Settings (CMD 0x17).
+ * Dispatched in dispatch_message() by CMD byte.
  */
-static bool handle_temp_set_cmd(
+static bool handle_temp_set_cmd_pool_spa(
     const uint8_t *data, int len,
     const uint8_t *payload, int payload_len,
     const char *addr_info,
@@ -1406,11 +1413,44 @@ static bool handle_temp_set_cmd(
     uint8_t target = payload[0];
     uint8_t temp_c = payload[1];  // Repeated at payload[2], only need one
 
-    const char *target_name = (target == 0x01) ? "Pool" : (target == 0x02) ? "Spa" : "Unknown";
-    ESP_LOGI(TAG, "%s Gateway temperature set command - %s setpoint -> %d°C",
+    const char *target_name = (target == 0x01) ? "Pool" : "Spa";
+    ESP_LOGI(TAG, "%s Temperature set command - %s setpoint -> %d°C",
              addr_info, target_name, temp_c);
 
     // No state update needed - the controller will broadcast the new setpoint
+    return true;
+}
+
+/**
+ * Handler: Temperature setpoint command — heater pair target (CMD 0x19, slot 0x03) — source-agnostic.
+ * Used by the Touch Screen (0x0050) writing to the internal heater-setpoints
+ * address 0x007F: 5-byte payload carrying both heater setpoints in °C and °F.
+ *   payload[0] = 0x03  (heater-pair slot marker)
+ *   payload[1] = Heater 2 setpoint °C
+ *   payload[2] = Heater 1 setpoint °C
+ *   payload[3] = Heater 2 setpoint °F
+ *   payload[4] = Heater 1 setpoint °F
+ * Byte order is reversed vs the 0x17 broadcast from 0x0070 (which is [H1, H2]).
+ * The heater (0x0070) responds with an updated Genus Heater Temperature
+ * Setting (CMD 0x17). Dispatched in dispatch_message() by CMD byte.
+ */
+static bool handle_temp_set_cmd_heaters(
+    const uint8_t *data, int len,
+    const uint8_t *payload, int payload_len,
+    const char *addr_info,
+    message_decoder_context_t *ctx)
+{
+    if (payload_len < 5) return false;
+
+    uint8_t h2_c = payload[1];
+    uint8_t h1_c = payload[2];
+    uint8_t h2_f = payload[3];
+    uint8_t h1_f = payload[4];
+
+    ESP_LOGI(TAG, "%s Heater setpoint command - heater1=%d°C/%d°F, heater2=%d°C/%d°F",
+             addr_info, h1_c, h1_f, h2_c, h2_f);
+
+    // No state update needed - the heater will broadcast the new setpoints
     return true;
 }
 
@@ -2505,6 +2545,19 @@ static bool dispatch_message(
         return handle_firmware_version(data, len, payload, payload_len, addr_info, ctx);
     }
 
+    // Temperature setpoint command (CMD 0x19) — source-agnostic. Routed by
+    // the slot byte (payload[0]): 0x01/0x02 = Pool/Spa setpoint (3-byte
+    // payload, Gateway-sourced); 0x03 = heater pair setpoint (5-byte payload
+    // in °C + °F, Touchscreen-sourced to 0x007F).
+    if (data[7] == 0x19 && payload_len >= 1) {
+        if (payload[0] == 0x01 || payload[0] == 0x02) {
+            return handle_temp_set_cmd_pool_spa(data, len, payload, payload_len, addr_info, ctx);
+        }
+        if (payload[0] == 0x03) {
+            return handle_temp_set_cmd_heaters(data, len, payload, payload_len, addr_info, ctx);
+        }
+    }
+
     // Chlorinator setpoint (CMD 0x1D) and reading (CMD 0x1F) — same
     // `{channel, value_lo, value_hi}` payload from both 0x0090 RolaChem and
     // 0x0084 Viron, only the source address (and resulting checksum1 byte)
@@ -2652,10 +2705,6 @@ static bool dispatch_message(
     // Gateway control commands
     if (match_pattern(data, len, MSG_TYPE_CHANNEL_TOGGLE_CMD)) {
         return handle_channel_toggle_cmd(data, len, payload, payload_len, addr_info, ctx);
-    }
-
-    if (match_pattern(data, len, MSG_TYPE_TEMP_SET_CMD)) {
-        return handle_temp_set_cmd(data, len, payload, payload_len, addr_info, ctx);
     }
 
     if (match_pattern(data, len, MSG_TYPE_LIGHT_CONTROL_CMD)) {
