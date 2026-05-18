@@ -18,6 +18,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [1.3.0] - 2026-05-18
+### Added
 - Added handler and PROTOCOL.md §32 entry for the Chlorinator Status Broadcast (CMD `0x12` from both `0x0090` and `0x0084` variants) — 1-byte mode payload, tentatively mapped to the standard `0x00`=Off / `0x01`=Auto / `0x02`=On channel-state convention (marked ⚠️ pending an Off↔Auto↔On transition capture); `handle_chlor_status` logs the resolved mode name and populates new `pool_state->chlor_mode` / `chlor_mode_valid` fields. Updates the §Known Command Bytes `0x12` shared-device table to list five devices and the Chlorinator broadcasts table to include `0x12`
 - Added handler and PROTOCOL.md §33 entry for the Chlorinator Firmware Version (CMD `0x0A` from `0x0084`) — structurally identical to the §17 Gateway and §21 Touchscreen firmware-version messages with a 2-byte `{major, minor}` payload; `handle_chlor_version` populates new `pool_state->chlor_version_major` / `_minor` / `_valid` fields and logs the version. Updates the §Known Command Bytes `0x0A` shared-device table to list three devices and the Chlorinator broadcasts table to include `0x0A`
 - Added PROTOCOL.md §34 entry for the Temp Sensor Firmware Version (CMD `0x0A` from `0x0062`) — same `{major, minor}` payload shape as the other firmware-version broadcasts; observed sample is v2.6 (`02 06 08`). Populates new `pool_state->temp_sensor_version_*` fields via the consolidated firmware-version handler. Updates the §Known Command Bytes `0x0A` shared-device table to list five devices (now also covering `0x0070` Heatpump explicitly) and the Temperature sensor broadcasts table to include `0x0A`
@@ -28,12 +36,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Consolidated the four per-device firmware-version handlers (`handle_touchscreen_version`, `handle_heatpump_version`, `handle_gateway_version`, `handle_chlor_version`) into a single source-agnostic `handle_firmware_version` dispatched on `data[7] == 0x0A` regardless of source — the payload layout (`{major, minor}`) is identical across all five known sources, so per-source patterns and handlers were redundant. The handler switches on source address to populate the appropriate `pool_state->*_version_*` field (touchscreen/temp-sensor/chlorinator/gateway have dedicated fields; heatpump and any future sources are log-only). Removed the four `MSG_TYPE_*_VERSION` pattern constants and the four scattered dispatch entries
 - Replaced the eight per-grouping shared-CMD tables in PROTOCOL.md §Known Command Bytes (Register protocol, Device status 0x12, Firmware version 0x0A, Temperature reading 0x16, Temperature setpoint 0x17, Chlorinator cell mode 0x18, plus per-source broadcast tables for touchscreen/temp-sensor/chlorinator/gateway) with a single master "Known Commands" table — one row per CMD byte, with `Direction`, `Variants / Notes`, `Section(s)`, and a new `In code?` column that distinguishes handlers actually implemented in `message_decoder.c` from CMDs that are documented only. Surfaces four doc-vs-code gaps (`0x0F`, `0x18`, `0x25`, `0x28`) at a glance. First step in a planned restructure toward a command-centric doc
 - Consolidated the four per-device firmware-version sections in PROTOCOL.md (§17 Internet Gateway, §21 Touchscreen, §33 Chlorinator, §34 Temp Sensor) into a single generic §17 "Firmware Version" with a unified Known Sources table covering all five observed sources (Touchscreen `0x0050`, inbuilt heater `0x0062`, Heatpump `0x0070`, Chlorinator `0x0084`, Gateway `0x00F0`). §21, §33, and §34 fully removed — TOC entries, Quick Reference rows, and the section bodies themselves — leaving numbering gaps that will resolve when the doc is restructured to a command-centric layout. Master CMD table's `0x0A` row now points only to §17. Removes ~125 lines of duplicated content
-### Deprecated
-### Removed
 ### Fixed
 - Corrected device-address labels in `get_device_name()` and across PROTOCOL.md to reflect new understanding: `0x0062` Temp Sensor → Connect 8/10 Controller (now framed as controller-sourced heater/water-temperature broadcasts rather than messages from an "inbuilt heater"), `0x006F` Controller → Internal Channels (logical destination tag), `0x0070` Heatpump → Genus Heater, `0x0084` Chlorinator → Viron Chlorinator, `0x0090` Chlorinator → RolaChem, `0x00A0` Salt Cell → Internal Salt Cell, `0x00F0` Internet GW → Internet Gateway; renamed `pool_state->temp_sensor_version_*` to `controller_version_*`, `MSG_TYPE_HEATPUMP_*` to `MSG_TYPE_GENUS_HEATER_*`, and `handle_heatpump_*` to `handle_genus_heater_*` to match
-### Security
-
 
 ## [1.2.1] - 2026-05-17
 ### Added
