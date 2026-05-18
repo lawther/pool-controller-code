@@ -83,14 +83,9 @@ static const char *MSG_TYPE_HEATER =                "02 00 62 FF FF 80 00 12 0F 
 static const char *MSG_TYPE_GENUS_HEATER_TEMP_READING = "02 00 70 FF FF 80 00 16 0D 13";
 static const char *MSG_TYPE_GENUS_HEATER_TEMP_SETTING = "02 00 70 FF FF 80 00 17 0E 15";
 
-// 90 RolaChem Chlorinator (pH, ORP)
-static const char *MSG_TYPE_CHLOR = "02 00 90 FF FF 80 00";
-
-// Chlorinator sub-type patterns (bytes 7-10)
-static const char *CHLOR_PH_SETPOINT  = "1D 0F 3C 01";
-static const char *CHLOR_ORP_SETPOINT = "1D 0F 3C 02";
-static const char *CHLOR_PH_READING   = "1F 0F 3E 01";
-static const char *CHLOR_ORP_READING  = "1F 0F 3E 02";
+// Chlorinator setpoints (CMD 0x1D) and readings (CMD 0x1F) are dispatched
+// source-agnostically in dispatch_message() — see PROTOCOL.md commands `0x1D`
+// and `0x1F`. Same payload shape from both 0x0090 RolaChem and 0x0084 Viron.
 
 // Chlorinator status broadcast (CMD 0x12) — same payload shape from either variant
 static const char *MSG_TYPE_CHLOR_STATUS_A = "02 00 90 FF FF 80 00 12 0D 2F";
@@ -1498,8 +1493,9 @@ static bool handle_mode_control_cmd(
 }
 
 /**
- * Handler: Chlorinator pH setpoint message
- * Pattern: "02 00 90 FF FF 80 00" + sub-type "1D 0F 3C 01"
+ * Handler: Chlorinator pH setpoint (CMD 0x1D, channel 0x01) — source-agnostic.
+ * Same `{channel, value_lo, value_hi}` payload from both 0x0090 RolaChem and
+ * 0x0084 Viron chlorinators; dispatched in dispatch_message() by CMD byte.
  */
 static bool handle_chlor_ph_setpoint(
     const uint8_t *data, int len,
@@ -1531,8 +1527,9 @@ static bool handle_chlor_ph_setpoint(
 }
 
 /**
- * Handler: Chlorinator ORP setpoint message
- * Pattern: "02 00 90 FF FF 80 00" + sub-type "1D 0F 3C 02"
+ * Handler: Chlorinator ORP setpoint (CMD 0x1D, channel 0x02) — source-agnostic.
+ * Same `{channel, value_lo, value_hi}` payload from both 0x0090 RolaChem and
+ * 0x0084 Viron chlorinators; dispatched in dispatch_message() by CMD byte.
  */
 static bool handle_chlor_orp_setpoint(
     const uint8_t *data, int len,
@@ -1564,8 +1561,9 @@ static bool handle_chlor_orp_setpoint(
 }
 
 /**
- * Handler: Chlorinator pH reading message
- * Pattern: "02 00 90 FF FF 80 00" + sub-type "1F 0F 3E 01"
+ * Handler: Chlorinator pH reading (CMD 0x1F, channel 0x01) — source-agnostic.
+ * Same `{channel, value_lo, value_hi}` payload from both 0x0090 RolaChem and
+ * 0x0084 Viron chlorinators; dispatched in dispatch_message() by CMD byte.
  */
 static bool handle_chlor_ph_reading(
     const uint8_t *data, int len,
@@ -1598,8 +1596,9 @@ static bool handle_chlor_ph_reading(
 }
 
 /**
- * Handler: Chlorinator ORP reading message
- * Pattern: "02 00 90 FF FF 80 00" + sub-type "1F 0F 3E 02"
+ * Handler: Chlorinator ORP reading (CMD 0x1F, channel 0x02) — source-agnostic.
+ * Same `{channel, value_lo, value_hi}` payload from both 0x0090 RolaChem and
+ * 0x0084 Viron chlorinators; dispatched in dispatch_message() by CMD byte.
  */
 static bool handle_chlor_orp_reading(
     const uint8_t *data, int len,
@@ -2506,6 +2505,28 @@ static bool dispatch_message(
         return handle_firmware_version(data, len, payload, payload_len, addr_info, ctx);
     }
 
+    // Chlorinator setpoint (CMD 0x1D) and reading (CMD 0x1F) — same
+    // `{channel, value_lo, value_hi}` payload from both 0x0090 RolaChem and
+    // 0x0084 Viron, only the source address (and resulting checksum1 byte)
+    // differs. Dispatched by CMD byte and routed by the channel byte
+    // (payload[0]): 0x01=pH, 0x02=ORP.
+    if (data[7] == 0x1D && payload_len >= 1) {
+        if (payload[0] == 0x01) {
+            return handle_chlor_ph_setpoint(data, len, payload, payload_len, addr_info, ctx);
+        }
+        if (payload[0] == 0x02) {
+            return handle_chlor_orp_setpoint(data, len, payload, payload_len, addr_info, ctx);
+        }
+    }
+    if (data[7] == 0x1F && payload_len >= 1) {
+        if (payload[0] == 0x01) {
+            return handle_chlor_ph_reading(data, len, payload, payload_len, addr_info, ctx);
+        }
+        if (payload[0] == 0x02) {
+            return handle_chlor_orp_reading(data, len, payload, payload_len, addr_info, ctx);
+        }
+    }
+
     // Register messages (dispatch table approach)
     if (match_pattern(data, len, MSG_TYPE_REGISTER)) {
         // Header checksum already validated above
@@ -2599,25 +2620,6 @@ static bool dispatch_message(
 
     if (match_pattern(data, len, MSG_TYPE_GENUS_HEATER_TEMP_SETTING)) {
         return handle_genus_heater_temp_setting(data, len, payload, payload_len, addr_info, ctx);
-    }
-
-    // Chlorinator messages
-    if (match_pattern(data, len, MSG_TYPE_CHLOR)) {
-        // Dispatch to chlorinator sub-handlers based on sub-type
-        const uint8_t *sub = &data[7];
-
-        if (match_pattern(sub, 4, CHLOR_PH_SETPOINT)) {
-            return handle_chlor_ph_setpoint(data, len, payload, payload_len, addr_info, ctx);
-        }
-        if (match_pattern(sub, 4, CHLOR_ORP_SETPOINT)) {
-            return handle_chlor_orp_setpoint(data, len, payload, payload_len, addr_info, ctx);
-        }
-        if (match_pattern(sub, 4, CHLOR_PH_READING)) {
-            return handle_chlor_ph_reading(data, len, payload, payload_len, addr_info, ctx);
-        }
-        if (match_pattern(sub, 4, CHLOR_ORP_READING)) {
-            return handle_chlor_orp_reading(data, len, payload, payload_len, addr_info, ctx);
-        }
     }
 
     // Chlorinator status broadcast (§32) — both 0x0090 and 0x0084 variants
