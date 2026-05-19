@@ -18,16 +18,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
-- Invalid-temperature sentinel: water temperature readings (CMD `0x16` and `0x31`) with a raw value `>= 0xA0` (160°C) are now treated as an invalid / disconnected sensor reading — logged as a warning and skipped instead of being published to MQTT.
+- Per-source temperature storage: `temp1`, `temp2`, `temp1_valid`, `temp2_valid` and `single_sensor_source` are now stored directly on each `seen_device_t` entry. Multiple temperature sources (Connect 8/10 + Genus Heater variants) are kept distinct rather than overwriting a single global field.
+- HTTP `/status`: each device entry in the `devices[]` array now carries `temperature1` (and `temperature2` for multi-sensor sources like the Connect 8/10). Devices that don't broadcast CMD `0x16` get no temperature fields at all.
+- New per-source MQTT temperature entities, discovered lazily on first reading from each `(source, sensor)` pair. Single-sensor sources → "Genus Heater Temperature"; multi-sensor → "Connect 8/10 Temperature 1" / "Connect 8/10 Temperature 2".
+- Invalid-temperature sentinel: water temperature readings (CMD `0x16` and `0x31`) with a raw value `>= 0xA0` (160°C) are treated as a disconnected sensor — logged as a warning and skipped instead of being stored or published.
+- Picked up the previously-unhandled `0x0072` Genus Heater variant of CMD `0x16` (same single-byte layout as the `0x0070` Genus Heater).
 ### Changed
-- Pulled out the water temperature reading (CMD `0x16`) to be source-agnostic — single unified `handle_temp_reading` dispatched on the CMD byte and routed by payload length: 2-byte `{temp1, temp2}` from `0x0062` Connect 8/10 (LEN `0x0E`); 1-byte `{temp1}` from `0x0070`/`0x0072` Genus Heater family (LEN `0x0D`). Removes the `MSG_TYPE_TEMP_READING` and `MSG_TYPE_GENUS_HEATER_TEMP_READING` patterns and the dedicated `handle_genus_heater_temp_reading`. Also picks up the previously-unhandled `0x0072` Genus Heater variant.
-- Merged CMD `0x31` (Water Temperature Reading alt) into the unified `handle_temp_reading()` — `0x16` and `0x31` share the same `{temp1, temp2}` field layout, so they're now dispatched on the CMD byte through a single handler. CMD `0x16` is the canonical source (updates `pool_state->current_temp` and publishes MQTT); CMD `0x31` is log-only to avoid dual MQTT updates for the same reading (the Connect 8/10 broadcasts them ~70 ms apart). Removes the `MSG_TYPE_TEMP_READING2` pattern and the dedicated `handle_temp_reading2`.
-### Deprecated
+- Pulled out the water temperature reading (CMD `0x16`) to be source-agnostic — single unified `handle_temp_reading` dispatched on the CMD byte and routed by payload length: 2-byte `{temp1, temp2}` from `0x0062` Connect 8/10 (LEN `0x0E`); 1-byte `{temp1}` from `0x0070`/`0x0072` Genus Heater family (LEN `0x0D`). Removes the `MSG_TYPE_TEMP_READING` and `MSG_TYPE_GENUS_HEATER_TEMP_READING` patterns and the dedicated `handle_genus_heater_temp_reading`.
+- Merged CMD `0x31` (Water Temperature Reading alt) into the unified `handle_temp_reading()` — `0x16` and `0x31` share the same `{temp1, temp2}` field layout. CMD `0x16` is the canonical source (writes onto the device entry and publishes MQTT); CMD `0x31` is log-only to avoid dual MQTT updates for the same reading. Removes the `MSG_TYPE_TEMP_READING2` pattern and the dedicated `handle_temp_reading2`.
+- MQTT topic split: setpoints (`pool_sp`, `spa_sp`, `scale`) moved from `pool/<id>/temperature/state` to a dedicated `pool/<id>/setpoints/state`. Per-sensor temperature readings publish to `pool/<id>/temperature/<slug>/<index>/state` (multi-sensor) or `pool/<id>/temperature/<slug>/state` (single-sensor), where `<slug>` is derived from `get_device_name()` (e.g. `connect_8_10`, `genus_heater`). **Breaking change for MQTT consumers**: the old `pool/<id>/temperature/state` topic is gone; any HA automation bound to the old "Temperature" sensor entity will need to rebind to the new per-source entities.
+- HA discovery for setpoint number entities (`Pool Setpoint`, `Spa Setpoint`) updated to read from the new `setpoints/state` topic.
 ### Removed
+- `pool_state.current_temp` and `pool_state.temp_valid` — temperatures now live per-source on `seen_device_t`. Consumers (MQTT publish, HTTP status, HA discovery) migrated to the per-device fields.
+- Global "Temperature" HA sensor entity (`publish_temperature_discovery`) — replaced by per-source entities discovered lazily on first CMD `0x16` reading.
+- `HTTP /status` field `temperature.current` — replaced by `temperature1`/`temperature2` on each device entry.
 ### Fixed
-- CMD `0x16` (Connect 8/10 variant): byte 11 was previously labelled "unknown — always 0x00", now decoded as a second water temperature (`temp2`). Logged alongside `temp1`; not yet stored in `pool_state`.
+- CMD `0x16` (Connect 8/10 variant): byte 11 was previously labelled "unknown — always 0x00", now decoded as a second water temperature (`temp2`).
 - CMD `0x31` byte 11: was previously labelled "unknown — always 0xA6 in observed samples", now decoded as the same `temp2` field as CMD `0x16` byte 11. The `>= 0xA0` values (`0xA6`, `0xAD`, `0xAF` observed) are the disconnected-sensor sentinel — confirmed by paired captures where CMD `0x16` byte 11 reads `0x00` in the same cycle.
-### Security
 
 ## [1.3.1] - 2026-05-18
 ### Changed

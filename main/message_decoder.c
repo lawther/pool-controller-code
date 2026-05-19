@@ -429,6 +429,45 @@ const char* get_device_name(uint8_t addr_hi, uint8_t addr_lo, char *fallback_buf
     return fallback_buf;
 }
 
+const char* get_device_slug(uint8_t addr_hi, uint8_t addr_lo, char *buf, size_t buf_size)
+{
+    if (buf_size == 0) return buf;
+
+    if (addr_hi == 0xFF && addr_lo == 0xFF) {
+        snprintf(buf, buf_size, "broadcast");
+        return buf;
+    }
+
+    char name_buf[16];
+    const char *name = get_device_name(addr_hi, addr_lo, name_buf, sizeof(name_buf));
+
+    // Unknown sources: skip the "0x" prefix that would otherwise leak into the slug.
+    if (strncmp(name, "Unknown ", 8) == 0) {
+        snprintf(buf, buf_size, "unknown_%02x%02x", addr_hi, addr_lo);
+        return buf;
+    }
+
+    // Slugify: lowercase alphanumerics pass through; everything else collapses to a single underscore.
+    size_t pos = 0;
+    bool last_was_underscore = true;  // start true to suppress a leading underscore
+    for (const char *p = name; *p && pos + 1 < buf_size; p++) {
+        char c = *p;
+        if (c >= 'A' && c <= 'Z') {
+            buf[pos++] = c - 'A' + 'a';
+            last_was_underscore = false;
+        } else if ((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')) {
+            buf[pos++] = c;
+            last_was_underscore = false;
+        } else if (!last_was_underscore) {
+            buf[pos++] = '_';
+            last_was_underscore = true;
+        }
+    }
+    if (pos > 0 && buf[pos - 1] == '_') pos--;  // strip trailing underscore
+    buf[pos] = '\0';
+    return buf;
+}
+
 const char* get_gateway_comms_status_text(uint16_t code)
 {
     for (int i = 0; i < GATEWAY_COMMS_STATUS_COUNT; i++) {
@@ -562,6 +601,10 @@ static inline bool temp_is_invalid(uint8_t t) {
     return t >= TEMP_INVALID_MIN;
 }
 
+// Forward declaration — definition is further down with the other registry
+// helpers, but handle_temp_reading() (below) needs to call it.
+static int find_or_insert_seen_device_locked(pool_state_t *st, uint8_t hi, uint8_t lo);
+
 /**
  * Handler: Water temperature reading (CMD 0x16 and CMD 0x31)
  *
@@ -577,10 +620,12 @@ static inline bool temp_is_invalid(uint8_t t) {
  *  - LEN 0x0E (e.g. 0x0062 Connect 8/10): 2-byte payload `{temp1, temp2}` in °C.
  *  - LEN 0x0D (e.g. 0x0070/0x0072 Genus Heater family): 1-byte payload `{temp1}`.
  *
- * CMD 0x16 is the canonical source — it updates `pool_state->current_temp` and
+ * CMD 0x16 is the canonical source — it writes temp1/temp2 onto the source's
+ * `seen_device_t` entry (looked up by the message's source address) and
  * publishes to MQTT. CMD 0x31 is log-only (the Connect 8/10 broadcasts both
  * ~70 ms apart with the same temp1; suppressing 0x31 avoids dual MQTT updates).
- * temp2 is logged but not yet stored in pool_state. Values >= 0xA0 are skipped.
+ * Values >= 0xA0 are skipped. `single_sensor_source` is committed at first
+ * sight from the payload length so the MQTT topic shape stays stable.
  */
 static bool handle_temp_reading(
     const uint8_t *data, int len,
@@ -617,24 +662,56 @@ static bool handle_temp_reading(
         }
     }
 
-    if (!is_canonical || t1_invalid) {
-        return true;  // CMD 0x31 is log-only; invalid temp1 also skips publish.
+    if (!is_canonical) {
+        return true;  // CMD 0x31 is log-only.
     }
 
-    // Canonical path (CMD 0x16): update state and publish
+    // Canonical path (CMD 0x16): write to the source device's temp slots and publish.
     pool_state_t snapshot;
     if (!ctx->state_mutex || xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
         ESP_LOGW(TAG, "Failed to acquire mutex for temp reading");
         return true;
     }
-    ctx->pool_state->current_temp = current_temp;
-    ctx->pool_state->temp_valid = true;
+
+    int dev_idx = find_or_insert_seen_device_locked(ctx->pool_state, data[1], data[2]);
+    if (dev_idx >= 0) {
+        seen_device_t *dev = &ctx->pool_state->seen_devices[dev_idx];
+
+        // Commit the source's sensor-count shape on first sight. Once set, it
+        // stays — keeps MQTT topics stable across the device's lifetime.
+        if (!dev->temp1_valid && !dev->temp2_valid) {
+            dev->single_sensor_source = (payload_len < 2);
+        }
+
+        if (!t1_invalid) {
+            dev->temp1 = current_temp;
+            dev->temp1_valid = true;
+        }
+        if (payload_len >= 2 && !dev->single_sensor_source) {
+            uint8_t t2 = payload[1];
+            if (!temp_is_invalid(t2)) {
+                dev->temp2 = t2;
+                dev->temp2_valid = true;
+            }
+        }
+    }
+
     ctx->pool_state->last_update_ms = xTaskGetTickCount() * portTICK_PERIOD_MS;
     snapshot = *ctx->pool_state;
+    bool publish_temp2 = (dev_idx >= 0)
+                      && !ctx->pool_state->seen_devices[dev_idx].single_sensor_source
+                      && ctx->pool_state->seen_devices[dev_idx].temp2_valid;
     xSemaphoreGive(ctx->state_mutex);
 
+    if (t1_invalid || dev_idx < 0) {
+        return true;  // Invalid temp1 or registry full: skip publish.
+    }
+
     if (ctx->enable_mqtt) {
-        mqtt_publish_temperature(&snapshot);
+        mqtt_publish_temperature_reading(&snapshot, dev_idx, 1);
+        if (publish_temp2) {
+            mqtt_publish_temperature_reading(&snapshot, dev_idx, 2);
+        }
     }
 
     return true;
@@ -674,7 +751,7 @@ static bool handle_temp_setpoint(
     xSemaphoreGive(ctx->state_mutex);
 
     if (ctx->enable_mqtt) {
-        mqtt_publish_temperature(&state_snapshot);
+        mqtt_publish_setpoints(&state_snapshot);
     }
 
     return true;
@@ -839,7 +916,7 @@ static bool handle_temp_setting(
     xSemaphoreGive(ctx->state_mutex);
 
     if (ctx->enable_mqtt) {
-        mqtt_publish_temperature(&snapshot);
+        mqtt_publish_setpoints(&snapshot);
     }
 
     return true;
@@ -960,6 +1037,11 @@ static int find_or_insert_seen_device_locked(pool_state_t *st, uint8_t hi, uint8
     st->seen_devices[idx].fw_version_minor = 0;
     st->seen_devices[idx].decoded_count = 0;
     st->seen_devices[idx].unknown_count = 0;
+    st->seen_devices[idx].temp1 = 0;
+    st->seen_devices[idx].temp2 = 0;
+    st->seen_devices[idx].temp1_valid = false;
+    st->seen_devices[idx].temp2_valid = false;
+    st->seen_devices[idx].single_sensor_source = false;
     return idx;
 }
 

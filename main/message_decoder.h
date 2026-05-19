@@ -55,6 +55,21 @@ bool verify_message_checksum(const uint8_t *data, int len);
 const char* get_device_name(uint8_t addr_hi, uint8_t addr_lo, char *fallback_buf, size_t buf_size);
 
 /**
+ * Get a lower_snake_case slug for a device, suitable for MQTT topic paths.
+ *
+ * Derived from get_device_name() — alphanumerics pass through (lowercased),
+ * everything else (spaces, slashes, etc.) collapses to a single underscore.
+ * Unknown sources slug to "unknown_HHLL" (no "0x" prefix).
+ *
+ * Examples: "Connect 8/10" → "connect_8_10", "Genus Heater" → "genus_heater",
+ *           addr 0x0072 (unknown) → "unknown_0072".
+ *
+ * The buffer must be at least 24 bytes to hold the longest known slug
+ * ("internal_salt_cell") plus a null terminator.
+ */
+const char* get_device_slug(uint8_t addr_hi, uint8_t addr_lo, char *buf, size_t buf_size);
+
+/**
  * Get gateway communications status text
  *
  * @param code Status code (big-endian value from message)

@@ -1,6 +1,7 @@
 #include "mqtt_discovery.h"
 #include "config.h"
 #include "mqtt_poolclient.h"
+#include "message_decoder.h"
 #include "pool_state.h"
 #include "device_serial.h"
 #include "wifi_provisioning.h"
@@ -83,40 +84,89 @@ static void publish_discovery(const char *component, const char *object_id, cons
 }
 
 // ======================================================
-// Temperature Sensor Discovery
+// Per-Source Temperature Sensor Discovery
 // ======================================================
 
-static void publish_temperature_discovery(const char *device_id, const char *mac_suffix)
+static void publish_temperature_sensor_discovery(
+    const char *device_id, const char *mac_suffix,
+    uint8_t addr_hi, uint8_t addr_lo,
+    uint8_t sensor_index, bool single_sensor_source)
 {
-    char avail_topic[128];
-    char state_topic[128];
-    snprintf(avail_topic, sizeof(avail_topic), "pool/%s/availability", device_id);
-    snprintf(state_topic, sizeof(state_topic), "pool/%s/temperature/state", device_id);
+    char slug[24];
+    get_device_slug(addr_hi, addr_lo, slug, sizeof(slug));
 
-    char uid[64];
-    snprintf(uid, sizeof(uid), DISCOVERY_ID_PREFIX "_%s_temperature", mac_suffix);
+    char avail_topic[128];
+    snprintf(avail_topic, sizeof(avail_topic), "pool/%s/availability", device_id);
+
+    char state_topic[160];
+    if (single_sensor_source) {
+        snprintf(state_topic, sizeof(state_topic), "pool/%s/temperature/%s/state", device_id, slug);
+    } else {
+        snprintf(state_topic, sizeof(state_topic), "pool/%s/temperature/%s/%u/state",
+                 device_id, slug, sensor_index);
+    }
+
+    char name_buf[16];
+    const char *dev_name = get_device_name(addr_hi, addr_lo, name_buf, sizeof(name_buf));
+
+    char display_name[48];
+    if (single_sensor_source) {
+        snprintf(display_name, sizeof(display_name), "Temp - %s", dev_name);
+    } else {
+        snprintf(display_name, sizeof(display_name), "Temp %u - %s", sensor_index, dev_name);
+    }
+
+    char uid[96];
+    char object_id[96];
+    if (single_sensor_source) {
+        snprintf(uid, sizeof(uid), DISCOVERY_ID_PREFIX "_%s_temp_%s", mac_suffix, slug);
+        snprintf(object_id, sizeof(object_id), DISCOVERY_ID_PREFIX "_%s_%s_temp",
+                 mac_suffix, slug);
+    } else {
+        snprintf(uid, sizeof(uid), DISCOVERY_ID_PREFIX "_%s_temp_%s_%u",
+                 mac_suffix, slug, sensor_index);
+        snprintf(object_id, sizeof(object_id), DISCOVERY_ID_PREFIX "_%s_%s_temp_%u",
+                 mac_suffix, slug, sensor_index);
+    }
 
     cJSON *root = cJSON_CreateObject();
-    cJSON_AddStringToObject(root, "name", "Temperature");
+    cJSON_AddStringToObject(root, "name", display_name);
     cJSON_AddStringToObject(root, "device_class", "temperature");
     cJSON_AddStringToObject(root, "icon", "mdi:thermometer");
     cJSON_AddStringToObject(root, "state_topic", state_topic);
     cJSON_AddStringToObject(root, "unit_of_measurement", "°C");
-    cJSON_AddStringToObject(root, "value_template", "{{ value_json.current }}");
+    cJSON_AddStringToObject(root, "value_template", "{{ value_json.value }}");
     cJSON_AddStringToObject(root, "unique_id", uid);
-    cJSON_AddStringToObject(root, "default_entity_id", uid);
+    cJSON_AddStringToObject(root, "object_id", object_id);
     cJSON_AddStringToObject(root, "availability_topic", avail_topic);
     cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
 
     char *json_str = cJSON_PrintUnformatted(root);
     if (!json_str) {
-        ESP_LOGE(TAG, "Failed to print temperature discovery JSON");
+        ESP_LOGE(TAG, "Failed to print temperature sensor discovery JSON");
         cJSON_Delete(root);
         return;
     }
     publish_discovery("sensor", uid, json_str);
     cJSON_free(json_str);
     cJSON_Delete(root);
+}
+
+void mqtt_publish_temperature_sensor_discovery_single(
+    uint8_t addr_hi, uint8_t addr_lo,
+    uint8_t sensor_index, bool single_sensor_source)
+{
+    char device_id[32];
+    mqtt_get_device_id(device_id, sizeof(device_id));
+
+    char mac_suffix[DEVICE_MAC_SUFFIX_LEN];
+    device_get_mac_suffix(mac_suffix, sizeof(mac_suffix));
+
+    ESP_LOGI(TAG, "Publishing temperature sensor discovery for 0x%02X%02X sensor %u",
+             addr_hi, addr_lo, sensor_index);
+    publish_temperature_sensor_discovery(device_id, mac_suffix,
+                                         addr_hi, addr_lo,
+                                         sensor_index, single_sensor_source);
 }
 
 // ======================================================
@@ -129,7 +179,7 @@ static void publish_pool_setpoint_discovery(const char *device_id, const char *m
     char state_topic[128];
     char command_topic[128];
     snprintf(avail_topic, sizeof(avail_topic), "pool/%s/availability", device_id);
-    snprintf(state_topic, sizeof(state_topic), "pool/%s/temperature/state", device_id);
+    snprintf(state_topic, sizeof(state_topic), "pool/%s/setpoints/state", device_id);
     snprintf(command_topic, sizeof(command_topic), "pool/%s/temperature/pool/set", device_id);
 
     char uid[64];
@@ -174,7 +224,7 @@ static void publish_spa_setpoint_discovery(const char *device_id, const char *ma
     char state_topic[128];
     char command_topic[128];
     snprintf(avail_topic, sizeof(avail_topic), "pool/%s/availability", device_id);
-    snprintf(state_topic, sizeof(state_topic), "pool/%s/temperature/state", device_id);
+    snprintf(state_topic, sizeof(state_topic), "pool/%s/setpoints/state", device_id);
     snprintf(command_topic, sizeof(command_topic), "pool/%s/temperature/spa/set", device_id);
 
     char uid[64];
@@ -809,10 +859,13 @@ void mqtt_publish_discovery(void)
 
     ESP_LOGI(TAG, "Publishing Home Assistant discovery messages for device: %s", device_id);
 
-    // Temperature and setpoints
-    publish_temperature_discovery(device_id, mac_suffix);
+    // Setpoints
     publish_pool_setpoint_discovery(device_id, mac_suffix);
     publish_spa_setpoint_discovery(device_id, mac_suffix);
+
+    // Note: Per-source temperature sensors are NOT published here.
+    // They are published individually on first CMD 0x16 reading from each
+    // (source, sensor) pair (see mqtt_publish.c).
 
     // Note: Heaters are NOT published here.
     // They are published individually when first seen (see mqtt_publish.c)

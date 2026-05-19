@@ -625,6 +625,23 @@ static esp_err_t status_get_handler(httpd_req_t *req)
         } else {
             cJSON_AddNullToObject(dev, "firmware_version");
         }
+
+        // Temperatures hosted by this device — only emitted for devices that
+        // have actually broadcast a CMD 0x16 reading (i.e. once temp1_valid
+        // first goes true, signalling that this source is a temperature
+        // sensor). `temperature2` only appears for multi-sensor sources
+        // (LEN 0x0E payloads).
+        if (d->temp1_valid) {
+            cJSON_AddNumberToObject(dev, "temperature1", d->temp1);
+            if (!d->single_sensor_source) {
+                if (d->temp2_valid) {
+                    cJSON_AddNumberToObject(dev, "temperature2", d->temp2);
+                } else {
+                    cJSON_AddNullToObject(dev, "temperature2");
+                }
+            }
+        }
+
         cJSON *dev_counts = cJSON_CreateObject();
         cJSON_AddNumberToObject(dev_counts, "decoded", d->decoded_count);
         cJSON_AddNumberToObject(dev_counts, "unknown", d->unknown_count);
@@ -633,13 +650,8 @@ static esp_err_t status_get_handler(httpd_req_t *req)
     }
     cJSON_AddItemToObject(root, "devices", devices);
 
-    // Temperature
+    // Temperature setpoints (current readings now live per-device above).
     cJSON *temperature = cJSON_CreateObject();
-    if (state.temp_valid) {
-        cJSON_AddNumberToObject(temperature, "current", state.current_temp);
-    } else {
-        cJSON_AddNullToObject(temperature, "current");
-    }
     cJSON_AddNumberToObject(temperature, "pool_setpoint",   state.pool_setpoint);
     cJSON_AddNumberToObject(temperature, "spa_setpoint",    state.spa_setpoint);
     cJSON_AddNumberToObject(temperature, "pool_setpoint_f", state.pool_setpoint_f);

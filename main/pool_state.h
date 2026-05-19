@@ -78,6 +78,11 @@ typedef struct {
 // Seen-device registry entry: one slot per distinct source address observed
 // on the bus. Name is resolved at output time via get_device_name(); firmware
 // version is populated by handle_firmware_version when a CMD 0x0A is seen.
+//
+// Temperature sensors hosted by a device (when it broadcasts CMD 0x16) hang
+// off this entry directly. `single_sensor_source` is committed at first sight
+// from the CMD 0x16 payload length (LEN 0x0D = single, LEN 0x0E = dual) and
+// drives the MQTT topic shape so it stays stable across the device's lifetime.
 typedef struct {
     uint8_t addr_hi;
     uint8_t addr_lo;
@@ -86,6 +91,13 @@ typedef struct {
     uint8_t fw_version_minor;
     uint32_t decoded_count;     // Frames from this source that decode_message handled
     uint32_t unknown_count;     // Frames from this source that fell through to handle_unknown
+
+    // Temperature sensors (populated from CMD 0x16; see message_decoder.c)
+    uint8_t temp1;              // Sensor 1 reading in °C
+    uint8_t temp2;              // Sensor 2 reading in °C (multi-sensor sources only)
+    bool temp1_valid;
+    bool temp2_valid;
+    bool single_sensor_source;  // True if this source only ever broadcasts temp1 (LEN 0x0D)
 } seen_device_t;
 
 // Favourite/mode slot (indices 0–7: Pool, Spa, Fav1–Fav6)
@@ -97,14 +109,12 @@ typedef struct {
 } favourite_t;
 
 typedef struct {
-    // Temperature
-    uint8_t current_temp;
+    // Temperature setpoints (per-source readings live on seen_device_t entries)
     uint8_t pool_setpoint;
     uint8_t spa_setpoint;
     uint8_t pool_setpoint_f;  // Fahrenheit setpoint
     uint8_t spa_setpoint_f;   // Fahrenheit setpoint
     bool temp_scale_fahrenheit;
-    bool temp_valid;
 
     // Heaters (up to MAX_HEATERS)
     pool_heater_t heaters[MAX_HEATERS];

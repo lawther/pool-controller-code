@@ -13,26 +13,25 @@ static const char *TAG = "MQTT_PUBLISH";
 // Last published state (for change detection) - using pool_state_t as single source of truth
 static pool_state_t s_last_published_state = {0};
 
-// Track whether discovery has been published for each channel/light/valve/heater/favourite
+// Track whether discovery has been published for each channel/light/valve/heater/favourite/temp-sensor
 static struct {
     bool channels[MAX_CHANNELS];
     bool lights[MAX_LIGHT_ZONES];
     bool valves[MAX_VALVE_SLOTS];
     bool heaters[MAX_HEATERS];
     bool favourite;
+    bool temp_sensors[MAX_SEEN_DEVICES][2];   // [dev_idx][sensor_index-1]
 } s_discovery_published = {0};
 
 // ======================================================
-// Temperature Publishing
+// Setpoint and Temperature Publishing
 // ======================================================
 
-void mqtt_publish_temperature(const pool_state_t *current_state)
+void mqtt_publish_setpoints(const pool_state_t *current_state)
 {
-    // Check if anything changed
-    if (s_last_published_state.temp_valid &&
-        s_last_published_state.current_temp == current_state->current_temp &&
-        s_last_published_state.pool_setpoint == current_state->pool_setpoint &&
-        s_last_published_state.spa_setpoint == current_state->spa_setpoint) {
+    if (s_last_published_state.pool_setpoint == current_state->pool_setpoint &&
+        s_last_published_state.spa_setpoint == current_state->spa_setpoint &&
+        s_last_published_state.temp_scale_fahrenheit == current_state->temp_scale_fahrenheit) {
         return;  // No change, skip publish
     }
 
@@ -40,25 +39,79 @@ void mqtt_publish_temperature(const pool_state_t *current_state)
     mqtt_get_device_id(device_id, sizeof(device_id));
 
     char topic[128];
-    snprintf(topic, sizeof(topic), "pool/%s/temperature/state", device_id);
+    snprintf(topic, sizeof(topic), "pool/%s/setpoints/state", device_id);
 
     char payload[256];
     snprintf(payload, sizeof(payload),
-             "{\"current\":%d,\"pool_sp\":%d,\"spa_sp\":%d,\"scale\":\"%s\"}",
-             current_state->current_temp, current_state->pool_setpoint, current_state->spa_setpoint,
+             "{\"pool_sp\":%d,\"spa_sp\":%d,\"scale\":\"%s\"}",
+             current_state->pool_setpoint, current_state->spa_setpoint,
              current_state->temp_scale_fahrenheit ? "F" : "C");
 
     mqtt_publish(topic, payload, 0, true);
 
-    // Update last published state
-    s_last_published_state.current_temp = current_state->current_temp;
     s_last_published_state.pool_setpoint = current_state->pool_setpoint;
     s_last_published_state.spa_setpoint = current_state->spa_setpoint;
-    s_last_published_state.temp_valid = true;
+    s_last_published_state.temp_scale_fahrenheit = current_state->temp_scale_fahrenheit;
 
-    ESP_LOGI(TAG, "Published temperature: %d°%s (pool_sp=%d, spa_sp=%d)",
-             current_state->current_temp, current_state->temp_scale_fahrenheit ? "F" : "C",
-             current_state->pool_setpoint, current_state->spa_setpoint);
+    ESP_LOGI(TAG, "Published setpoints: pool=%d, spa=%d, scale=%s",
+             current_state->pool_setpoint, current_state->spa_setpoint,
+             current_state->temp_scale_fahrenheit ? "F" : "C");
+}
+
+void mqtt_publish_temperature_reading(const pool_state_t *current_state, int dev_idx, uint8_t sensor_index)
+{
+    if (dev_idx < 0 || dev_idx >= current_state->num_seen_devices) return;
+    if (sensor_index < 1 || sensor_index > 2) return;
+
+    const seen_device_t *d = &current_state->seen_devices[dev_idx];
+    uint8_t value = (sensor_index == 1) ? d->temp1 : d->temp2;
+    bool    valid = (sensor_index == 1) ? d->temp1_valid : d->temp2_valid;
+    if (!valid) return;
+
+    // Change detection against the per-device cached snapshot.
+    if (dev_idx < s_last_published_state.num_seen_devices) {
+        const seen_device_t *last = &s_last_published_state.seen_devices[dev_idx];
+        if (sensor_index == 1 && last->temp1_valid && last->temp1 == value) return;
+        if (sensor_index == 2 && last->temp2_valid && last->temp2 == value) return;
+    }
+
+    char device_id[32];
+    mqtt_get_device_id(device_id, sizeof(device_id));
+
+    char slug[24];
+    get_device_slug(d->addr_hi, d->addr_lo, slug, sizeof(slug));
+
+    // Lazy HA discovery — published once per (dev_idx, sensor_index) on first reading.
+    if (dev_idx < MAX_SEEN_DEVICES && !s_discovery_published.temp_sensors[dev_idx][sensor_index - 1]) {
+        mqtt_publish_temperature_sensor_discovery_single(
+            d->addr_hi, d->addr_lo, sensor_index, d->single_sensor_source);
+        s_discovery_published.temp_sensors[dev_idx][sensor_index - 1] = true;
+    }
+
+    char topic[160];
+    if (d->single_sensor_source) {
+        snprintf(topic, sizeof(topic), "pool/%s/temperature/%s/state", device_id, slug);
+    } else {
+        snprintf(topic, sizeof(topic), "pool/%s/temperature/%s/%u/state", device_id, slug, sensor_index);
+    }
+
+    char payload[64];
+    snprintf(payload, sizeof(payload), "{\"value\":%d}", value);
+    mqtt_publish(topic, payload, 0, true);
+
+    // Mirror the published device entry into the cache.
+    if (dev_idx < MAX_SEEN_DEVICES) {
+        s_last_published_state.seen_devices[dev_idx] = *d;
+        if (dev_idx >= s_last_published_state.num_seen_devices) {
+            s_last_published_state.num_seen_devices = dev_idx + 1;
+        }
+    }
+
+    if (d->single_sensor_source) {
+        ESP_LOGI(TAG, "Published temperature: %s=%d°C", slug, value);
+    } else {
+        ESP_LOGI(TAG, "Published temperature: %s/%u=%d°C", slug, sensor_index, value);
+    }
 }
 
 // ======================================================
