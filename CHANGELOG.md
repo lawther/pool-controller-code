@@ -24,6 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Security
 
+## [1.4.1] - 2026-05-19
+### Added
+- Add support for ICI Gas Heater (0x0074)
+
 ## [1.4.0] - 2026-05-19
 ### Added
 - Per-source temperature storage: `temp1`, `temp2`, `temp1_valid`, `temp2_valid` and `single_sensor_source` are now stored directly on each `seen_device_t` entry. Multiple temperature sources (Connect 8/10 + Genus Heater variants) are kept distinct rather than overwriting a single global field.
