@@ -430,6 +430,7 @@ const char* get_device_name(uint8_t addr_hi, uint8_t addr_lo, char *fallback_buf
             case 0x6F: return "Internal Channels";
             case 0x70: return "Genus Heater";
             case 0x74: return "ICI Gas Heater";
+            case 0x81: return "VX 11S v3 Salt Chlorinator";
             case 0x84: return "Viron Chlorinator";
             case 0x90: return "RolaChem";
             case 0xA0: return "Viron XT Pump";
@@ -1697,6 +1698,40 @@ static bool handle_mode_control_cmd(
 }
 
 /**
+ * Handler: Chlorine output level (CMD 0x1D, slot 0x00) from VX 11S v3 (0x0081).
+ * Payload: {0x00, level, 0x00} where level is an integer 1–8.
+ * Per manual: applies to Pool mode only; Spa mode always outputs at level 1.
+ */
+static bool handle_chlor_output_level(
+    const uint8_t *data, int len,
+    const uint8_t *payload, int payload_len,
+    const char *addr_info,
+    message_decoder_context_t *ctx)
+{
+    if (payload_len < 2) return false;
+
+    uint8_t level = payload[1];
+    ESP_LOGI(TAG, "%s Chlorine output level - %d", addr_info, level);
+
+    pool_state_t snapshot;
+    if (!ctx->state_mutex || xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGW(TAG, "Failed to acquire mutex for chlorine output level");
+        return true;
+    }
+    ctx->pool_state->chlor_output_level = level;
+    ctx->pool_state->chlor_output_level_valid = true;
+    ctx->pool_state->last_update_ms = xTaskGetTickCount() * portTICK_PERIOD_MS;
+    snapshot = *ctx->pool_state;
+    xSemaphoreGive(ctx->state_mutex);
+
+    if (ctx->enable_mqtt) {
+        mqtt_publish_chlorinator(&snapshot);
+    }
+
+    return true;
+}
+
+/**
  * Handler: Chlorinator pH setpoint (CMD 0x1D, channel 0x01) — source-agnostic.
  * Same `{channel, value_lo, value_hi}` payload from both 0x0090 RolaChem and
  * 0x0084 Viron chlorinators; dispatched in dispatch_message() by CMD byte.
@@ -2789,6 +2824,9 @@ static bool dispatch_message(
     // differs. Dispatched by CMD byte and routed by the channel byte
     // (payload[0]): 0x01=pH, 0x02=ORP.
     if (data[7] == 0x1D && payload_len >= 1) {
+        if (payload[0] == 0x00) {
+            return handle_chlor_output_level(data, len, payload, payload_len, addr_info, ctx);
+        }
         if (payload[0] == 0x01) {
             return handle_chlor_ph_setpoint(data, len, payload, payload_len, addr_info, ctx);
         }

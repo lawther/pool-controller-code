@@ -166,6 +166,8 @@ typedef struct {
     bool chlor_mode_valid;
     uint16_t pump_speed;       // Current pump speed in RPM (from device 0x00A0)
     bool pump_speed_valid;
+    uint8_t chlor_output_level;       // Chlorine output level 1–8 (from VX 11S v3, address 0x0081)
+    bool chlor_output_level_valid;
     uint8_t chlor_version_major;
     uint8_t chlor_version_minor;
     bool chlor_version_valid;

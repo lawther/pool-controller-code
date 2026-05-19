@@ -102,6 +102,7 @@ uint8_t data_checksum = sum & 0xFF;
 | `0x0072` | Internal Genus? 0x72 | Internal temperature module?   |
 | `0x0074` | ICI Gas Heater    | Astral/Fluidra ICI 400B NG gas pool heater |
 | `0x007F` | Internal Genus? 0x7F | Internal temperature module?   |
+| `0x0081` | VX 11S v3 Salt Chlorinator | Salt chlorinator (VX 11S v3)|
 | `0x0084` | Viron Chlorinator | Chemistry/chlorinator module (alternate variant; mutually exclusive with `0x0090`) |
 | `0x0090` | RolaChem          | Chemistry/chlorinator module      |
 | `0x00A0` | Viron Pump        | Viron XT Variable Speed Pump      |
@@ -120,19 +121,19 @@ Click any CMD in the first column to jump to the full section in [Commands](#com
 |----------------------------------------------------------------|-------------------------------------|------------------------------------------------------------------------|---------------------------------------------------------------------------------------------|-------------------------|
 | [`0x05`](#0x05--touchscreen-activation-ack-️)                  | Touchscreen Activation Ack          | `0x0050` → Broadcast                                                   | 1-byte payload `0x01`; sent after mode/favourite changes                                    | Yes (log-only)          |
 | [`0x06`](#0x06--lighting-zone-configuration-)                  | Lighting Zone Configuration         | `0x0050` → Broadcast                                                   |                                                                                             | Yes                     |
-| [`0x0A`](#0x0a--firmware-version-)                             | Firmware Version                    | `0x0050`, `0x0062`, `0x0070`, `0x0084`, `0x00A0`, `0x00F0` → Broadcast | Same `{major, minor}` payload across all sources; dispatched on CMD byte alone              | Yes (unified handler)   |
+| [`0x0A`](#0x0a--firmware-version-)                             | Firmware Version                    | `0x0050`, `0x0062`, `0x0070`, `0x0081`, `0x0084`, `0x00A0`, `0x00F0` → Broadcast | Same `{major, minor}` payload across all sources; dispatched on CMD byte alone              | Yes (unified handler)   |
 | [`0x0B`](#0x0b--channel-status-)                               | Channel Status                      | `0x0050` → Broadcast                                                   |                                                                                             | Yes                     |
 | [`0x0D`](#0x0d--active-channels-bitmask-)                      | Active Channels Bitmask             | `0x0050` → `0x006F` Internal Channels                                  | Unicast                                                                                     | Yes                     |
 | [`0x0F`](#0x0f--chlorinator-mode--touchscreen-️)               | Chlorinator Mode → Touchscreen      | `0x0084` → `0x0050`                                                    | 2-byte `[01, mode]`; mirrors [0x18](#0x18--chlorinator-cell-mode-️) cell mode               | **No (doc only)**       |
 | [`0x10`](#0x10--channel-toggle-command-️)                      | Channel Toggle Command              | `0x00F0` Gateway → Broadcast                                           |                                                                                             | Yes                     |
-| [`0x12`](#0x12--device-status-️)                               | Device Status                       | `0x0050`, `0x0062`, `0x0074`, `0x0084`, `0x0090`, `0x00F0` → Broadcast | Payload layout differs per source                                                           | Yes (per-source)        |
+| [`0x12`](#0x12--device-status-️)                               | Device Status                       | `0x0050`, `0x0062`, `0x0074`, `0x0081`, `0x0084`, `0x0090`, `0x00F0` → Broadcast | Payload layout differs per source                                                           | Yes (per-source)        |
 | [`0x14`](#0x14--mode-spapool-)                                 | Mode (Spa/Pool)                     | `0x0050` → Broadcast                                                   |                                                                                             | Yes                     |
 | [`0x16`](#0x16--water-temperature-reading-)                    | Water Temperature Reading           | `0x0062` (LEN `0x0E`), `0x0070`/`0x0072`/`0x0074` (LEN `0x0D`) → Broadcast | Payload length differs by source: LEN `0x0E` = `{temp1, temp2}`, LEN `0x0D` = `{temp1}`; dispatched on CMD byte alone | Yes (unified handler)   |
 | [`0x17`](#0x17--temperature-settings-)                         | Temperature Settings                | `0x0050` (LEN `0x10`), `0x0070`/`0x0074` (LEN `0x0E`) → Broadcast | Source-dependent payload layout                                                             | Yes (per-source)        |
 | [`0x18`](#0x18--chlorinator-cell-mode-️)                       | Chlorinator Cell Mode               | `0x0084`, `0x0050` → `0x00A0` Viron XT Pump                            | Inter-device unicast                                                                        | **No (doc only)**       |
 | [`0x1B`](#0x1b--pump-button-activity-️)                        | Pump Button Activity                | `0x00A0` Viron XT Pump → Broadcast                                      | 1-byte payload; burst when pump panel buttons pressed                                       | Yes (log-only)          |
 | [`0x19`](#0x19--temperature-setpoint-command-)                 | Temperature Setpoint Command        | `0x00F0` Gateway, `0x0050` Touchscreen → Broadcast                     | Sub-dispatched by slot byte (`0x01`/`0x02` Pool/Spa from Gateway, `0x03` heater pair from Touchscreen); dispatched on CMD byte alone | Yes (unified handler)   |
-| [`0x1D`](#0x1d--chlorinator-setpoint-)                         | Chlorinator Setpoint                | `0x0090` RolaChem, `0x0084` Viron → Broadcast                          | Byte 10: `0x01`=pH, `0x02`=ORP; same payload from both sources; dispatched on CMD byte alone | Yes (unified handler)   |
+| [`0x1D`](#0x1d--chlorinator-setpoint-)                         | Chlorinator Setpoint                | `0x0090` RolaChem, `0x0084` Viron, `0x0081` VX 11S v3 → Broadcast         | Byte 10: `0x00`=chlorine output level (VX 11S v3 only), `0x01`=pH, `0x02`=ORP; dispatched on CMD byte alone | Yes (unified handler)   |
 | [`0x1F`](#0x1f--chlorinator-reading-)                          | Chlorinator Reading                 | `0x0090` RolaChem, `0x0084` Viron → Broadcast                          | Byte 10: `0x01`=pH, `0x02`=ORP; same payload from both sources; dispatched on CMD byte alone | Yes (unified handler)   |
 | [`0x25`](#0x25--valve-sync-)                                   | Valve Sync                          | `0x0050` → `0x006F` Internal Channels                                  | Unicast                                                                                     | **No (doc only)**       |
 | [`0x26`](#0x26--configuration-️)                               | Configuration                       | `0x0050` → Broadcast                                                   |                                                                                             | Yes                     |
@@ -227,6 +228,7 @@ Firmware-version announcement (`{major, minor}` payload) broadcast by multiple d
 | `0x0050` | Touchscreen                              | `02 00 50 FF FF 80 00 0A 0E E8`         | `02 08 0A`                     | 2.8           |
 | `0x0062` | Connect 8/10 Controller                  | `02 00 62 FF FF 80 00 0A 0E FA`         | `02 06 08`                     | 2.6           |
 | `0x0070` | Genus Heater (Active i25 Evo)            | `02 00 70 FF FF 80 00 0A 0E 08`         | _(observed; log-only, no dedicated state field)_ | —    |
+| `0x0081` | VX 11S v3 Salt Chlorinator               | `02 00 81 FF FF 80 00 0A 0E 19`         | `05 02 07`                     | 5.2           |
 | `0x0084` | Viron Chlorinator                        | `02 00 84 FF FF 80 00 0A 0E 1C`         | `05 07 0C`                     | 5.7           |
 | `0x00A0` | Viron XT Pump                            | `02 00 A0 FF FF 80 00 0A 0E 38`         | `01 09 0A`                     | 1.9           |
 | `0x00F0` | Internet Gateway                         | `02 00 F0 FF FF 80 00 0A 0E 88`         | `05 01 06` / `05 00 05`        | 5.1 / 5.0     |
@@ -412,6 +414,7 @@ Status broadcast emitted by multiple devices. The CMD byte is shared but the **p
 | `0x0050` Touchscreen            | `0x0E` | 2 bytes — always `05 00` observed        | ⚠️     | `handle_touchscreen_unknown1` |
 | `0x0062` Connect 8/10 Controller| `0x0F` | 3 bytes — heater state + unknowns        | ⚠️     | `handle_heater`               |
 | `0x0074` ICI Gas Heater         | `0x10` | 4 bytes — `{00, status, 00, 00}`         | ✅     | `handle_ici_heater_status`    |
+| `0x0081` VX 11S v3 Salt Chlorinator | `0x0D` | 2 bytes — always `00 00` observed   | ⚠️     | **No (doc only)**             |
 | `0x0084` Viron / `0x0090` RolaChem Chlorinator | `0x0D` | 1 byte — operational mode | ⚠️     | `handle_chlor_status`         |
 | `0x00F0` Internet Gateway       | `0x0F` | 3 bytes — `{major, minor, checksum}`     | ✅     | `handle_gateway_status`       |
 
@@ -487,6 +490,29 @@ Observed status values (payload[1]):
 | `0x0F` | Heater Lit and Running |
 
 Payload[1] is the only byte that varies; bytes 10, 12, and 13 are always `0x00`. The data checksum (byte 14) equals payload[1] since all other payload bytes are zero.
+
+---
+
+#### VX 11S v3 Salt Chlorinator (`0x0081`) ⚠️
+
+Broadcast by the VX 11S v3 on the same ~60-second cycle as its CMD `0x1D` chlorine output level message. Payload is always `00 00` in all observed captures (normal operation). Meaning unknown — may carry status or warning flags.
+
+Pattern: `02 00 81 FF FF 80 00 12 0D 20`
+
+Example:
+
+```
+02 00 81 FF FF 80 00 12 0D 20  00 00  03
+                               ^^ ^^
+                               byte 10: unknown (always 0x00 observed)
+                               byte 11: data checksum (sum of byte 10 = 0x00)
+```
+
+Data fields:
+- Byte 10: Unknown — always `0x00` in observed captures; suspected status/warning flags (see [CMD 0x1D slot 0x00 notes](#0x1d--chlorinator-setpoint-))
+- Byte 11: Data checksum (equals byte 10)
+
+No handler in code — documented only.
 
 ---
 
@@ -889,16 +915,23 @@ Broadcast by the Viron XT Pump (`0x00A0`) in a burst when the user presses butto
 
 ### 0x1D — Chlorinator Setpoint ✅
 
-Target pH or ORP setpoint for the RolaChem chlorinator (`0x0090`). The slot byte (byte 10) selects which value the message carries.
+Setpoint broadcasts from chlorinator devices. The slot byte (byte 10) selects which value the message carries. Three sources are known; slots `0x01` and `0x02` come from the chemistry controllers while slot `0x00` comes from the VX 11S v3 Salt Chlorinator.
 
-**Pattern:** `02 00 90 FF FF 80 00 1D 0F 3C`
+**Patterns:**
+
+| Source | Pattern |
+|--------|---------|
+| `0x0090` RolaChem | `02 00 90 FF FF 80 00 1D 0F 3C` |
+| `0x0084` Viron    | `02 00 84 FF FF 80 00 1D 0F 30` |
+| `0x0081` VX 11S v3 | `02 00 81 FF FF 80 00 1D 0F 2D` |
 
 **Slot variants:**
 
-| Slot | Meaning      | Value units                                     |
-|------|--------------|-------------------------------------------------|
-| `0x01` | pH setpoint | pH × 10, little-endian (e.g. `4E 00` = 78 → 7.8) |
-| `0x02` | ORP setpoint | mV, little-endian (e.g. `8A 02` = 0x028A = 650 mV) |
+| Slot | Source | Meaning | Value units |
+|------|--------|---------|-------------|
+| `0x00` | `0x0081` VX 11S v3 | Chlorine output level | Integer 1–8 (byte 11); byte 12 = `0x00` |
+| `0x01` | `0x0090`, `0x0084` | pH setpoint | pH × 10, little-endian (e.g. `4E 00` = 78 → 7.8) |
+| `0x02` | `0x0090`, `0x0084` | ORP setpoint | mV, little-endian (e.g. `8A 02` = 0x028A = 650 mV) |
 
 **Examples:**
 
@@ -908,12 +941,32 @@ Target pH or ORP setpoint for the RolaChem chlorinator (`0x0090`). The slot byte
                               ^^ Slot (0x01 = pH, 0x02 = ORP)
                                  ^^ ^^ Value (little-endian)
                                        ^^ Data checksum
+
+02 00 81 FF FF 80 00 1D 0F 2D 00 03 00 03 03   Chlorine output level = 3
+02 00 81 FF FF 80 00 1D 0F 2D 00 02 00 02 03   Chlorine output level = 2
+                              ^^ Always 0x00
+                                 ^^ chlorine output level (integer)
+                                    ^^ Always 0x00
+                                       ^^ Data checksum
 ```
 
-**Data Fields:**
+**Data Fields (slots 0x01 / 0x02):**
 
 - Byte 10: Slot (`0x01` = pH, `0x02` = ORP)
 - Bytes 11-12: Value (little-endian; pH × 10 or mV depending on slot)
+
+**Data Fields (VX 11S v3 Salt Chlorinator):**
+
+- Byte 10: `0x00` in all observed captures.
+- Byte 11: Chlorine output level (integer 1–8; matches the 8 physical LEDs on the device)
+- Byte 12: `0x00` in all observed captures (normal operation). Suspected warning flags bitmask — the device has two documented warnings (LOW SALT, NO FLOW) that may be encoded here as bits. ⚠️ Unconfirmed: capture a message while a warning is active to verify.
+
+**Notes (VX 11S v3 Salt Chlorinator):**
+
+- Per the VX 11S v3 manual: "This 'chlorine output level' only applies to Pool Mode. When the Chlorinator is in Spa mode, the chlorine output will be at level 1."
+- During a Pool→Spa transition the device continued broadcasting the displayed level value (e.g. `03`) unchanged — it seems to broadcast the configured level, not the effective output?
+- The chlorine output level value is user-set via the physical buttons. Unsure if it is bus-controllable.
+- The device has physical Pool mode, Spa mode, and Safety Backwash buttons with indicator LEDs. Whether pressing these buttons generates bus traffic is unconfirmed.
 
 ---
 

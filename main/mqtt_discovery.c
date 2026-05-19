@@ -668,6 +668,42 @@ static void publish_orp_setpoint_discovery(const char *device_id, const char *ma
 }
 
 // ======================================================
+// Chlorine Output Level Sensor Discovery
+// ======================================================
+
+static void publish_chlor_output_level_discovery(const char *device_id, const char *mac_suffix)
+{
+    char avail_topic[128];
+    char state_topic[128];
+    snprintf(avail_topic, sizeof(avail_topic), "pool/%s/availability", device_id);
+    snprintf(state_topic, sizeof(state_topic), "pool/%s/chlorinator/state", device_id);
+
+    char uid[64];
+    snprintf(uid, sizeof(uid), DISCOVERY_ID_PREFIX "_%s_chlor_output_level", mac_suffix);
+
+    cJSON *root = cJSON_CreateObject();
+    cJSON_AddStringToObject(root, "name", "Chlorine Output Level");
+    cJSON_AddStringToObject(root, "state_topic", state_topic);
+    cJSON_AddStringToObject(root, "value_template", "{{ value_json.chlor_output_level }}");
+    cJSON_AddStringToObject(root, "icon", "mdi:gauge");
+    cJSON_AddStringToObject(root, "unique_id", uid);
+    cJSON_AddStringToObject(root, "object_id", uid);
+    cJSON_AddStringToObject(root, "availability_topic", avail_topic);
+    cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
+
+    char *json_str = cJSON_PrintUnformatted(root);
+    if (!json_str) {
+        ESP_LOGE(TAG, "Failed to print salt chlor setpoint discovery JSON");
+        cJSON_Delete(root);
+        return;
+    }
+    ESP_LOGI(TAG, "Publishing salt chlor setpoint discovery: %s", json_str);
+    publish_discovery("sensor", uid, json_str);
+    cJSON_free(json_str);
+    cJSON_Delete(root);
+}
+
+// ======================================================
 // Pump Speed Sensor Discovery
 // ======================================================
 
@@ -929,6 +965,7 @@ void mqtt_publish_discovery(void)
     publish_orp_discovery(device_id, mac_suffix);
     publish_ph_setpoint_discovery(device_id, mac_suffix);
     publish_orp_setpoint_discovery(device_id, mac_suffix);
+    publish_chlor_output_level_discovery(device_id, mac_suffix);
 
     // Pump
     publish_pump_discovery(device_id, mac_suffix);

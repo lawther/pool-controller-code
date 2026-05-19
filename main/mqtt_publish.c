@@ -365,10 +365,11 @@ void mqtt_publish_light(const pool_state_t *current_state, uint8_t zone)
 
 void mqtt_publish_chlorinator(const pool_state_t *current_state)
 {
-    ESP_LOGI(TAG, "Prepare to Publish chlorinator: pH=%d (valid=%d), ORP=%d (valid=%d), pH_sp=%d, ORP_sp=%d",
+    ESP_LOGI(TAG, "Prepare to Publish chlorinator: pH=%d (valid=%d), ORP=%d (valid=%d), pH_sp=%d, ORP_sp=%d, salt=%d (valid=%d)",
              current_state->ph_reading, current_state->ph_valid,
              current_state->orp_reading, current_state->orp_valid,
-             current_state->ph_setpoint, current_state->orp_setpoint);
+             current_state->ph_setpoint, current_state->orp_setpoint,
+             current_state->chlor_output_level, current_state->chlor_output_level_valid);
 
     // Check if anything changed
     if (s_last_published_state.ph_valid == current_state->ph_valid &&
@@ -376,7 +377,9 @@ void mqtt_publish_chlorinator(const pool_state_t *current_state)
         s_last_published_state.ph_reading == current_state->ph_reading &&
         s_last_published_state.orp_reading == current_state->orp_reading &&
         s_last_published_state.ph_setpoint == current_state->ph_setpoint &&
-        s_last_published_state.orp_setpoint == current_state->orp_setpoint) {
+        s_last_published_state.orp_setpoint == current_state->orp_setpoint &&
+        s_last_published_state.chlor_output_level_valid == current_state->chlor_output_level_valid &&
+        s_last_published_state.chlor_output_level == current_state->chlor_output_level) {
         return;  // No change, skip publish
     }
 
@@ -411,7 +414,15 @@ void mqtt_publish_chlorinator(const pool_state_t *current_state)
 
     // ORP setpoint
     len += snprintf(payload + len, sizeof(payload) - len,
-                   ",\"orp_setpoint\":%d}", current_state->orp_setpoint);
+                   ",\"orp_setpoint\":%d", current_state->orp_setpoint);
+
+    // Salt chlorinator setpoint
+    if (current_state->chlor_output_level_valid) {
+        len += snprintf(payload + len, sizeof(payload) - len,
+                       ",\"chlor_output_level\":%d}", current_state->chlor_output_level);
+    } else {
+        len += snprintf(payload + len, sizeof(payload) - len, "}");
+    }
 
     mqtt_publish(topic, payload, 0, true);
 
@@ -422,10 +433,13 @@ void mqtt_publish_chlorinator(const pool_state_t *current_state)
     s_last_published_state.orp_setpoint = current_state->orp_setpoint;
     s_last_published_state.ph_valid = current_state->ph_valid;
     s_last_published_state.orp_valid = current_state->orp_valid;
+    s_last_published_state.chlor_output_level = current_state->chlor_output_level;
+    s_last_published_state.chlor_output_level_valid = current_state->chlor_output_level_valid;
 
-    ESP_LOGI(TAG, "Published chlorinator: pH=%.1f (sp=%.1f), ORP=%d (sp=%d)",
+    ESP_LOGI(TAG, "Published chlorinator: pH=%.1f (sp=%.1f), ORP=%d (sp=%d), chlor_output_level=%d",
              current_state->ph_reading / 10.0, current_state->ph_setpoint / 10.0,
-             current_state->orp_reading, current_state->orp_setpoint);
+             current_state->orp_reading, current_state->orp_setpoint,
+             current_state->chlor_output_level);
 }
 
 // ======================================================
