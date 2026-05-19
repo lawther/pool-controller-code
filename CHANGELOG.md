@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Per-source temperature storage: `temp1`, `temp2`, `temp1_valid`, `temp2_valid` and `single_sensor_source` are now stored directly on each `seen_device_t` entry. Multiple temperature sources (Connect 8/10 + Genus Heater variants) are kept distinct rather than overwriting a single global field.
 - HTTP `/status`: each device entry in the `devices[]` array now carries `temperature1` (and `temperature2` for multi-sensor sources like the Connect 8/10). Devices that don't broadcast CMD `0x16` get no temperature fields at all.
-- New per-source MQTT temperature entities, discovered lazily on first reading from each `(source, sensor)` pair. Single-sensor sources → "Genus Heater Temperature"; multi-sensor → "Connect 8/10 Temperature 1" / "Connect 8/10 Temperature 2".
+- New per-source MQTT temperature entities, discovered lazily on first reading from each `(source, sensor)` pair. Friendly names: "Temp - Genus Heater" for single-sensor sources, "Temp 1 - Connect 8/10" / "Temp 2 - Connect 8/10" for multi-sensor. Entity IDs namespaced by controller, e.g. `sensor.pool_controller_<mac>_connect_8_10_temp_1`.
 - Invalid-temperature sentinel: water temperature readings (CMD `0x16` and `0x31`) with a raw value `>= 0xA0` (160°C) are treated as a disconnected sensor — logged as a warning and skipped instead of being stored or published.
 - Picked up the previously-unhandled `0x0072` Genus Heater variant of CMD `0x16` (same single-byte layout as the `0x0070` Genus Heater).
 ### Changed
@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Global "Temperature" HA sensor entity (`publish_temperature_discovery`) — replaced by per-source entities discovered lazily on first CMD `0x16` reading.
 - `HTTP /status` field `temperature.current` — replaced by `temperature1`/`temperature2` on each device entry.
 ### Fixed
+- HA MQTT discovery entity IDs: switched from the unrecognised `default_entity_id` field to `object_id` across all entity types (temperatures, setpoints, pH/ORP, heaters, channels, lights, valves, mode, favourites), so HA now derives stable entity IDs like `sensor.pool_controller_<mac>_orp` instead of falling back to `sensor.unnamed_device_<n>`
 - CMD `0x16` (Connect 8/10 variant): byte 11 was previously labelled "unknown — always 0x00", now decoded as a second water temperature (`temp2`).
 - CMD `0x31` byte 11: was previously labelled "unknown — always 0xA6 in observed samples", now decoded as the same `temp2` field as CMD `0x16` byte 11. The `>= 0xA0` values (`0xA6`, `0xAD`, `0xAF` observed) are the disconnected-sensor sentinel — confirmed by paired captures where CMD `0x16` byte 11 reads `0x00` in the same cycle.
 

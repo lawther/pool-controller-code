@@ -198,7 +198,7 @@ static void publish_pool_setpoint_discovery(const char *device_id, const char *m
     cJSON_AddStringToObject(root, "mode", "box");
     cJSON_AddStringToObject(root, "value_template", "{{ value_json.pool_sp }}");
     cJSON_AddStringToObject(root, "unique_id", uid);
-    cJSON_AddStringToObject(root, "default_entity_id", uid);
+    cJSON_AddStringToObject(root, "object_id", uid);
     cJSON_AddStringToObject(root, "availability_topic", avail_topic);
     cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
 
@@ -243,7 +243,7 @@ static void publish_spa_setpoint_discovery(const char *device_id, const char *ma
     cJSON_AddStringToObject(root, "mode", "box");
     cJSON_AddStringToObject(root, "value_template", "{{ value_json.spa_sp }}");
     cJSON_AddStringToObject(root, "unique_id", uid);
-    cJSON_AddStringToObject(root, "default_entity_id", uid);
+    cJSON_AddStringToObject(root, "object_id", uid);
     cJSON_AddStringToObject(root, "availability_topic", avail_topic);
     cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
 
@@ -286,7 +286,7 @@ static void publish_heater_discovery(const char *device_id, const char *mac_suff
     cJSON_AddStringToObject(root, "payload_on", "ON");
     cJSON_AddStringToObject(root, "payload_off", "OFF");
     cJSON_AddStringToObject(root, "unique_id", uid);
-    cJSON_AddStringToObject(root, "default_entity_id", uid);
+    cJSON_AddStringToObject(root, "object_id", uid);
     cJSON_AddStringToObject(root, "availability_topic", avail_topic);
     cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
 
@@ -340,7 +340,7 @@ static void publish_mode_discovery(const char *device_id, const char *mac_suffix
     cJSON_AddItemToObject(root, "options", opts);
 
     cJSON_AddStringToObject(root, "unique_id", uid);
-    cJSON_AddStringToObject(root, "default_entity_id", uid);
+    cJSON_AddStringToObject(root, "object_id", uid);
     cJSON_AddStringToObject(root, "availability_topic", avail_topic);
     cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
 
@@ -407,7 +407,7 @@ static void publish_channel_discovery(const char *device_id, const char *mac_suf
         cJSON_AddStringToObject(root, "state_topic", state_topic);
         cJSON_AddStringToObject(root, "value_template", "{{ value_json.state }}");
         cJSON_AddStringToObject(root, "unique_id", sensor_uid);
-        cJSON_AddStringToObject(root, "default_entity_id", sensor_uid);
+        cJSON_AddStringToObject(root, "object_id", sensor_uid);
         cJSON_AddStringToObject(root, "availability_topic", avail_topic);
         cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
 
@@ -429,7 +429,7 @@ static void publish_channel_discovery(const char *device_id, const char *mac_suf
         cJSON_AddStringToObject(root, "command_topic", command_topic);
         cJSON_AddStringToObject(root, "payload_press", "TOGGLE");
         cJSON_AddStringToObject(root, "unique_id", button_uid);
-        cJSON_AddStringToObject(root, "default_entity_id", button_uid);
+        cJSON_AddStringToObject(root, "object_id", button_uid);
         cJSON_AddStringToObject(root, "availability_topic", avail_topic);
         cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
 
@@ -454,7 +454,7 @@ static void publish_channel_discovery(const char *device_id, const char *mac_suf
         cJSON_AddStringToObject(root, "state_topic", state_topic);
         cJSON_AddStringToObject(root, "value_template", "{{ 'ON' if value_json.active else 'OFF' }}");
         cJSON_AddStringToObject(root, "unique_id", active_uid);
-        cJSON_AddStringToObject(root, "default_entity_id", active_uid);
+        cJSON_AddStringToObject(root, "object_id", active_uid);
         cJSON_AddStringToObject(root, "availability_topic", avail_topic);
         cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
 
@@ -503,7 +503,7 @@ static void publish_light_discovery(const char *device_id, const char *mac_suffi
     cJSON_AddStringToObject(root, "state_value_template",
                             "{% if value_json.state == 'On' %}ON{% else %}OFF{% endif %}");
     cJSON_AddStringToObject(root, "unique_id", uid);
-    cJSON_AddStringToObject(root, "default_entity_id", uid);
+    cJSON_AddStringToObject(root, "object_id", uid);
     cJSON_AddStringToObject(root, "availability_topic", avail_topic);
     cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
 
@@ -539,7 +539,7 @@ static void publish_ph_discovery(const char *device_id, const char *mac_suffix)
     cJSON_AddStringToObject(root, "unit_of_measurement", "pH");
     cJSON_AddStringToObject(root, "value_template", "{{ value_json.ph }}");
     cJSON_AddStringToObject(root, "unique_id", uid);
-    cJSON_AddStringToObject(root, "default_entity_id", uid);
+    cJSON_AddStringToObject(root, "object_id", uid);
     cJSON_AddStringToObject(root, "availability_topic", avail_topic);
     cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
 
@@ -577,7 +577,7 @@ static void publish_orp_discovery(const char *device_id, const char *mac_suffix)
     cJSON_AddStringToObject(root, "value_template", "{{ value_json.orp }}");
     cJSON_AddStringToObject(root, "unit_of_measurement", "mV");
     cJSON_AddStringToObject(root, "unique_id", uid);
-    cJSON_AddStringToObject(root, "default_entity_id", uid);
+    cJSON_AddStringToObject(root, "object_id", uid);
     cJSON_AddStringToObject(root, "availability_topic", avail_topic);
     cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
 
@@ -614,7 +614,7 @@ static void publish_ph_setpoint_discovery(const char *device_id, const char *mac
     cJSON_AddStringToObject(root, "unit_of_measurement", "pH");
     cJSON_AddStringToObject(root, "icon", "mdi:ph");
     cJSON_AddStringToObject(root, "unique_id", uid);
-    cJSON_AddStringToObject(root, "default_entity_id", uid);
+    cJSON_AddStringToObject(root, "object_id", uid);
     cJSON_AddStringToObject(root, "availability_topic", avail_topic);
     cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
 
@@ -651,7 +651,7 @@ static void publish_orp_setpoint_discovery(const char *device_id, const char *ma
     cJSON_AddStringToObject(root, "value_template", "{{ value_json.orp_setpoint }}");
     cJSON_AddStringToObject(root, "unit_of_measurement", "mV");
     cJSON_AddStringToObject(root, "unique_id", uid);
-    cJSON_AddStringToObject(root, "default_entity_id", uid);
+    cJSON_AddStringToObject(root, "object_id", uid);
     cJSON_AddStringToObject(root, "availability_topic", avail_topic);
     cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
 
@@ -732,7 +732,7 @@ static void publish_valve_discovery(const char *device_id, const char *mac_suffi
 
     cJSON_AddStringToObject(root, "value_template", "{{ value_json.state }}");
     cJSON_AddStringToObject(root, "unique_id", uid);
-    cJSON_AddStringToObject(root, "default_entity_id", uid);
+    cJSON_AddStringToObject(root, "object_id", uid);
     cJSON_AddStringToObject(root, "availability_topic", avail_topic);
     cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
 
@@ -818,7 +818,7 @@ static void publish_favourite_discovery(const char *device_id, const char *mac_s
 
     cJSON_AddItemToObject(root, "options", opts);
     cJSON_AddStringToObject(root, "unique_id", uid);
-    cJSON_AddStringToObject(root, "default_entity_id", uid);
+    cJSON_AddStringToObject(root, "object_id", uid);
     cJSON_AddStringToObject(root, "availability_topic", avail_topic);
     cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
 
