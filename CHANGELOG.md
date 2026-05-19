@@ -18,10 +18,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- Invalid-temperature sentinel: water temperature readings (CMD `0x16` and `0x31`) with a raw value `>= 0xA0` (160°C) are now treated as an invalid / disconnected sensor reading — logged as a warning and skipped instead of being published to MQTT.
 ### Changed
+- Pulled out the water temperature reading (CMD `0x16`) to be source-agnostic — single unified `handle_temp_reading` dispatched on the CMD byte and routed by payload length: 2-byte `{temp1, temp2}` from `0x0062` Connect 8/10 (LEN `0x0E`); 1-byte `{temp1}` from `0x0070`/`0x0072` Genus Heater family (LEN `0x0D`). Removes the `MSG_TYPE_TEMP_READING` and `MSG_TYPE_GENUS_HEATER_TEMP_READING` patterns and the dedicated `handle_genus_heater_temp_reading`. Also picks up the previously-unhandled `0x0072` Genus Heater variant.
+- Merged CMD `0x31` (Water Temperature Reading alt) into the unified `handle_temp_reading()` — `0x16` and `0x31` share the same `{temp1, temp2}` field layout, so they're now dispatched on the CMD byte through a single handler. CMD `0x16` is the canonical source (updates `pool_state->current_temp` and publishes MQTT); CMD `0x31` is log-only to avoid dual MQTT updates for the same reading (the Connect 8/10 broadcasts them ~70 ms apart). Removes the `MSG_TYPE_TEMP_READING2` pattern and the dedicated `handle_temp_reading2`.
 ### Deprecated
 ### Removed
 ### Fixed
+- CMD `0x16` (Connect 8/10 variant): byte 11 was previously labelled "unknown — always 0x00", now decoded as a second water temperature (`temp2`). Logged alongside `temp1`; not yet stored in `pool_state`.
+- CMD `0x31` byte 11: was previously labelled "unknown — always 0xA6 in observed samples", now decoded as the same `temp2` field as CMD `0x16` byte 11. The `>= 0xA0` values (`0xA6`, `0xAD`, `0xAF` observed) are the disconnected-sensor sentinel — confirmed by paired captures where CMD `0x16` byte 11 reads `0x00` in the same cycle.
 ### Security
 
 ## [1.3.1] - 2026-05-18

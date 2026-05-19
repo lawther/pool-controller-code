@@ -77,13 +77,15 @@ static const char *MSG_TYPE_TOUCHSCREEN_UNKNOWN2 =  "02 00 50 FF FF 80 00 27 0D 
 static const char *MSG_TYPE_TOUCHSCREEN_UNKNOWN3 =  "02 00 50 FF FF 80 00 05 0D E2";
 static const char *MSG_TYPE_VALVE_STATE =           "02 00 50 FF FF 80 00 27 13 0A";
 
+// Water temperature reading (CMD 0x16) is dispatched source-agnostically in
+// dispatch_message() — see PROTOCOL.md command `0x16`. Observed from the
+// Connect 8/10 Controller (0x0062, LEN 0x0E, 2-byte payload temp1+temp2) and
+// the Genus Heater family (0x0070/0x0072, LEN 0x0D, 1-byte payload temp1 only).
+
 // 62 Connect 8/10 Controller
-static const char *MSG_TYPE_TEMP_READING =          "02 00 62 FF FF 80 00 16 0E 06";
-static const char *MSG_TYPE_TEMP_READING2 =         "02 00 62 FF FF 80 00 31 0E 21";
 static const char *MSG_TYPE_HEATER =                "02 00 62 FF FF 80 00 12 0F 03";
 
 // 70 Genus Heater (Active i25 Evo)
-static const char *MSG_TYPE_GENUS_HEATER_TEMP_READING = "02 00 70 FF FF 80 00 16 0D 13";
 static const char *MSG_TYPE_GENUS_HEATER_TEMP_SETTING = "02 00 70 FF FF 80 00 17 0E 15";
 
 // Chlorinator setpoints (CMD 0x1D) and readings (CMD 0x1F) are dispatched
@@ -167,9 +169,9 @@ const char* get_channel_type_name(uint8_t type_code) {
 }
 
 // Command byte name lookup table — used to annotate unhandled messages in logs.
-// Some CMD bytes are source-dependent (e.g. 0x16 from 0x0062 vs 0x0070, 0x12
-// from 0x0050 vs 0x00F0 vs 0x0062); the labels here are generic. See
-// PROTOCOL.md for the full per-source semantics.
+// Some CMD bytes are source-dependent (e.g. 0x12 from 0x0050 vs 0x00F0 vs
+// 0x0062); the labels here are generic. See PROTOCOL.md for the full
+// per-source semantics.
 typedef struct {
     uint8_t cmd;
     const char *name;
@@ -551,9 +553,34 @@ static const register_handler_t REGISTER_HANDLERS[] = {
 
 #define REGISTER_HANDLER_COUNT (sizeof(REGISTER_HANDLERS) / sizeof(REGISTER_HANDLERS[0]))
 
+// Sensor disconnected / invalid reading sentinel — values >= 0xA0 (160°C) are
+// not real water temperatures. Observed e.g. as 0xAF in a Connect 8/10 with
+// no sensor wired up.
+#define TEMP_INVALID_MIN 0xA0
+
+static inline bool temp_is_invalid(uint8_t t) {
+    return t >= TEMP_INVALID_MIN;
+}
+
 /**
- * Handler: Temperature reading message
- * Pattern: "02 00 62 FF FF 80 00 16 0E"
+ * Handler: Water temperature reading (CMD 0x16 and CMD 0x31)
+ *
+ * Source-agnostic and dispatched on the CMD byte. The two CMDs carry the same
+ * `{temp1, temp2}` field layout; the only practical difference is the
+ * "sensor disconnected" encoding:
+ *  - CMD 0x16: a disconnected sensor is reported as `0x00` (indistinguishable
+ *    from a genuine 0°C reading — treated as valid by this handler).
+ *  - CMD 0x31: a disconnected sensor is reported as `>= 0xA0` (a clean sentinel,
+ *    e.g. 0xAF in installations with no sensor wired).
+ *
+ * Payload layouts (selected by LENGTH byte / payload_len):
+ *  - LEN 0x0E (e.g. 0x0062 Connect 8/10): 2-byte payload `{temp1, temp2}` in °C.
+ *  - LEN 0x0D (e.g. 0x0070/0x0072 Genus Heater family): 1-byte payload `{temp1}`.
+ *
+ * CMD 0x16 is the canonical source — it updates `pool_state->current_temp` and
+ * publishes to MQTT. CMD 0x31 is log-only (the Connect 8/10 broadcasts both
+ * ~70 ms apart with the same temp1; suppressing 0x31 avoids dual MQTT updates).
+ * temp2 is logged but not yet stored in pool_state. Values >= 0xA0 are skipped.
  */
 static bool handle_temp_reading(
     const uint8_t *data, int len,
@@ -563,10 +590,38 @@ static bool handle_temp_reading(
 {
     if (payload_len < 1) return false;
 
-    uint8_t current_temp = payload[0];
-    ESP_LOGI(TAG, "%s Current temperature - %d", addr_info, current_temp);
+    bool is_canonical = (data[7] == 0x16);
+    const char *variant = is_canonical ? "" : " (alt)";
 
-    // Update state and publish
+    uint8_t current_temp = payload[0];
+    bool t1_invalid = temp_is_invalid(current_temp);
+
+    if (payload_len >= 2) {
+        uint8_t current_temp2 = payload[1];
+        bool t2_invalid = temp_is_invalid(current_temp2);
+        if (t1_invalid || t2_invalid) {
+            ESP_LOGW(TAG, "%s Current temperature%s - %s (raw 0x%02X), temp2: %s (raw 0x%02X)",
+                     addr_info, variant,
+                     t1_invalid ? "INVALID" : "OK",  current_temp,
+                     t2_invalid ? "INVALID" : "OK",  current_temp2);
+        } else {
+            ESP_LOGI(TAG, "%s Current temperature%s - %d°C (temp2: %d°C)",
+                     addr_info, variant, current_temp, current_temp2);
+        }
+    } else {
+        if (t1_invalid) {
+            ESP_LOGW(TAG, "%s Current temperature%s - INVALID (raw 0x%02X)",
+                     addr_info, variant, current_temp);
+        } else {
+            ESP_LOGI(TAG, "%s Current temperature%s - %d°C", addr_info, variant, current_temp);
+        }
+    }
+
+    if (!is_canonical || t1_invalid) {
+        return true;  // CMD 0x31 is log-only; invalid temp1 also skips publish.
+    }
+
+    // Canonical path (CMD 0x16): update state and publish
     pool_state_t snapshot;
     if (!ctx->state_mutex || xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
         ESP_LOGW(TAG, "Failed to acquire mutex for temp reading");
@@ -690,65 +745,6 @@ static bool handle_channel_count(
         xSemaphoreGive(ctx->state_mutex);
     }
 
-    return true;
-}
-
-/**
- * Handler: Temperature reading (variant 2) message
- * Pattern: "02 00 62 FF FF 80 00 31 0E 21"
- *
- * Same temperature data as MSG_TYPE_TEMP_READING but a different command byte (0x31
- * vs 0x16). Byte 11 is always 0xA6 in observed samples — purpose unknown.
- */
-static bool handle_temp_reading2(
-    const uint8_t *data, int len,
-    const uint8_t *payload, int payload_len,
-    const char *addr_info,
-    message_decoder_context_t *ctx)
-{
-    if (payload_len < 2) return false;
-
-    uint8_t current_temp = payload[0];
-    uint8_t unknown      = payload[1];
-    ESP_LOGI(TAG, "%s Current temperature - %d°C (unknown byte: 0x%02X)", addr_info, current_temp, unknown);
-
-    // Update state and publish
-    pool_state_t snapshot;
-    if (!ctx->state_mutex || xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
-        ESP_LOGW(TAG, "Failed to acquire mutex for temp reading2");
-        return true;
-    }
-    ctx->pool_state->current_temp = current_temp;
-    ctx->pool_state->temp_valid = true;
-    ctx->pool_state->last_update_ms = xTaskGetTickCount() * portTICK_PERIOD_MS;
-    snapshot = *ctx->pool_state;
-    xSemaphoreGive(ctx->state_mutex);
-
-    if (ctx->enable_mqtt) {
-        mqtt_publish_temperature(&snapshot);
-    }
-
-    return true;
-}
-
-/**
- * Handler: Genus Heater current water temperature
- * Pattern: "02 00 70 FF FF 80 00 16 0D 13"
- *
- * Single-byte payload — the Genus Heater's own water-temperature reading. Distinct
- * from the 0x0062 Connect 8/10 Controller reading; the two devices may report different
- * values depending on where each sensor is sited in the plumbing.
- */
-static bool handle_genus_heater_temp_reading(
-    const uint8_t *data, int len,
-    const uint8_t *payload, int payload_len,
-    const char *addr_info,
-    message_decoder_context_t *ctx)
-{
-    if (payload_len < 1) return false;
-
-    uint8_t current_temp = payload[0];
-    ESP_LOGI(TAG, "%s Genus Heater water temperature - %d°C", addr_info, current_temp);
     return true;
 }
 
@@ -2556,6 +2552,13 @@ static bool dispatch_message(
         return handle_firmware_version(data, len, payload, payload_len, addr_info, ctx);
     }
 
+    // Water temperature reading — CMD 0x16 (canonical) and CMD 0x31 (alt/
+    // log-only) share the same {temp1, temp2} layout and are routed through
+    // the same handler. See PROTOCOL.md commands `0x16` and `0x31`.
+    if (data[7] == 0x16 || data[7] == 0x31) {
+        return handle_temp_reading(data, len, payload, payload_len, addr_info, ctx);
+    }
+
     // Temperature setpoint command (CMD 0x19) — source-agnostic. Routed by
     // the slot byte (payload[0]): 0x01/0x02 = Pool/Spa setpoint (3-byte
     // payload, Gateway-sourced); 0x03 = heater pair setpoint (5-byte payload
@@ -2673,23 +2676,11 @@ static bool dispatch_message(
         return handle_temp_setting(data, len, payload, payload_len, addr_info, ctx);
     }
 
-    if (match_pattern(data, len, MSG_TYPE_TEMP_READING)) {
-        return handle_temp_reading(data, len, payload, payload_len, addr_info, ctx);
-    }
-
-    if (match_pattern(data, len, MSG_TYPE_TEMP_READING2)) {
-        return handle_temp_reading2(data, len, payload, payload_len, addr_info, ctx);
-    }
-
     if (match_pattern(data, len, MSG_TYPE_HEATER)) {
         return handle_heater(data, len, payload, payload_len, addr_info, ctx);
     }
 
     // Genus Heater (0x0070) messages
-    if (match_pattern(data, len, MSG_TYPE_GENUS_HEATER_TEMP_READING)) {
-        return handle_genus_heater_temp_reading(data, len, payload, payload_len, addr_info, ctx);
-    }
-
     if (match_pattern(data, len, MSG_TYPE_GENUS_HEATER_TEMP_SETTING)) {
         return handle_genus_heater_temp_setting(data, len, payload, payload_len, addr_info, ctx);
     }

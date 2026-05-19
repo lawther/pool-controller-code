@@ -19,7 +19,7 @@ This document describes the proprietary serial protocol used by the Connect 10 p
   - [0x10 — Channel Toggle Command ⚠️](#0x10--channel-toggle-command-️)
   - [0x12 — Device Status ⚠️](#0x12--device-status-️)
   - [0x14 — Mode (Spa/Pool) ✅](#0x14--mode-spapool-)
-  - [0x16 — Water Temperature Reading ⚠️](#0x16--water-temperature-reading-️)
+  - [0x16 — Water Temperature Reading ✅](#0x16--water-temperature-reading-)
   - [0x17 — Temperature Settings ✅](#0x17--temperature-settings-)
   - [0x18 — Chlorinator Cell Mode ⚠️](#0x18--chlorinator-cell-mode-️)
   - [0x19 — Temperature Setpoint Command ✅](#0x19--temperature-setpoint-command-)
@@ -30,7 +30,7 @@ This document describes the proprietary serial protocol used by the Connect 10 p
   - [0x27 — Valve State Broadcast ✅](#0x27--valve-state-broadcast-)
   - [0x28 — Valve Control Command ✅](#0x28--valve-control-command-)
   - [0x2A — Mode/Favourite Control Command ✅](#0x2a--modefavourite-control-command-)
-  - [0x31 — Water Temperature Reading (alt) ⚠️](#0x31--water-temperature-reading-alt-️)
+  - [0x31 — Water Temperature Reading (alt) ✅](#0x31--water-temperature-reading-alt-)
   - [0x37 — Internet Gateway Info ⚠️](#0x37--internet-gateway-info-️)
   - [0x38 — Register Data ⚠️](#0x38--register-data-️)
   - [0x39 — Register Read Request ✅](#0x39--register-read-request-)
@@ -96,7 +96,8 @@ uint8_t data_checksum = sum & 0xFF;
 | `0x0062` | Connect 8/10      | Main pool controller (Connect 10) |
 | `0x006F` | Internal Channels | Internal messages for active channels sent to this address |
 | `0x0070` | Genus Heater      | Active i25 Evo electric heater    |
-| `0x007F` | Internal Genus?   | Internal temperature setpoint messages go to this address  |
+| `0x0072` | Internal Genus? 0x72 | Internal temperature module?   |
+| `0x007F` | Internal Genus? 0x7F | Internal temperature module?   |
 | `0x0084` | Viron Chlorinator | Chemistry/chlorinator module (alternate variant; mutually exclusive with `0x0090`) |
 | `0x0090` | RolaChem          | Chemistry/chlorinator module      |
 | `0x00A0` | Internal Salt Cell | Chlorine generator / salt cell (suspected; subordinate to `0x0084`) |
@@ -122,7 +123,7 @@ Click any CMD in the first column to jump to the full section in [Commands](#com
 | [`0x10`](#0x10--channel-toggle-command-️)                      | Channel Toggle Command              | `0x00F0` Gateway → Broadcast                                           |                                                                                             | Yes                     |
 | [`0x12`](#0x12--device-status-️)                               | Device Status                       | `0x0050`, `0x0062`, `0x0084`, `0x0090`, `0x00F0` → Broadcast           | Payload layout differs per source                                                           | Yes (per-source)        |
 | [`0x14`](#0x14--mode-spapool-)                                 | Mode (Spa/Pool)                     | `0x0050` → Broadcast                                                   |                                                                                             | Yes                     |
-| [`0x16`](#0x16--water-temperature-reading-️)                   | Water Temperature Reading           | `0x0062` (LEN `0x0E`), `0x0070` (LEN `0x0D`) → Broadcast               | Source-dependent payload (`0x0062` = Connect 8/10 Controller, `0x0070` = Genus Heater)      | Yes (per-source)        |
+| [`0x16`](#0x16--water-temperature-reading-)                    | Water Temperature Reading           | `0x0062` (LEN `0x0E`), `0x0070`/`0x0072` (LEN `0x0D`) → Broadcast       | Payload length differs by source: LEN `0x0E` = `{temp1, temp2}`, LEN `0x0D` = `{temp1}`; dispatched on CMD byte alone | Yes (unified handler)   |
 | [`0x17`](#0x17--temperature-settings-)                         | Temperature Settings                | `0x0050` (LEN `0x10`), `0x0070` (LEN `0x0E`) → Broadcast               | Source-dependent payload layout                                                             | Yes (per-source)        |
 | [`0x18`](#0x18--chlorinator-cell-mode-️)                       | Chlorinator Cell Mode               | `0x0084`, `0x0050` → `0x00A0` Internal Salt Cell                       | Inter-device unicast                                                                        | **No (doc only)**       |
 | [`0x19`](#0x19--temperature-setpoint-command-)                 | Temperature Setpoint Command        | `0x00F0` Gateway, `0x0050` Touchscreen → Broadcast                     | Sub-dispatched by slot byte (`0x01`/`0x02` Pool/Spa from Gateway, `0x03` heater pair from Touchscreen); dispatched on CMD byte alone | Yes (unified handler)   |
@@ -133,7 +134,7 @@ Click any CMD in the first column to jump to the full section in [Commands](#com
 | [`0x27`](#0x27--valve-state-broadcast-)                        | Valve State Broadcast               | `0x0050` → Broadcast                                                   | Two LEN variants: `0x0D` (short) and `0x13` (full)                                          | Yes (both variants)     |
 | [`0x28`](#0x28--valve-control-command-)                        | Valve Control Command               | `0x00F0` Gateway → Broadcast                                           |                                                                                             | **No (doc only)**       |
 | [`0x2A`](#0x2a--modefavourite-control-command-)                | Mode/Favourite Control Command      | `0x00F0` Gateway → `0x0050` Touchscreen                                | Unicast                                                                                     | Yes                     |
-| [`0x31`](#0x31--water-temperature-reading-alt-️)               | Water Temperature Reading (alt)     | `0x0062` → Broadcast                                                   | Second variant alongside `0x16`                                                             | Yes                     |
+| [`0x31`](#0x31--water-temperature-reading-alt-)                | Water Temperature Reading (alt)     | `0x0062` → Broadcast                                                   | Same `{temp1, temp2}` field layout as `0x16`; different disconnected encoding (`>= 0xA0` vs `0x00`); shared handler, log-only | Yes (unified handler)   |
 | [`0x37`](#0x37--internet-gateway-info-️)                       | Internet Gateway Info               | `0x00F0` → Broadcast                                                   | LEN distinguishes serial (`0x11`), network config (`0x15`), comms status (`0x0F`) variants  | Yes (3 handlers)        |
 | [`0x38`](#0x38--register-data-️)                               | Register Data (Response)            | `0x0050` Touchscreen → Broadcast                                       | Universal register system — sub-dispatched by register + slot (see [Appendix A](#appendix-a-register-dispatch-table)); dispatched on CMD byte alone | Yes (unified handler)   |
 | [`0x39`](#0x39--register-read-request-)                        | Register Read Request               | `0x00F0` Gateway → Broadcast                                           | Dispatched on CMD byte alone                                                                | Yes (unified handler)   |
@@ -529,22 +530,24 @@ Reports the current operating mode — pool or spa. Broadcast by the Touchscreen
 
 ---
 
-### 0x16 — Water Temperature Reading ⚠️
+### 0x16 — Water Temperature Reading ✅
 
-Current water temperature broadcast by the device that measures it. Two sources are known: the Connect 8/10 Controller (`0x0062`) and the add-on Genus Heater (`0x0070`). Both use CMD `0x16` but the **payload layout differs** — the controller's frame is one byte longer and carries an additional unknown trailing byte.
+Current water temperature broadcast by the device that measures it. Three sources are known: the Connect 8/10 Controller (`0x0062`) and the add-on Genus Heater family (`0x0070`, `0x0072`). All use CMD `0x16` and are dispatched on the CMD byte alone; the payload **length** distinguishes the two layouts.
 
 **Source variants:**
 
-| Source                          | LENGTH | Payload          | Status | Handler                  |
-|---------------------------------|--------|------------------|--------|--------------------------|
-| `0x0062` Connect 8/10 Controller| `0x0E` | 2 bytes — temp + unknown | ⚠️ | `handle_temp_reading`    |
-| `0x0070` Genus Heater           | `0x0D` | 1 byte — temp only       | ✅ | `handle_genus_heater_temp_reading` |
+| Source                          | LENGTH | Payload                       | Status |
+|---------------------------------|--------|-------------------------------|--------|
+| `0x0062` Connect 8/10 Controller| `0x0E` | 2 bytes — `{temp1, temp2}`    | ✅ |
+| `0x0070`/`0x0072` Genus Heater  | `0x0D` | 1 byte  — `{temp1}`           | ✅ |
 
-The controller also emits a second water-temperature variant under [0x31 — Water Temperature Reading (alt)](#0x31--water-temperature-reading-alt-️).
+All variants are handled by the unified `handle_temp_reading()`, which selects the layout from `payload_len`. The Connect 8/10 also emits a second water-temperature variant under [0x31 — Water Temperature Reading (alt)](#0x31--water-temperature-reading-alt-) — same `{temp1, temp2}` field layout, routed through the same handler, but log-only and with a different disconnected-sensor encoding (`>= 0xA0` rather than `0x00`).
+
+**Invalid-reading sentinel:** any temperature byte with a raw value `>= 0xA0` (≥ 160°C) indicates a disconnected or invalid sensor. The handler logs these as warnings and does not publish them to MQTT.
 
 ---
 
-#### Connect 8/10 Controller (`0x0062`) ⚠️
+#### Connect 8/10 Controller (`0x0062`) ✅
 
 Pattern: `02 00 62 FF FF 80 00 16 0E 06`
 
@@ -552,21 +555,21 @@ Example:
 
 ```
 02 00 62 FF FF 80 00 16 0E 06 19 00 19 03
-                              ^^ Current temperature (0x19 = 25°C)
-                                 ^^ Unknown (always 0x00 observed)
+                              ^^ Current water temperature 1 (0x19 = 25°C)
+                                 ^^ Current water temperature 2 in °C (0x00 in this sample)
 ```
 
 Data fields:
-- Byte 10: Current water temperature in °C
-- Byte 11: Unknown — always `0x00` observed. Purpose not yet understood; may be a secondary sensor, raw ADC value, or fixed status byte.
+- Byte 10: Current water temperature 1 in °C
+- Byte 11: Current water temperature 2 in °C — second sensor reading; often `0x00` in installations with only one sensor wired.
 
 ---
 
-#### Genus Heater (`0x0070`) ✅
+#### Genus Heater (`0x0070` / `0x0072`) ✅
 
-When an Active i25 Evo (Genus) heater is fitted it broadcasts its own current water-temperature reading on the same CMD but with a shorter LENGTH (`0x0D`) and only one data byte.
+When an Active i25 Evo (Genus) heater is fitted it broadcasts its own current water-temperature reading on the same CMD but with a shorter LENGTH (`0x0D`) and only one data byte. Both `0x0070` and `0x0072` heater addresses have been observed using this layout.
 
-Pattern: `02 00 70 FF FF 80 00 16 0D 13`
+Pattern (`0x0070`): `02 00 70 FF FF 80 00 16 0D 13`
 
 Example:
 
@@ -643,7 +646,7 @@ Data fields:
 - Byte 11: Heater 2 setpoint (°C)
 - Byte 12: Data checksum (sum of bytes 10–11)
 
-Both heater setpoints are carried in a single broadcast; the Genus Heater never sends them separately. The actual current water temperature is reported separately via [0x16](#0x16--water-temperature-reading-️) (Genus Heater variant).
+Both heater setpoints are carried in a single broadcast; the Genus Heater never sends them separately. The actual current water temperature is reported separately via [0x16](#0x16--water-temperature-reading-) (Genus Heater variant).
 
 ---
 
@@ -1057,27 +1060,32 @@ Command sent by the Internet Gateway (`0x00F0`) to the Touchscreen (`0x0050`) to
 
 ---
 
-### 0x31 — Water Temperature Reading (alt) ⚠️
+### 0x31 — Water Temperature Reading (alt) ✅
 
-Second water-temperature variant broadcast by the Connect 8/10 Controller (`0x0062`), in parallel to the [0x16](#0x16--water-temperature-reading-️) reading.
+Second water-temperature variant broadcast by the Connect 8/10 Controller (`0x0062`), in parallel to the [0x16](#0x16--water-temperature-reading-) reading. The two CMDs carry the same `{temp1, temp2}` field layout; the only practical difference is the **disconnected-sensor encoding**:
+
+- CMD `0x16` reports a disconnected sensor as `0x00` (indistinguishable from a genuine 0°C reading).
+- CMD `0x31` reports a disconnected sensor as `>= 0xA0` (a clean sentinel — observed values include `0xA6`, `0xAD`, `0xAF`).
+
+Confirmed by paired captures: whenever a CMD `0x31` byte reads `>= 0xA0`, the corresponding CMD `0x16` byte in the same broadcast cycle reads `0x00`.
 
 **Pattern:** `02 00 62 FF FF 80 00 31 0E 21`
 
 ```
 02 00 62 FF FF 80 00 31 0E 21 1E A6 C4 03
-                              ^^ Current temperature (0x1E = 30°C)
-                                 ^^ Unknown (always 0xA6 in observed samples)
+                              ^^ Current water temperature 1 (0x1E = 30°C)
+                                 ^^ Current water temperature 2 (0xA6 = disconnected sensor)
 ```
 
 **Data Fields:**
 
-- Byte 10: Current water temperature in °C
-- Byte 11: Unknown — always `0xA6` in observed samples
+- Byte 10: Current water temperature 1 in °C (`>= 0xA0` = disconnected)
+- Byte 11: Current water temperature 2 in °C (`>= 0xA0` = disconnected)
 
 **Notes:**
 
-- The purpose of byte 11 is not yet understood
-- Byte 10 has been observed decreasing as pool water cools (30→25°C), confirming it as the current temperature
+- Both `0x16` and `0x31` are routed through the same `handle_temp_reading()` (dispatched on the CMD byte). `0x16` is the canonical source — it updates `pool_state->current_temp` and publishes to MQTT. `0x31` is log-only to avoid dual MQTT updates for the same reading (the Connect 8/10 broadcasts them ~70 ms apart).
+- Byte 10 has been observed decreasing as pool water cools (30→25°C), confirming it as the current temperature.
 
 ---
 
