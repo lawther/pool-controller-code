@@ -18,6 +18,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+### Changed
+### Removed
+### Fixed
+### Deprecated
+### Security
+
+## [1.4.0] - 2026-05-19
+### Added
 - Per-source temperature storage: `temp1`, `temp2`, `temp1_valid`, `temp2_valid` and `single_sensor_source` are now stored directly on each `seen_device_t` entry. Multiple temperature sources (Connect 8/10 + Genus Heater variants) are kept distinct rather than overwriting a single global field.
 - HTTP `/status`: each device entry in the `devices[]` array now carries `temperature1` (and `temperature2` for multi-sensor sources like the Connect 8/10). Devices that don't broadcast CMD `0x16` get no temperature fields at all.
 - New per-source MQTT temperature entities, discovered lazily on first reading from each `(source, sensor)` pair. Friendly names: "Temp - Genus Heater" for single-sensor sources, "Temp 1 - Connect 8/10" / "Temp 2 - Connect 8/10" for multi-sensor. Entity IDs namespaced by controller, e.g. `sensor.pool_controller_<mac>_connect_8_10_temp_1`.
