@@ -894,6 +894,24 @@ static bool handle_ici_heater_temp_setting(
 
     ESP_LOGI(TAG, "%s ICI Gas Heater setpoints - spa=%d°C, pool=%d°C",
              addr_info, spa_setpoint, pool_setpoint);
+
+    pool_state_t snapshot;
+    if (!ctx->state_mutex || xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGW(TAG, "Failed to acquire mutex for ICI heater temp setting");
+        return true;
+    }
+    ctx->pool_state->spa_setpoint   = spa_setpoint;
+    ctx->pool_state->pool_setpoint  = pool_setpoint;
+    ctx->pool_state->spa_setpoint_f  = spa_setpoint  * 9 / 5 + 32;
+    ctx->pool_state->pool_setpoint_f = pool_setpoint * 9 / 5 + 32;
+    ctx->pool_state->last_update_ms = xTaskGetTickCount() * portTICK_PERIOD_MS;
+    snapshot = *ctx->pool_state;
+    xSemaphoreGive(ctx->state_mutex);
+
+    if (ctx->enable_mqtt) {
+        mqtt_publish_setpoints(&snapshot);
+    }
+
     return true;
 }
 
