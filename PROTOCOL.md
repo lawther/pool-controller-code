@@ -97,6 +97,7 @@ uint8_t data_checksum = sum & 0xFF;
 | `0x006F` | Internal Channels | Internal messages for active channels sent to this address |
 | `0x0070` | Genus Heater      | Active i25 Evo electric heater    |
 | `0x0072` | Internal Genus? 0x72 | Internal temperature module?   |
+| `0x0074` | ICI Gas Heater    | Astral/Fluidra ICI 400B NG gas pool heater |
 | `0x007F` | Internal Genus? 0x7F | Internal temperature module?   |
 | `0x0084` | Viron Chlorinator | Chemistry/chlorinator module (alternate variant; mutually exclusive with `0x0090`) |
 | `0x0090` | RolaChem          | Chemistry/chlorinator module      |
@@ -121,10 +122,10 @@ Click any CMD in the first column to jump to the full section in [Commands](#com
 | [`0x0D`](#0x0d--active-channels-bitmask-)                      | Active Channels Bitmask             | `0x0050` → `0x006F` Internal Channels                                  | Unicast                                                                                     | Yes                     |
 | [`0x0F`](#0x0f--chlorinator-mode--touchscreen-️)               | Chlorinator Mode → Touchscreen      | `0x0084` → `0x0050`                                                    | 2-byte `[01, mode]`; mirrors [0x18](#0x18--chlorinator-cell-mode-️) cell mode               | **No (doc only)**       |
 | [`0x10`](#0x10--channel-toggle-command-️)                      | Channel Toggle Command              | `0x00F0` Gateway → Broadcast                                           |                                                                                             | Yes                     |
-| [`0x12`](#0x12--device-status-️)                               | Device Status                       | `0x0050`, `0x0062`, `0x0084`, `0x0090`, `0x00F0` → Broadcast           | Payload layout differs per source                                                           | Yes (per-source)        |
+| [`0x12`](#0x12--device-status-️)                               | Device Status                       | `0x0050`, `0x0062`, `0x0074`, `0x0084`, `0x0090`, `0x00F0` → Broadcast | Payload layout differs per source                                                           | Yes (per-source)        |
 | [`0x14`](#0x14--mode-spapool-)                                 | Mode (Spa/Pool)                     | `0x0050` → Broadcast                                                   |                                                                                             | Yes                     |
-| [`0x16`](#0x16--water-temperature-reading-)                    | Water Temperature Reading           | `0x0062` (LEN `0x0E`), `0x0070`/`0x0072` (LEN `0x0D`) → Broadcast       | Payload length differs by source: LEN `0x0E` = `{temp1, temp2}`, LEN `0x0D` = `{temp1}`; dispatched on CMD byte alone | Yes (unified handler)   |
-| [`0x17`](#0x17--temperature-settings-)                         | Temperature Settings                | `0x0050` (LEN `0x10`), `0x0070` (LEN `0x0E`) → Broadcast               | Source-dependent payload layout                                                             | Yes (per-source)        |
+| [`0x16`](#0x16--water-temperature-reading-)                    | Water Temperature Reading           | `0x0062` (LEN `0x0E`), `0x0070`/`0x0072`/`0x0074` (LEN `0x0D`) → Broadcast | Payload length differs by source: LEN `0x0E` = `{temp1, temp2}`, LEN `0x0D` = `{temp1}`; dispatched on CMD byte alone | Yes (unified handler)   |
+| [`0x17`](#0x17--temperature-settings-)                         | Temperature Settings                | `0x0050` (LEN `0x10`), `0x0070`/`0x0074` (LEN `0x0E`) → Broadcast | Source-dependent payload layout                                                             | Yes (per-source)        |
 | [`0x18`](#0x18--chlorinator-cell-mode-️)                       | Chlorinator Cell Mode               | `0x0084`, `0x0050` → `0x00A0` Internal Salt Cell                       | Inter-device unicast                                                                        | **No (doc only)**       |
 | [`0x19`](#0x19--temperature-setpoint-command-)                 | Temperature Setpoint Command        | `0x00F0` Gateway, `0x0050` Touchscreen → Broadcast                     | Sub-dispatched by slot byte (`0x01`/`0x02` Pool/Spa from Gateway, `0x03` heater pair from Touchscreen); dispatched on CMD byte alone | Yes (unified handler)   |
 | [`0x1D`](#0x1d--chlorinator-setpoint-)                         | Chlorinator Setpoint                | `0x0090` RolaChem, `0x0084` Viron → Broadcast                          | Byte 10: `0x01`=pH, `0x02`=ORP; same payload from both sources; dispatched on CMD byte alone | Yes (unified handler)   |
@@ -403,6 +404,7 @@ Status broadcast emitted by multiple devices. The CMD byte is shared but the **p
 |---------------------------------|--------|------------------------------------------|--------|-------------------------------|
 | `0x0050` Touchscreen            | `0x0E` | 2 bytes — always `05 00` observed        | ⚠️     | `handle_touchscreen_unknown1` |
 | `0x0062` Connect 8/10 Controller| `0x0F` | 3 bytes — heater state + unknowns        | ⚠️     | `handle_heater`               |
+| `0x0074` ICI Gas Heater         | `0x10` | 4 bytes — `{00, status, 00, 00}`         | ✅     | `handle_ici_heater_status`    |
 | `0x0084` Viron / `0x0090` RolaChem Chlorinator | `0x0D` | 1 byte — operational mode | ⚠️     | `handle_chlor_status`         |
 | `0x00F0` Internet Gateway       | `0x0F` | 3 bytes — `{major, minor, checksum}`     | ✅     | `handle_gateway_status`       |
 
@@ -443,6 +445,41 @@ Data fields:
 - Byte 10: Padding/unused
 - Byte 11: Heater state (`0x00` = Off, `0x01` = On)
 - Byte 12: Unknown (maybe bitmask or interlock?)
+
+---
+
+#### ICI Gas Heater (`0x0074`) ✅
+
+Pattern: `02 00 74 FF FF 80 00 12 10 16`
+
+Examples:
+
+```
+02 00 74 FF FF 80 00 12 10 16 00 00 00 00 00 03   Idle / off
+02 00 74 FF FF 80 00 12 10 16 00 01 00 00 01 03   On and Lighting
+02 00 74 FF FF 80 00 12 10 16 00 03 00 00 03 03   At Setpoint (on but not heating)
+02 00 74 FF FF 80 00 12 10 16 00 07 00 00 07 03   (transitional?)
+02 00 74 FF FF 80 00 12 10 16 00 0F 00 00 0F 03   Heater Lit and Running
+                                 ^^ Status byte
+```
+
+Data fields:
+- Byte 10: Always `0x00` in all observed samples
+- Byte 11: Status byte — see table below
+- Byte 12: Always `0x00` in all observed samples
+- Byte 13: Always `0x00` in all observed samples
+
+Observed status values (payload[1]):
+
+| Value  | Meaning |
+|--------|---------|
+| `0x00` | Idle / off |
+| `0x01` | On and Lighting (attempting ignition) |
+| `0x03` | At Setpoint — on but not heating |
+| `0x07` | Transitional? (observed briefly between `0x01` and `0x0F`) |
+| `0x0F` | Heater Lit and Running |
+
+Payload[1] is the only byte that varies; bytes 10, 12, and 13 are always `0x00`. The data checksum (byte 14) equals payload[1] since all other payload bytes are zero.
 
 ---
 
@@ -540,6 +577,7 @@ Current water temperature broadcast by the device that measures it. Three source
 |---------------------------------|--------|-------------------------------|--------|
 | `0x0062` Connect 8/10 Controller| `0x0E` | 2 bytes — `{temp1, temp2}`    | ✅ |
 | `0x0070`/`0x0072` Genus Heater  | `0x0D` | 1 byte  — `{temp1}`           | ✅ |
+| `0x0074` ICI Gas Heater         | `0x0D` | 1 byte  — `{temp1}`           | ✅ |
 
 All variants are handled by the unified `handle_temp_reading()`, which selects the layout from `payload_len`. The Connect 8/10 also emits a second water-temperature variant under [0x31 — Water Temperature Reading (alt)](#0x31--water-temperature-reading-alt-) — same `{temp1, temp2}` field layout, routed through the same handler, but log-only and with a different disconnected-sensor encoding (`>= 0xA0` rather than `0x00`).
 
@@ -587,6 +625,26 @@ This is the Genus Heater's own water-temperature reading; it is independent of t
 
 ---
 
+#### ICI Gas Heater (`0x0074`) ✅
+
+Pattern: `02 00 74 FF FF 80 00 16 0D 17`
+
+Example:
+
+```
+02 00 74 FF FF 80 00 16 0D 17 10 10 03
+                              ^^ Current water temperature (0x10 = 16°C)
+                                 ^^ Data checksum (equals byte 10 — only one data byte)
+```
+
+Data fields:
+- Byte 10: Current water temperature in °C
+- Byte 11: Data checksum (equals byte 10)
+
+Identical frame format to the Genus Heater (`0x0070`/`0x0072`) variant — only the source address and header checksum differ. Handled by the unified `handle_temp_reading()` via the LEN `0x0D` path. Confirmed against the heater's own front-panel display ("Water 16.2°C").
+
+---
+
 ### 0x17 — Temperature Settings ✅
 
 Setpoint broadcast. CMD `0x17` is shared across two sources with different payload layouts: the Touchscreen (`0x0050`) emits spa/pool setpoints in both °C and °F, while the Genus Heater (`0x0070`) emits its Heater 1/Heater 2 setpoints in °C only.
@@ -597,6 +655,7 @@ Setpoint broadcast. CMD `0x17` is shared across two sources with different paylo
 |-----------------------|--------|----------------------------------------|--------|-------------------------------|
 | `0x0050` Touchscreen  | `0x10` | 4 bytes — spa/pool °C + spa/pool °F    | ✅     | `handle_temp_setting`         |
 | `0x0070` Genus Heater | `0x0E` | 2 bytes — Heater 1 °C, Heater 2 °C     | ✅     | `handle_genus_heater_temp_setting`|
+| `0x0074` ICI Gas Heater | `0x0E` | 2 bytes — spa setpoint °C, pool setpoint °C | ✅     | `handle_ici_heater_temp_setting`  |
 
 The same setpoints are also broadcast individually via the register system — see the [Register-based variant](#register-based-temperature-setpoints) below.
 
@@ -647,6 +706,27 @@ Data fields:
 - Byte 12: Data checksum (sum of bytes 10–11)
 
 Both heater setpoints are carried in a single broadcast; the Genus Heater never sends them separately. The actual current water temperature is reported separately via [0x16](#0x16--water-temperature-reading-) (Genus Heater variant).
+
+---
+
+#### ICI Gas Heater (`0x0074`) ✅
+
+Pattern: `02 00 74 FF FF 80 00 17 0E 19`
+
+Example:
+
+```
+02 00 74 FF FF 80 00 17 0E 19 23 1B 3E 03
+                              ^^ Spa setpoint °C (0x23 = 35°C)
+                                 ^^ Pool setpoint °C (0x1B = 27°C)
+                                    ^^ Data checksum (0x23 + 0x1B = 0x3E)
+```
+
+Data fields:
+- Byte 10: Spa setpoint (°C)
+- Byte 11: Pool setpoint (°C)
+
+Identical frame format to the Genus Heater (`0x0070`) variant — same LENGTH and payload structure, only source address and header checksum differ. Byte 11 tracking the pool setpoint was confirmed by pressing the up/down buttons on the heater's front panel and observing the byte increment/decrement on the bus. Byte 10 as spa setpoint was confirmed by switching into spa mode and observing 0x23 = 35°C on the heater's display.
 
 ---
 
