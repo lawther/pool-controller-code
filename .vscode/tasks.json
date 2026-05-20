@@ -5,18 +5,74 @@
             "label": "Run Tests",
             "type": "shell",
             "command": "./run_tests.sh",
-            "options": {
-                "cwd": "${workspaceFolder}/test"
-            },
-            "group": {
-                "kind": "test",
-                "isDefault": true
-            },
+            "options": { "cwd": "${workspaceFolder}/test" },
+            "group": { "kind": "test", "isDefault": true },
             "presentation": {
                 "reveal": "always",
-                "panel": "shared"
+                "panel": "shared",
+                "close": false
             },
             "problemMatcher": []
+        },
+        {
+            "label": "Replay: all samples",
+            "type": "shell",
+            "command": "gcc -I. -I.. -o run_replay test_replay.c ../main/message_decoder.c log_capture.c && ./run_replay; ec=$?; rm -f ./run_replay; exit $ec",
+            "options": { "cwd": "${workspaceFolder}/test" },
+            "group": "test",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "close": false
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Replay: bless all samples",
+            "type": "shell",
+            "command": "gcc -I. -I.. -o run_replay test_replay.c ../main/message_decoder.c log_capture.c && ./run_replay --bless; ec=$?; rm -f ./run_replay; exit $ec",
+            "options": { "cwd": "${workspaceFolder}/test" },
+            "group": "test",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "close": false
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Replay: single file",
+            "type": "shell",
+            "command": "gcc -I. -I.. -o run_replay test_replay.c ../main/message_decoder.c log_capture.c && ./run_replay ${input:samplePath}; ec=$?; rm -f ./run_replay; exit $ec",
+            "options": { "cwd": "${workspaceFolder}/test" },
+            "group": "test",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "close": false
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Replay: bless single file",
+            "type": "shell",
+            "command": "gcc -I. -I.. -o run_replay test_replay.c ../main/message_decoder.c log_capture.c && ./run_replay --bless ${input:samplePath}; ec=$?; rm -f ./run_replay; exit $ec",
+            "options": { "cwd": "${workspaceFolder}/test" },
+            "group": "test",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "close": false
+            },
+            "problemMatcher": []
+        }
+    ],
+    "inputs": [
+        {
+            "id": "samplePath",
+            "type": "promptString",
+            "description": "Sample path (relative to test/, e.g. samples/temperature.txt)",
+            "default": "samples/temperature.txt"
         }
     ]
 }

@@ -35,12 +35,14 @@ void xSemaphoreGive(SemaphoreHandle_t xSemaphore)
 
 // Mock MQTT functions (disabled in tests)
 void mqtt_publish_mode(const pool_state_t *state) {}
-void mqtt_publish_temperature(const pool_state_t *state) {}
+void mqtt_publish_setpoints(const pool_state_t *state) {}
+void mqtt_publish_temperature_reading(const pool_state_t *state, int dev_idx, uint8_t sensor_index) {}
 void mqtt_publish_heater(const pool_state_t *state, int index) {}
 void mqtt_publish_chlorinator(const pool_state_t *state) {}
 void mqtt_publish_light(const pool_state_t *state, uint8_t zone) {}
 void mqtt_publish_channel(const pool_state_t *state, uint8_t channel) {}
 void mqtt_publish_valve(const pool_state_t *state, uint8_t valve_num) {}
+void mqtt_publish_favourite(const pool_state_t *state) {}
 
 // Mock register requester
 void register_requester_notify(void) {}
@@ -278,25 +280,31 @@ void test_decode_malformed_end(void)
 
 /**
  * Test: Device name lookup
+ *
+ * Signature: get_device_name(hi, lo, fallback_buf, buf_size). Known
+ * addresses return a static label; unknown addresses are formatted into the
+ * caller's buffer as "Unknown 0xHHLL".
  */
 void test_device_name_lookup(void)
 {
+    char buf[16];
     const char *name;
 
-    name = get_device_name(0x00, 0x50);
+    name = get_device_name(0x00, 0x50, buf, sizeof(buf));
     TEST_ASSERT(strcmp(name, "Touch Screen") == 0, "0x0050 should be 'Touch Screen'");
 
-    name = get_device_name(0x00, 0x62);
-    TEST_ASSERT(strcmp(name, "Temp Sensor") == 0, "0x0062 should be 'Temp Sensor'");
+    name = get_device_name(0x00, 0x62, buf, sizeof(buf));
+    TEST_ASSERT(strcmp(name, "Connect 8/10") == 0, "0x0062 should be 'Connect 8/10'");
 
-    name = get_device_name(0x00, 0x90);
-    TEST_ASSERT(strcmp(name, "Chlorinator") == 0, "0x0090 should be 'Chlorinator'");
+    name = get_device_name(0x00, 0x90, buf, sizeof(buf));
+    TEST_ASSERT(strcmp(name, "RolaChem") == 0, "0x0090 should be 'RolaChem'");
 
-    name = get_device_name(0xFF, 0xFF);
+    name = get_device_name(0xFF, 0xFF, buf, sizeof(buf));
     TEST_ASSERT(strcmp(name, "Broadcast") == 0, "0xFFFF should be 'Broadcast'");
 
-    name = get_device_name(0x12, 0x34);
-    TEST_ASSERT(name == NULL, "Unknown address should return NULL");
+    name = get_device_name(0x12, 0x34, buf, sizeof(buf));
+    TEST_ASSERT(strcmp(name, "Unknown 0x1234") == 0,
+                "Unknown address should format as 'Unknown 0xHHLL'");
 }
 
 /**
@@ -327,6 +335,9 @@ void test_decode_heater_off(void)
  * Test: Current temperature reading
  * Real message: 02 00 62 FF FF 80 00 16 0E 06 1A 00 1A 03
  * Temperature = 0x1A = 26°C
+ *
+ * Per-source readings now live on the seen_device_t entry indexed by source
+ * address — there is no longer a top-level current_temp on pool_state.
  */
 void test_decode_temp_reading(void)
 {
@@ -336,7 +347,7 @@ void test_decode_temp_reading(void)
         0x02, 0x00, 0x62, 0xFF, 0xFF, 0x80, 0x00,
         0x16, 0x0E,  // Command / length (14)
         0x06,        // Header checksum (sum bytes 0-8 = 774, & 0xFF = 0x06)
-        0x1A, 0x00,  // Payload: current_temp=26, unknown
+        0x1A, 0x00,  // Payload: temp1=26, temp2=0
         0x1A,        // Data checksum
         0x03
     };
@@ -344,8 +355,14 @@ void test_decode_temp_reading(void)
     bool decoded = decode_message(msg, sizeof(msg), &test_ctx);
 
     TEST_ASSERT(decoded, "Temperature reading should be decoded");
-    TEST_ASSERT(test_pool_state.current_temp == 26, "Current temperature should be 26°C");
-    TEST_ASSERT(test_pool_state.temp_valid, "Temp valid flag should be set");
+    TEST_ASSERT(test_pool_state.num_seen_devices >= 1, "Source should be registered");
+    TEST_ASSERT(test_pool_state.seen_devices[0].addr_hi == 0x00 &&
+                test_pool_state.seen_devices[0].addr_lo == 0x62,
+                "First seen device should be 0x0062 (Connect 8/10)");
+    TEST_ASSERT(test_pool_state.seen_devices[0].temp1 == 26,
+                "Sensor 1 temperature should be 26°C");
+    TEST_ASSERT(test_pool_state.seen_devices[0].temp1_valid,
+                "Sensor 1 valid flag should be set");
 }
 
 /**

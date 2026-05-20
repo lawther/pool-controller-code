@@ -185,6 +185,36 @@ I (12345) MSG_DECODER: [Controller -> Broadcast] Lighting zone 1 state - On
 
 This allows you to quickly test message patterns and verify decoder behavior without needing to send messages to the actual bus.
 
+## Host-based Tests
+
+The decoder can be exercised on the host (no device required) by replaying captured log files through `message_decoder.c`. Each `RX MSG: <hex>` line in a sample is fed into `decode_message()`, and the captured ESP_LOG output is diffed against the `MSG_DECODER:` lines that follow in the file (timestamps ignored). This catches behaviour drift between a captured trace and the current decoder.
+
+### Running
+
+```bash
+bash test/run_tests.sh
+```
+
+Builds and runs every `test/test_*.c` (except the skip list — see top of `run_tests.sh`), then replays every `*.txt` under `test/samples/`.
+
+From VS Code inside the devcontainer: **Cmd+Shift+P → "Tasks: Run Task"** lists:
+
+- **Run Tests** — full suite (unit + replay).
+- **Replay: all samples** — just the replay step.
+- **Replay: bless all samples** — rewrite expected output in every sample using the current decoder's output. Use after intentional decoder/logging changes, then review `git diff test/samples/` before committing.
+- **Replay: single file** / **Replay: bless single file** — same but prompted for a single path.
+
+### Adding a regression sample
+
+1. Capture bus traffic into a log file (e.g. via the TCP debug port or `idf.py monitor`).
+2. Drop the file into `test/samples/`.
+3. Run **Replay: bless single file** against it — this normalises the expected output to the current decoder.
+4. Review with `git diff`, then commit. The file is now a regression test.
+
+### Improving "Unhandled" message logging
+
+When the decoder gains support for a previously-unknown command, replaying old samples surfaces it as a mismatch (e.g. `Unhandled CMD=0xXX` → real decode). Bless the affected samples and the diff in git is the exact documentation of what improved.
+
 
 ## General architecture
 

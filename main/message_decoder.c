@@ -652,10 +652,13 @@ static bool handle_temp_reading(
         uint8_t current_temp2 = payload[1];
         bool t2_invalid = temp_is_invalid(current_temp2);
         if (t1_invalid || t2_invalid) {
-            ESP_LOGW(TAG, "%s Current temperature%s - %s (raw 0x%02X), temp2: %s (raw 0x%02X)",
-                     addr_info, variant,
-                     t1_invalid ? "INVALID" : "OK",  current_temp,
-                     t2_invalid ? "INVALID" : "OK",  current_temp2);
+            char t1_buf[24], t2_buf[24];
+            if (t1_invalid) snprintf(t1_buf, sizeof t1_buf, "INVALID (raw 0x%02X)", current_temp);
+            else            snprintf(t1_buf, sizeof t1_buf, "%d°C", current_temp);
+            if (t2_invalid) snprintf(t2_buf, sizeof t2_buf, "INVALID (raw 0x%02X)", current_temp2);
+            else            snprintf(t2_buf, sizeof t2_buf, "%d°C", current_temp2);
+            ESP_LOGW(TAG, "%s Current temperature%s - %s, temp2: %s",
+                     addr_info, variant, t1_buf, t2_buf);
         } else {
             ESP_LOGI(TAG, "%s Current temperature%s - %d°C (temp2: %d°C)",
                      addr_info, variant, current_temp, current_temp2);
