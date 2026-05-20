@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 ### Removed
 ### Fixed
+- Fixed mixed-validity temperature logging (CMD `0x16` / `0x31`): when one of `temp1` / `temp2` is INVALID the still-valid temperature now logs its decoded °C value rather than a generic `OK (raw 0xXX)` label
 ### Deprecated
 ### Security
 

@@ -3,7 +3,7 @@ I (08:56:06.526) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 16 0E 06 16 00 16 03
 I (08:56:06.526) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature - 22°C (temp2: 0°C)
 02 00 62 FF FF 80 00 16 0E 06 16 00 16 03
 I (08:56:06.596) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 31 0E 21 16 A6 BC 03
-W (08:56:06.596) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature (alt) - OK (raw 0x16), temp2: INVALID (raw 0xA6)
+W (08:56:06.596) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature (alt) - 22°C, temp2: INVALID (raw 0xA6)
 02 00 62 FF FF 80 00 31 0E 21 16 A6 BC 03
 
 Alternate Skymuster
@@ -26,7 +26,7 @@ I (00:04:32.380) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 16 0E 06 11 00 11 03
 I (00:04:32.380) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature - 17°C (temp2: 0°C)
 02 00 62 FF FF 80 00 16 0E 06 11 00 11 03
 I (00:04:32.450) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 31 0E 21 11 AD BE 03
-W (00:04:32.450) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature (alt) - OK (raw 0x11), temp2: INVALID (raw 0xAD)
+W (00:04:32.450) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature (alt) - 17°C, temp2: INVALID (raw 0xAD)
 02 00 62 FF FF 80 00 31 0E 21 11 AD BE 03
 
 I (65801381) MSG_DECODER: RX MSG: 02 00 70 FF FF 80 00 16 0D 13 12 12 03
