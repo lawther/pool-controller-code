@@ -1,0 +1,37 @@
+My Capture
+I (08:56:06.526) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 16 0E 06 16 00 16 03
+I (08:56:06.526) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature - 22°C (temp2: 0°C)
+02 00 62 FF FF 80 00 16 0E 06 16 00 16 03
+I (08:56:06.596) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 31 0E 21 16 A6 BC 03
+W (08:56:06.596) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature (alt) - OK (raw 0x16), temp2: INVALID (raw 0xA6)
+02 00 62 FF FF 80 00 31 0E 21 16 A6 BC 03
+
+Alternate Skymuster
+I (12:58:59.419) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 16 0E 06 00 00 00 03
+I (12:58:59.419) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature - 0°C (temp2: 0°C)
+02 00 62 FF FF 80 00 16 0E 06 00 00 00 03
+I (12:58:59.489) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 31 0E 21 AF AF 5E 03
+W (12:58:59.489) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature (alt) - INVALID (raw 0xAF), temp2: INVALID (raw 0xAF)
+02 00 62 FF FF 80 00 31 0E 21 AF AF 5E 03
+
+I (12:59:05.169) MSG_DECODER: RX MSG: 02 00 72 FF FF 80 00 16 0D 15 0F 0F 03
+I (12:59:05.169) MSG_DECODER: [Unknown 0x0072 -> Broadcast] Current temperature - 15°C
+02 00 72 FF FF 80 00 16 0D 15 0F 0F 03
+I (12:59:05.639) MSG_DECODER: RX MSG: 02 00 72 FF FF 80 00 17 0E 17 25 0A 2F 03
+W (12:59:05.639) MSG_DECODER: Unhandled [Unknown 0x0072 -> Broadcast] CMD=0x17 (Temperature Setting) LEN=14 payload=[25 0A]
+02 00 72 FF FF 80 00 17 0E 17 25 0A 2F 03
+
+Alternate Ninkasi
+I (00:04:32.380) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 16 0E 06 11 00 11 03
+I (00:04:32.380) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature - 17°C (temp2: 0°C)
+02 00 62 FF FF 80 00 16 0E 06 11 00 11 03
+I (00:04:32.450) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 31 0E 21 11 AD BE 03
+W (00:04:32.450) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature (alt) - OK (raw 0x11), temp2: INVALID (raw 0xAD)
+02 00 62 FF FF 80 00 31 0E 21 11 AD BE 03
+
+I (65801381) MSG_DECODER: RX MSG: 02 00 70 FF FF 80 00 16 0D 13 12 12 03
+I (65801381) MSG_DECODER: [Genus Heater -> Broadcast] Current temperature - 18°C
+02 00 70 FF FF 80 00 16 0D 13 12 12 03
+I (65801721) MSG_DECODER: RX MSG: 02 00 70 FF FF 80 00 17 0E 15 18 19 31 03
+I (65801721) MSG_DECODER: [Genus Heater -> Broadcast] Genus Heater setpoints - heater1=24°C, heater2=25°C
+02 00 70 FF FF 80 00 17 0E 15 18 19 31 03

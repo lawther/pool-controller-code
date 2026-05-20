@@ -1,7 +1,9 @@
 /**
- * Mock esp_log.h for host-based testing
+ * Mock esp_log.h for host-based testing.
  *
- * This provides minimal ESP logging macros for testing without ESP-IDF.
+ * Logs route through log_capture_emit(). When log_capture_enabled is true
+ * (set by the replay harness) emissions are buffered for comparison; otherwise
+ * they print to stdout, matching the original unit-test behaviour.
  */
 
 #ifndef ESP_LOG_H
@@ -9,7 +11,8 @@
 
 #include <stdio.h>
 
-// Log levels
+#include "log_capture.h"
+
 typedef enum {
     ESP_LOG_NONE,
     ESP_LOG_ERROR,
@@ -19,11 +22,10 @@ typedef enum {
     ESP_LOG_VERBOSE
 } esp_log_level_t;
 
-// Logging macros - output to stdout for tests
-#define ESP_LOGE(tag, format, ...) printf("[ERROR][%s] " format "\n", tag, ##__VA_ARGS__)
-#define ESP_LOGW(tag, format, ...) printf("[WARN][%s] " format "\n", tag, ##__VA_ARGS__)
-#define ESP_LOGI(tag, format, ...) printf("[INFO][%s] " format "\n", tag, ##__VA_ARGS__)
-#define ESP_LOGD(tag, format, ...) printf("[DEBUG][%s] " format "\n", tag, ##__VA_ARGS__)
-#define ESP_LOGV(tag, format, ...) printf("[VERBOSE][%s] " format "\n", tag, ##__VA_ARGS__)
+#define ESP_LOGE(tag, format, ...) log_capture_emit('E', tag, format, ##__VA_ARGS__)
+#define ESP_LOGW(tag, format, ...) log_capture_emit('W', tag, format, ##__VA_ARGS__)
+#define ESP_LOGI(tag, format, ...) log_capture_emit('I', tag, format, ##__VA_ARGS__)
+#define ESP_LOGD(tag, format, ...) log_capture_emit('D', tag, format, ##__VA_ARGS__)
+#define ESP_LOGV(tag, format, ...) log_capture_emit('V', tag, format, ##__VA_ARGS__)
 
-#endif // ESP_LOG_H
+#endif
