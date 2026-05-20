@@ -30,6 +30,7 @@ This document describes the proprietary serial protocol used by the Connect 10 p
   - [0x27 — Valve State Broadcast ✅](#0x27--valve-state-broadcast-)
   - [0x28 — Valve Control Command ✅](#0x28--valve-control-command-)
   - [0x2A — Mode/Favourite Control Command ✅](#0x2a--modefavourite-control-command-)
+  - [0x2B — Unknown ⚠️](#0x2b--unknown-️)
   - [0x31 — Water Temperature Reading (alt) ✅](#0x31--water-temperature-reading-alt-)
   - [0x37 — Internet Gateway Info ⚠️](#0x37--internet-gateway-info-️)
   - [0x38 — Register Data ⚠️](#0x38--register-data-️)
@@ -135,6 +136,7 @@ Click any CMD in the first column to jump to the full section in [Commands](#com
 | [`0x27`](#0x27--valve-state-broadcast-)                        | Valve State Broadcast               | `0x0050` → Broadcast                                                   | Two LEN variants: `0x0D` (short) and `0x13` (full)                                          | Yes (both variants)     |
 | [`0x28`](#0x28--valve-control-command-)                        | Valve Control Command               | `0x00F0` Gateway → Broadcast                                           |                                                                                             | **No (doc only)**       |
 | [`0x2A`](#0x2a--modefavourite-control-command-)                | Mode/Favourite Control Command      | `0x00F0` Gateway → `0x0050` Touchscreen                                | Unicast                                                                                     | Yes                     |
+| [`0x2B`](#0x2b--unknown-️)                                     | Unknown                             | `0x0062` Connect 8/10 → `0x0050` Touchscreen                          | Unicast; payload `[02 00]` observed; meaning unknown                                        | **No (doc only)**       |
 | [`0x31`](#0x31--water-temperature-reading-alt-)                | Water Temperature Reading (alt)     | `0x0062` → Broadcast                                                   | Same `{temp1, temp2}` field layout as `0x16`; different disconnected encoding (`>= 0xA0` vs `0x00`); shared handler, log-only | Yes (unified handler)   |
 | [`0x37`](#0x37--internet-gateway-info-️)                       | Internet Gateway Info               | `0x00F0` → Broadcast                                                   | LEN distinguishes serial (`0x11`), network config (`0x15`), comms status (`0x0F`) variants  | Yes (3 handlers)        |
 | [`0x38`](#0x38--register-data-️)                               | Register Data (Response)            | `0x0050` Touchscreen → Broadcast                                       | Universal register system — sub-dispatched by register + slot (see [Appendix A](#appendix-a-register-dispatch-table)); dispatched on CMD byte alone | Yes (unified handler)   |
@@ -1137,6 +1139,32 @@ Command sent by the Internet Gateway (`0x00F0`) to the Touchscreen (`0x0050`) to
 - Up to 6 user Favourites are supported (`0x02`–`0x07`). The labels for all 8 slots (including the Pool and Spa built-ins) are stored in registers `0x31`–`0x38` (slot `0x03`), readable via the register protocol ([0x38](#0x38--register-data-️))
 - Each slot's enabled/disabled state is stored in registers `0x21`–`0x28` (slot `0x03`), with `0x01` = enabled and `0x00` = disabled. Pool (`0x21`) and Spa (`0x22`) are always `0x01`. All Off (`0x80`) and All Auto (`0x81`) have no corresponding enable registers and are always available
 - This command requires the sender to impersonate the Internet Gateway (source address `0x00F0`)
+
+---
+
+### 0x2B — Unknown ⚠️
+
+Unicast message sent by the Connect 8/10 Controller (`0x0062`) directly to the Touchscreen (`0x0050`). Purpose is unknown.
+
+**Pattern:** `02 00 62 00 50 80 00 2B 0E 6D`
+
+**Example:**
+
+```
+02 00 62 00 50 80 00 2B 0E 6D 02 00 02 03
+                              ^^ ^^ Unknown payload bytes
+```
+
+**Data Fields:**
+
+- Byte 10: `0x02` — meaning unknown
+- Byte 11: `0x00` — meaning unknown
+
+**Notes:**
+
+- Payload `02 00` is the only value observed across all captures.
+- Sent approximately every 60 seconds.
+- Not decoded in firmware — logged as unhandled.
 
 ---
 
