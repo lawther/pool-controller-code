@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - Added tests runner for message decoder to make it easier to track changes and prevent regressions
+- Added GitHub Actions workflow that runs the host-based test suite on every push and pull request
 ### Changed
 ### Removed
 ### Fixed
