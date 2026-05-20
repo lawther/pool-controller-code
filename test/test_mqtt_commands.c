@@ -10,25 +10,28 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "../main/mqtt_commands.h"
-#include "driver/uart.h"
+#include "../main/pool_state.h"
 
 // ======================================================
-// UART spy
+// Bus spy
+//
+// mqtt_commands.c sends frames via bus_send_bytes() (see main/bus.h). We
+// intercept that call here so each test can assert on the exact bytes the
+// command builder produced.
 // ======================================================
 
 static uint8_t  s_uart_buf[64];
 static int      s_uart_len   = 0;
 static int      s_uart_calls = 0;
 
-int uart_write_bytes(uart_port_t uart_num, const char *src, size_t size)
+int bus_send_bytes(const uint8_t *data, size_t len)
 {
-    (void)uart_num;
-    s_uart_len = (int)size;
+    s_uart_len = (int)len;
     s_uart_calls++;
-    if (size <= sizeof(s_uart_buf)) {
-        memcpy(s_uart_buf, src, size);
+    if (len <= sizeof(s_uart_buf)) {
+        memcpy(s_uart_buf, data, len);
     }
-    return (int)size;
+    return (int)len;
 }
 
 static void uart_spy_reset(void)
@@ -37,6 +40,29 @@ static void uart_spy_reset(void)
     s_uart_len   = 0;
     s_uart_calls = 0;
 }
+
+// ======================================================
+// FreeRTOS / pool_state globals
+//
+// mqtt_commands.c references s_pool_state and s_pool_state_mutex (used by the
+// favourite-name lookup) and takes the mutex via xSemaphoreTake. The
+// favourite tests in this file don't exercise that path, but the symbols
+// must exist at link time. Leaving the mutex NULL makes mqtt_commands.c skip
+// the favourites lookup safely.
+// ======================================================
+
+pool_state_t       s_pool_state;
+SemaphoreHandle_t  s_pool_state_mutex = NULL;
+
+uint32_t xTaskGetTickCount(void) { return 1000; }
+
+BaseType_t xSemaphoreTake(SemaphoreHandle_t s, TickType_t t)
+{
+    (void)s; (void)t;
+    return pdTRUE;
+}
+
+void xSemaphoreGive(SemaphoreHandle_t s) { (void)s; }
 
 // ======================================================
 // mqtt_get_device_id stub — fixed ID used in all topics

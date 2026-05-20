@@ -18,12 +18,11 @@ SKIPPED=()
 # interfaces. Keep this list small — entries here are tech debt, not
 # permanent exclusions.
 SKIP_LIST=(
-    test_message_decoder.c   # get_device_name signature, pool_state fields
-    test_mqtt_commands.c     # missing stubs: bus_send_bytes, s_pool_state*, semaphore mocks
 )
 
 is_skipped() {
     local needle="$1"
+    if [ ${#SKIP_LIST[@]} -eq 0 ]; then return 1; fi
     for s in "${SKIP_LIST[@]}"; do
         if [ "$s" = "$needle" ]; then return 0; fi
     done
