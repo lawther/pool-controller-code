@@ -36,6 +36,7 @@ This document describes the proprietary serial protocol used by the Connect 10 p
   - [0x38 — Register Data ⚠️](#0x38--register-data-️)
   - [0x39 — Register Read Request ✅](#0x39--register-read-request-)
   - [0x3A — Register Write / Control ✅](#0x3a--register-write--control-)
+  - [0x3B — ??Internal Salt Cell Status ⚠️](#0x3b--internal-salt-cell-status-️)
   - [0xFD — Controller Day/Time/Clock ✅](#0xfd--controller-daytimeclock-)
 - [Appendix A: Register Dispatch Table](#appendix-a-register-dispatch-table)
 - [Implementation Notes](#implementation-notes)
@@ -142,6 +143,7 @@ Click any CMD in the first column to jump to the full section in [Commands](#com
 | [`0x38`](#0x38--register-data-️)                               | Register Data (Response)            | `0x0050` Touchscreen → Broadcast                                       | Universal register system — sub-dispatched by register + slot (see [Appendix A](#appendix-a-register-dispatch-table)); dispatched on CMD byte alone | Yes (unified handler)   |
 | [`0x39`](#0x39--register-read-request-)                        | Register Read Request               | `0x00F0` Gateway → Broadcast                                           | Dispatched on CMD byte alone                                                                | Yes (unified handler)   |
 | [`0x3A`](#0x3a--register-write--control-)                      | Register Write / Control            | `0x00F0` Gateway → Broadcast                                           | Used for Light Zone Control (`0xC0`–`0xC7`/slot `0x01`), Heater Control (`0xE6`/slot `0x00`), and Heater 2 setpoint (`0xEA`, tentative) | Yes (both)              |
+| [`0x3B`](#0x3b--internal-salt-cell-status-️)                   | ?? Internal Salt Cell Status           | `0x00A0` → Broadcast                                                   | Payload `[06 40]`, `[00 00]`, `[08 02]`, `[04 65]` observed; meanings unknown       | **No (doc only)**       |
 | [`0xFD`](#0xfd--controller-daytimeclock-)                      | Controller Day/Time/Clock           | `0x0050` → Broadcast                                                   |                                                                                             | Yes                     |
 
 ---
@@ -1577,6 +1579,50 @@ Turns the (primary) heater on or off. Heater 1 only — see [Appendix A](#append
 
 - Unlike light zones (slot `0x01`), the heater uses slot `0x00`.
 - The controller will respond with an updated heater state via the Connect 8/10 Controller variant of [0x12 — Device Status](#0x12--device-status-️).
+
+---
+
+### 0x3B — ?? Internal Salt Cell Status ⚠️
+
+Broadcast emitted by the Internal Salt Cell (`0x00A0`). Suspected to carry diagnostic or status information about the cell.
+
+**Pattern:** `02 00 A0 FF FF 80 00 3B 0E 69`
+
+**Examples:**
+
+```
+02 00 A0 FF FF 80 00 3B 0E 69 06 40 46 03   Payload [06 40]
+02 00 A0 FF FF 80 00 3B 0E 69 00 00 00 03   Payload [00 00]
+02 00 A0 FF FF 80 00 3B 0E 69 08 02 0A 03   Payload [08 02]
+02 00 A0 FF FF 80 00 3B 0E 69 04 65 69 03   Payload [04 65]
+```
+
+**Data Fields:**
+
+- Byte 10: Status/Type field? Observed: `0x00`, `0x04`, `0x06`, `0x08`. Looks like status bits.
+- Byte 11: Status/Type field? Observed: `0x00`, `0x65`, `0x40`, `0x02`. Looks like status bits.
+
+**Notes:**
+
+- ⚠️ Meaning of bytes 10 and 11 is currently unknown.
+- Documented only — no handler in `message_decoder.c` yet.
+- **Low Salt Event Analysis:** During a live test, the chlorine output level was increased from 2 to 6, triggering a specific sequence of internal states:
+  - **BEFORE (Healthy):** Prior to test start (08:56 AEST), the system was stable:
+    - `CMD 0x3B` (Device `0x00A0`): Payload `[06 40]` (Healthy bitmask)
+  - **DURING (Transient State, 08:56:31 AEST / 22:56:31 UTC):** The system temporarily paused the pump (30-60s). The screen read "PUMP/CHLORINATOR OFF 0-". The "Pool Mode" "off" status LED was lit, and "Low Salt" indicator was not lit.
+  - **DURING (Sanitizing State, 08:57:00 AEST):** The screen changed to "SANITIZING POOL TIMER ON 6-". The "Pool Mode" LED "Auto" was lit, and the "Low Salt" indicator was briefly lit.
+  - **DURING (Fault Broadcast, 08:58:31 AEST / 22:58:31 UTC):** The `0x3B` payload shifted to fault `[04 65]`.
+  - **AFTER (Setpoint Reverted):** After 08:59 AEST, the setpoint was returned to 2. The fault state remained:
+    - `CMD 0x3B` (Device `0x00A0`): Payload `[04 65]` (still reporting Fault)
+  - **RECOVERY (10:04 AEST / 00:04 UTC):** Over an hour later, the cell status finally returned to healthy:
+    - `CMD 0x3B` (Device `0x00A0`): Payload `[06 40]` (Returned to Healthy bitmask)
+  - **Bitmask Interpretation:**
+    - **Healthy (`[06 40]`):** `0x06` (`00000110` - bits 1, 2) and `0x40` (`01000000` - bit 6).
+    - **Idle/Off (`[00 00]`):** Both bytes zero (observed at 22:50:23 UTC). Not sure what happened at this time.
+    - **Unsure (`[08 02]`):** `0x08` (`00001000` - bit 3) and `0x02` (`00000010` - bit 1). Observed briefly at 22:51:22 UTC. Not sure what happened at this time
+    - **Fault (`[04 65]`):** `0x04` (`00000100` - bit 2) and `0x65` (`01100101` - bits 0, 2, 5, 6).
+    - **Analysis:** 
+      - Setting bits 0, 2, and 5 in the second byte at the moment of the "Low Salt" light suggests these bits encode specific fault conditions. 
 
 ---
 

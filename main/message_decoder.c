@@ -102,6 +102,9 @@ static const char *MSG_TYPE_ICI_HEATER_TEMP_SETTING = "02 00 74 FF FF 80 00 17 0
 static const char *MSG_TYPE_CHLOR_STATUS_A = "02 00 90 FF FF 80 00 12 0D 2F";
 static const char *MSG_TYPE_CHLOR_STATUS_B = "02 00 84 FF FF 80 00 12 0D 23";
 
+// Internal Salt Cell status broadcast (CMD 0x3B)
+static const char *MSG_TYPE_INTERNAL_SALT_CELL_STATUS = "02 00 A0 FF FF 80 00 3B 0E 69";
+
 // F0 Internet Gateway
 static const char *MSG_TYPE_SERIAL_NUMBER =           "02 00 F0 FF FF 80 00 37 11 B8";
 static const char *MSG_TYPE_GATEWAY_IP =              "02 00 F0 FF FF 80 00 37 15 BC";
@@ -1831,6 +1834,27 @@ static bool handle_chlor_orp_reading(
 }
 
 /**
+ * Handler: Internal Salt Cell status (CMD 0x3B)
+ */
+static bool handle_internal_salt_cell_status(
+    const uint8_t *data, int len,
+    const uint8_t *payload, int payload_len,
+    const char *addr_info,
+    message_decoder_context_t *ctx)
+{
+    if (payload_len < 2) return false;
+
+    uint8_t status1 = payload[0];
+    uint8_t status2 = payload[1];
+    
+    ESP_LOGI(TAG, "%s Internal Salt Cell - Status1: 0x%02X, Status2: 0x%02X", 
+             addr_info, status1, status2);
+
+    // TODO: Update pool_state once we've confirmed fields for these values
+    return true;
+}
+
+/**
  * Handler: Chlorinator status broadcast (PROTOCOL.md §32)
  * Patterns: "02 00 90 FF FF 80 00 12 0D 2F" (variant A)
  *           "02 00 84 FF FF 80 00 12 0D 23" (variant B)
@@ -2851,6 +2875,11 @@ static bool dispatch_message(
     if (match_pattern(data, len, MSG_TYPE_CHLOR_STATUS_A) ||
         match_pattern(data, len, MSG_TYPE_CHLOR_STATUS_B)) {
         return handle_chlor_status(data, len, payload, payload_len, addr_info, ctx);
+    }
+
+    // Internal Salt Cell status (CMD 0x3B)
+    if (match_pattern(data, len, MSG_TYPE_INTERNAL_SALT_CELL_STATUS)) {
+        return handle_internal_salt_cell_status(data, len, payload, payload_len, addr_info, ctx);
     }
 
     // Gateway messages
