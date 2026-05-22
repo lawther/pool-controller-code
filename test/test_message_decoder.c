@@ -39,6 +39,7 @@ void mqtt_publish_setpoints(const pool_state_t *state) {}
 void mqtt_publish_temperature_reading(const pool_state_t *state, int dev_idx, uint8_t sensor_index) {}
 void mqtt_publish_heater(const pool_state_t *state, int index) {}
 void mqtt_publish_chlorinator(const pool_state_t *state) {}
+void mqtt_publish_pump(const pool_state_t *state) {}
 void mqtt_publish_light(const pool_state_t *state, uint8_t zone) {}
 void mqtt_publish_channel(const pool_state_t *state, uint8_t channel) {}
 void mqtt_publish_valve(const pool_state_t *state, uint8_t valve_num) {}
@@ -514,6 +515,129 @@ void test_decode_chlor_orp_setpoint(void)
 }
 
 /**
+ * Test: Pump speed — 1125 RPM
+ * Real message from log: 02 00 A0 FF FF 80 00 3B 0E 69 04 65 69 03
+ * Payload bytes 10-11 big-endian: 0x04 0x65 = 1125
+ */
+void test_decode_pump_speed_1125(void)
+{
+    init_test_context();
+
+    uint8_t msg[] = {
+        0x02,                   // Start
+        0x00, 0xA0,             // Source: Viron XT Pump
+        0xFF, 0xFF,             // Dest: Broadcast
+        0x80, 0x00,             // Control
+        0x3B, 0x0E,             // CMD 0x3B, LEN 14
+        0x69,                   // Header checksum (sum bytes 0-8 = 873, & 0xFF = 0x69)
+        0x04, 0x65,             // Speed: big-endian 0x0465 = 1125 RPM
+        0x69,                   // Data checksum (0x04+0x65 = 0x69)
+        0x03                    // End
+    };
+
+    bool decoded = decode_message(msg, sizeof(msg), &test_ctx);
+
+    TEST_ASSERT(decoded, "Pump speed 1125 RPM should be decoded");
+    TEST_ASSERT(test_pool_state.pump_speed_valid, "pump_speed_valid should be set");
+    TEST_ASSERT(test_pool_state.pump_speed == 1125, "pump_speed should be 1125 RPM");
+}
+
+/**
+ * Test: Pump speed — 1350 RPM
+ * Real message from log: 02 00 A0 FF FF 80 00 3B 0E 69 05 46 4B 03
+ * Payload bytes 10-11 big-endian: 0x05 0x46 = 1350
+ */
+void test_decode_pump_speed_1350(void)
+{
+    init_test_context();
+
+    uint8_t msg[] = {
+        0x02, 0x00, 0xA0, 0xFF, 0xFF, 0x80, 0x00,
+        0x3B, 0x0E, 0x69,
+        0x05, 0x46,   // 0x0546 = 1350 RPM
+        0x4B,         // Data checksum (0x05+0x46 = 0x4B)
+        0x03
+    };
+
+    bool decoded = decode_message(msg, sizeof(msg), &test_ctx);
+
+    TEST_ASSERT(decoded, "Pump speed 1350 RPM should be decoded");
+    TEST_ASSERT(test_pool_state.pump_speed_valid, "pump_speed_valid should be set");
+    TEST_ASSERT(test_pool_state.pump_speed == 1350, "pump_speed should be 1350 RPM");
+}
+
+/**
+ * Test: Pump speed — 1500 RPM
+ * Real message from log: 02 00 A0 FF FF 80 00 3B 0E 69 05 DC E1 03
+ * Payload bytes 10-11 big-endian: 0x05 0xDC = 1500
+ */
+void test_decode_pump_speed_1500(void)
+{
+    init_test_context();
+
+    uint8_t msg[] = {
+        0x02, 0x00, 0xA0, 0xFF, 0xFF, 0x80, 0x00,
+        0x3B, 0x0E, 0x69,
+        0x05, 0xDC,   // 0x05DC = 1500 RPM
+        0xE1,         // Data checksum (0x05+0xDC = 0xE1)
+        0x03
+    };
+
+    bool decoded = decode_message(msg, sizeof(msg), &test_ctx);
+
+    TEST_ASSERT(decoded, "Pump speed 1500 RPM should be decoded");
+    TEST_ASSERT(test_pool_state.pump_speed_valid, "pump_speed_valid should be set");
+    TEST_ASSERT(test_pool_state.pump_speed == 1500, "pump_speed should be 1500 RPM");
+}
+
+/**
+ * Test: Pump speed — 0 RPM (pump stopped/transitioning)
+ * Real message from log: 02 00 A0 FF FF 80 00 3B 0E 69 00 00 00 03
+ */
+void test_decode_pump_speed_zero(void)
+{
+    init_test_context();
+
+    uint8_t msg[] = {
+        0x02, 0x00, 0xA0, 0xFF, 0xFF, 0x80, 0x00,
+        0x3B, 0x0E, 0x69,
+        0x00, 0x00,   // 0 RPM
+        0x00,         // Data checksum
+        0x03
+    };
+
+    bool decoded = decode_message(msg, sizeof(msg), &test_ctx);
+
+    TEST_ASSERT(decoded, "Pump speed 0 RPM should be decoded");
+    TEST_ASSERT(test_pool_state.pump_speed_valid, "pump_speed_valid should be set even for 0 RPM");
+    TEST_ASSERT(test_pool_state.pump_speed == 0, "pump_speed should be 0 RPM");
+}
+
+/**
+ * Test: Pump button activity (CMD 0x1B) — decoded but no state change
+ * Real message from log: 02 00 A0 FF FF 80 00 1B 0D 48 01 01 03
+ */
+void test_decode_pump_activity(void)
+{
+    init_test_context();
+
+    uint8_t msg[] = {
+        0x02, 0x00, 0xA0, 0xFF, 0xFF, 0x80, 0x00,
+        0x1B, 0x0D,   // CMD 0x1B, LEN 13
+        0x48,         // Header checksum (sum bytes 0-8 = 840, & 0xFF = 0x48)
+        0x01,         // Activity value 0x01
+        0x01,         // Data checksum
+        0x03
+    };
+
+    bool decoded = decode_message(msg, sizeof(msg), &test_ctx);
+
+    TEST_ASSERT(decoded, "Pump activity message should be decoded (log-only)");
+    TEST_ASSERT(!test_pool_state.pump_speed_valid,
+                "pump_speed_valid should remain unset after activity-only message");
+}
+
+/**
  * Run all tests
  */
 int main(void)
@@ -547,6 +671,14 @@ int main(void)
     printf("\n--- Chlorinator Tests ---\n");
     test_decode_chlor_ph_setpoint();
     test_decode_chlor_orp_setpoint();
+
+    // Pump tests
+    printf("\n--- Pump Tests ---\n");
+    test_decode_pump_speed_1125();
+    test_decode_pump_speed_1350();
+    test_decode_pump_speed_1500();
+    test_decode_pump_speed_zero();
+    test_decode_pump_activity();
 
     // Malformed message tests
     printf("\n--- Malformed Message Tests ---\n");

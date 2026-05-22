@@ -23,6 +23,7 @@ This document describes the proprietary serial protocol used by the Connect 10 p
   - [0x17 — Temperature Settings ✅](#0x17--temperature-settings-)
   - [0x18 — Chlorinator Cell Mode ⚠️](#0x18--chlorinator-cell-mode-️)
   - [0x19 — Temperature Setpoint Command ✅](#0x19--temperature-setpoint-command-)
+  - [0x1B — Pump Button Activity ⚠️](#0x1b--pump-button-activity-️)
   - [0x1D — Chlorinator Setpoint ✅](#0x1d--chlorinator-setpoint-)
   - [0x1F — Chlorinator Reading ✅](#0x1f--chlorinator-reading-)
   - [0x25 — Valve Sync ✅](#0x25--valve-sync-)
@@ -36,6 +37,7 @@ This document describes the proprietary serial protocol used by the Connect 10 p
   - [0x38 — Register Data ⚠️](#0x38--register-data-️)
   - [0x39 — Register Read Request ✅](#0x39--register-read-request-)
   - [0x3A — Register Write / Control ✅](#0x3a--register-write--control-)
+  - [0x3B — Pump Speed Telemetry ✅](#0x3b--pump-speed-)
   - [0xFD — Controller Day/Time/Clock ✅](#0xfd--controller-daytimeclock-)
 - [Appendix A: Register Dispatch Table](#appendix-a-register-dispatch-table)
 - [Implementation Notes](#implementation-notes)
@@ -102,7 +104,7 @@ uint8_t data_checksum = sum & 0xFF;
 | `0x007F` | Internal Genus? 0x7F | Internal temperature module?   |
 | `0x0084` | Viron Chlorinator | Chemistry/chlorinator module (alternate variant; mutually exclusive with `0x0090`) |
 | `0x0090` | RolaChem          | Chemistry/chlorinator module      |
-| `0x00A0` | Internal Salt Cell | Chlorine generator / salt cell (suspected; subordinate to `0x0084`) |
+| `0x00A0` | Viron Pump        | Viron XT Variable Speed Pump      |
 | `0x00F0` | Internet Gateway  | Internet gateway module           |
 | `0xFFFF` | Broadcast         | Broadcast to all devices          |
 
@@ -118,7 +120,7 @@ Click any CMD in the first column to jump to the full section in [Commands](#com
 |----------------------------------------------------------------|-------------------------------------|------------------------------------------------------------------------|---------------------------------------------------------------------------------------------|-------------------------|
 | [`0x05`](#0x05--touchscreen-activation-ack-️)                  | Touchscreen Activation Ack          | `0x0050` → Broadcast                                                   | 1-byte payload `0x01`; sent after mode/favourite changes                                    | Yes (log-only)          |
 | [`0x06`](#0x06--lighting-zone-configuration-)                  | Lighting Zone Configuration         | `0x0050` → Broadcast                                                   |                                                                                             | Yes                     |
-| [`0x0A`](#0x0a--firmware-version-)                             | Firmware Version                    | `0x0050`, `0x0062`, `0x0070`, `0x0084`, `0x00F0` → Broadcast           | Same `{major, minor}` payload across all 5 sources; dispatched on CMD byte alone            | Yes (unified handler)   |
+| [`0x0A`](#0x0a--firmware-version-)                             | Firmware Version                    | `0x0050`, `0x0062`, `0x0070`, `0x0084`, `0x00A0`, `0x00F0` → Broadcast | Same `{major, minor}` payload across all sources; dispatched on CMD byte alone              | Yes (unified handler)   |
 | [`0x0B`](#0x0b--channel-status-)                               | Channel Status                      | `0x0050` → Broadcast                                                   |                                                                                             | Yes                     |
 | [`0x0D`](#0x0d--active-channels-bitmask-)                      | Active Channels Bitmask             | `0x0050` → `0x006F` Internal Channels                                  | Unicast                                                                                     | Yes                     |
 | [`0x0F`](#0x0f--chlorinator-mode--touchscreen-️)               | Chlorinator Mode → Touchscreen      | `0x0084` → `0x0050`                                                    | 2-byte `[01, mode]`; mirrors [0x18](#0x18--chlorinator-cell-mode-️) cell mode               | **No (doc only)**       |
@@ -127,7 +129,8 @@ Click any CMD in the first column to jump to the full section in [Commands](#com
 | [`0x14`](#0x14--mode-spapool-)                                 | Mode (Spa/Pool)                     | `0x0050` → Broadcast                                                   |                                                                                             | Yes                     |
 | [`0x16`](#0x16--water-temperature-reading-)                    | Water Temperature Reading           | `0x0062` (LEN `0x0E`), `0x0070`/`0x0072`/`0x0074` (LEN `0x0D`) → Broadcast | Payload length differs by source: LEN `0x0E` = `{temp1, temp2}`, LEN `0x0D` = `{temp1}`; dispatched on CMD byte alone | Yes (unified handler)   |
 | [`0x17`](#0x17--temperature-settings-)                         | Temperature Settings                | `0x0050` (LEN `0x10`), `0x0070`/`0x0074` (LEN `0x0E`) → Broadcast | Source-dependent payload layout                                                             | Yes (per-source)        |
-| [`0x18`](#0x18--chlorinator-cell-mode-️)                       | Chlorinator Cell Mode               | `0x0084`, `0x0050` → `0x00A0` Internal Salt Cell                       | Inter-device unicast                                                                        | **No (doc only)**       |
+| [`0x18`](#0x18--chlorinator-cell-mode-️)                       | Chlorinator Cell Mode               | `0x0084`, `0x0050` → `0x00A0` Viron XT Pump                            | Inter-device unicast                                                                        | **No (doc only)**       |
+| [`0x1B`](#0x1b--pump-button-activity-️)                        | Pump Button Activity                | `0x00A0` Viron XT Pump → Broadcast                                      | 1-byte payload; burst when pump panel buttons pressed                                       | Yes (log-only)          |
 | [`0x19`](#0x19--temperature-setpoint-command-)                 | Temperature Setpoint Command        | `0x00F0` Gateway, `0x0050` Touchscreen → Broadcast                     | Sub-dispatched by slot byte (`0x01`/`0x02` Pool/Spa from Gateway, `0x03` heater pair from Touchscreen); dispatched on CMD byte alone | Yes (unified handler)   |
 | [`0x1D`](#0x1d--chlorinator-setpoint-)                         | Chlorinator Setpoint                | `0x0090` RolaChem, `0x0084` Viron → Broadcast                          | Byte 10: `0x01`=pH, `0x02`=ORP; same payload from both sources; dispatched on CMD byte alone | Yes (unified handler)   |
 | [`0x1F`](#0x1f--chlorinator-reading-)                          | Chlorinator Reading                 | `0x0090` RolaChem, `0x0084` Viron → Broadcast                          | Byte 10: `0x01`=pH, `0x02`=ORP; same payload from both sources; dispatched on CMD byte alone | Yes (unified handler)   |
@@ -142,6 +145,7 @@ Click any CMD in the first column to jump to the full section in [Commands](#com
 | [`0x38`](#0x38--register-data-️)                               | Register Data (Response)            | `0x0050` Touchscreen → Broadcast                                       | Universal register system — sub-dispatched by register + slot (see [Appendix A](#appendix-a-register-dispatch-table)); dispatched on CMD byte alone | Yes (unified handler)   |
 | [`0x39`](#0x39--register-read-request-)                        | Register Read Request               | `0x00F0` Gateway → Broadcast                                           | Dispatched on CMD byte alone                                                                | Yes (unified handler)   |
 | [`0x3A`](#0x3a--register-write--control-)                      | Register Write / Control            | `0x00F0` Gateway → Broadcast                                           | Used for Light Zone Control (`0xC0`–`0xC7`/slot `0x01`), Heater Control (`0xE6`/slot `0x00`), and Heater 2 setpoint (`0xEA`, tentative) | Yes (both)              |
+| [`0x3B`](#0x3b--pump-speed-)                                   | Pump Speed Telemetry                | `0x00A0` Viron XT Pump → Broadcast                                      | 2-byte big-endian RPM value; broadcast every ~60 seconds                                    | Yes                     |
 | [`0xFD`](#0xfd--controller-daytimeclock-)                      | Controller Day/Time/Clock           | `0x0050` → Broadcast                                                   |                                                                                             | Yes                     |
 
 ---
@@ -224,6 +228,7 @@ Firmware-version announcement (`{major, minor}` payload) broadcast by multiple d
 | `0x0062` | Connect 8/10 Controller                  | `02 00 62 FF FF 80 00 0A 0E FA`         | `02 06 08`                     | 2.6           |
 | `0x0070` | Genus Heater (Active i25 Evo)            | `02 00 70 FF FF 80 00 0A 0E 08`         | _(observed; log-only, no dedicated state field)_ | —    |
 | `0x0084` | Viron Chlorinator                        | `02 00 84 FF FF 80 00 0A 0E 1C`         | `05 07 0C`                     | 5.7           |
+| `0x00A0` | Viron XT Pump                            | `02 00 A0 FF FF 80 00 0A 0E 38`         | `01 09 0A`                     | 1.9           |
 | `0x00F0` | Internet Gateway                         | `02 00 F0 FF FF 80 00 0A 0E 88`         | `05 01 06` / `05 00 05`        | 5.1 / 5.0     |
 
 **Example (Internet Gateway, v5.1):**
@@ -332,7 +337,7 @@ Reports which channels are currently active. Unicast from the Touchscreen (`0x00
 
 ### 0x0F — Chlorinator Mode → Touchscreen ⚠️
 
-Inter-device unicast from the Viron Chlorinator (`0x0084`) to the Touchscreen (`0x0050`) reporting the chlorinator's current mode. Counterpart to the `0x18` cell-mode unicast that the chlorinator sends to the Internal Salt Cell (`0x00A0`) — the two messages carry the same mode value and may briefly disagree during transitions.
+Inter-device unicast from the Viron Chlorinator (`0x0084`) to the Touchscreen (`0x0050`) reporting the chlorinator's current mode. Counterpart to the `0x18` cell-mode unicast that the chlorinator sends to the Viron XT Pump (`0x00A0`) — the two messages carry the same mode value and may briefly disagree during transitions.
 
 **Pattern (provisional):** `02 00 84 00 50 80 00 0F ?? ??` (LENGTH and HDR_CHK to be confirmed from a capture)
 
@@ -512,7 +517,7 @@ Observed mode values (tentative; follows the standard channel-state convention f
 | `0x01` | Auto    |
 | `0x02` | On      |
 
-Distinct from the configured *cell* mode at [0x18](#0x18--chlorinator-cell-mode-️) (unicast to the Internal Salt Cell at `0x00A0`). The two can hold different values concurrently — e.g. chlorinator overall = On while cell = Auto. ⚠️ Tentative because a single-device Off↔Auto↔On transition has not been captured.
+Distinct from the configured *cell* mode at [0x18](#0x18--chlorinator-cell-mode-️) (unicast to the Viron XT Pump at `0x00A0`). The two can hold different values concurrently — e.g. chlorinator overall = On while cell = Auto. ⚠️ Tentative because a single-device Off↔Auto↔On transition has not been captured.
 
 ---
 
@@ -752,14 +757,14 @@ Examples:
 
 ### 0x18 — Chlorinator Cell Mode ⚠️
 
-Inter-device unicast carrying the chlorinator's current mode to the Internal Salt Cell (`0x00A0`). Observed on systems with chlorinator address `0x0084` (Viron — mutually exclusive with the `0x0090` RolaChem variant; see [Device Addresses](#device-addresses)). Both the Viron Chlorinator and the Touchscreen can send this — the Touchscreen variant appears when the cell mode is changed from the touchscreen UI.
+Inter-device unicast carrying the chlorinator's current mode to the Viron XT Pump (`0x00A0`). Observed on systems with chlorinator address `0x0084` (Viron — mutually exclusive with the `0x0090` RolaChem variant; see [Device Addresses](#device-addresses)). Both the Viron Chlorinator and the Touchscreen can send this — the Touchscreen variant appears when the cell mode is changed from the touchscreen UI.
 
 **Source variants:**
 
 | Source                     | Destination                  | Payload                | Status |
 |----------------------------|------------------------------|------------------------|--------|
-| `0x0084` Viron Chlorinator | `0x00A0` Internal Salt Cell  | 1 byte — mode value    | ⚠️     |
-| `0x0050` Touchscreen       | `0x00A0` Internal Salt Cell  | 1 byte — mode value    | ⚠️     |
+| `0x0084` Viron Chlorinator | `0x00A0` Viron XT Pump  | 1 byte — mode value    | ⚠️     |
+| `0x0050` Touchscreen       | `0x00A0` Viron XT Pump  | 1 byte — mode value    | ⚠️     |
 
 No handler in `message_decoder.c` — documented only.
 
@@ -809,7 +814,7 @@ The touchscreen sends this when the operator changes cell mode from the UI.
 
 - ⚠️ Mode-value mapping is tentative. Three distinct values (`0x00`, `0x01`, `0x02`) have been observed across one capture; the order seen did not unambiguously match a user-described Manual→Off→Auto sequence. The values match the standard channel-state encoding ([0x0B](#0x0b--channel-status-)) — but whether the labels are Off/Manual/Auto (per the capture) or Off/Auto/On (per the protocol-wide convention) needs another capture pair to confirm.
 - The chlorinator reports its current mode separately to the touchscreen via [CMD 0x0F](#0x0f--chlorinator-mode--touchscreen-️) — the two messages may briefly disagree during transitions.
-- The `0x0090` RolaChem chlorinator variant has not been observed using this command; the `0x18` traffic appears specific to the `0x0084` Viron / `0x00A0` Internal Salt Cell two-module chlorinator topology.
+- The `0x0090` RolaChem chlorinator variant has not been observed using this command; the `0x18` traffic appears specific to the `0x0084` Viron / `0x00A0` Viron XT Pump two-module chlorinator topology.
 
 ---
 
@@ -841,6 +846,44 @@ Command from the Internet Gateway (`0x00F0`) to set the pool or spa temperature 
 
 - The temperature value is repeated at bytes 11 and 12 — this is part of the message format, not two separate sends.
 - The controller will respond with an updated [Temperature Settings message (0x17)](#0x17--temperature-settings-).
+
+---
+
+### 0x1B — Pump Button Activity ⚠️
+
+Broadcast by the Viron XT Pump (`0x00A0`) in a burst when the user presses buttons on the physical pump panel.
+
+**Pattern:** `02 00 A0 FF FF 80 00 1B 0D 48`
+
+**Example:**
+
+```
+02 00 A0 FF FF 80 00 1B 0D 48 01 01 03
+                              ^^ Activity value
+                                 ^^ Data checksum (equals byte 10)
+```
+
+**Data Fields:**
+
+- Byte 10: Activity value (see table below)
+- Byte 11: Data checksum (equals byte 10 — single data byte)
+
+**Observed values:**
+
+| Value  | Observed pattern |
+|--------|------------------|
+| `0x00` | Seen at device boot only; not observed during any speed change |
+| `0x01` | Seen during every observed speed change (both small and large adjustments) |
+| `0x02` | Seen interleaved with `0x01` during longer multi-step adjustments only; never seen alone |
+
+**Notes:**
+
+- During a small speed change (1350 → 1500, +150 RPM): two `0x01` messages, no `0x02`.
+- During a larger speed change (1125 → 1350, +225 RPM): `0x01` and `0x02` interleaved in bursts (pattern: `01 01 02 01 02` … `01 02 01 02`), spread across ~30 s.
+- No `0x1B` messages were observed for the one speed decrease captured (1500 → 1125); 
+- The direction encoded by `0x01` vs `0x02` is unknown — both appeared during speed *increases*. `0x02` may be an auto-repeat or hold event from the same button rather than a separate down/confirm action.
+- The burst stops once the new speed is committed; the next CMD `0x3B` broadcast ~60 s later reflects the updated RPM.
+- Decoded in code by `handle_pump_buttons` — log-only, no `pool_state` update.
 
 ---
 
@@ -1577,6 +1620,45 @@ Turns the (primary) heater on or off. Heater 1 only — see [Appendix A](#append
 
 - Unlike light zones (slot `0x01`), the heater uses slot `0x00`.
 - The controller will respond with an updated heater state via the Connect 8/10 Controller variant of [0x12 — Device Status](#0x12--device-status-️).
+
+---
+
+### 0x3B — Pump Speed ✅
+
+Speed telemetry broadcast by the Viron XT Variable Speed Pump (`0x00A0`). Emitted every ~60 seconds while the pump is running.
+
+**Pattern:** `02 00 A0 FF FF 80 00 3B 0E 69`
+
+**Example:**
+
+```
+02 00 A0 FF FF 80 00 3B 0E 69 04 65 69 03
+                              ^^^^^ Speed in RPM (big-endian uint16)
+                                    ^^ Data checksum (sum of bytes 10–11)
+```
+
+**Data Fields:**
+
+- Bytes 10–11: Pump speed in RPM, **big-endian** `uint16` (e.g. `04 65` = 0x0465 = 1125 RPM)
+- Byte 12: Data checksum (sum of bytes 10–11, masked to 8 bits)
+
+**Observed speed values:**
+
+| Bytes 10–11 | RPM  | Notes                         |
+|-------------|------|-------------------------------|
+| `00 00`     | 0    | Pump stopped (transitioning)  |
+| `04 65`     | 1125 | -                             |
+| `05 46`     | 1350 | —                             |
+| `05 DC`     | 1500 | —                             |
+| `06 40`     | 1600 | —                             |
+| `08 02`     | 2050 | —                             |
+
+**Notes:**
+
+- Encoding is **big-endian** (most-significant byte first), unlike the little-endian convention used elsewhere in this protocol. This likely reflects the pump's own native encoding.
+- Published to MQTT as `pool/{device_id}/pump/state` with JSON payload `{"speed_rpm": <value>}`.
+- Decoded in code by `handle_pump_speed`; speed value stored in `pool_state.pump_speed` / `pool_state.pump_speed_valid`.
+- When buttons are pressed on the pump panel, [CMD `0x1B`](#0x1b--pump-button-activity-️) bursts are emitted first; the next `0x3B` after the ~60 s interval reflects the newly committed speed.
 
 ---
 

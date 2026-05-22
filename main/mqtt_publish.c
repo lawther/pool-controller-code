@@ -429,6 +429,47 @@ void mqtt_publish_chlorinator(const pool_state_t *current_state)
 }
 
 // ======================================================
+// Pump Publishing
+// ======================================================
+
+void mqtt_publish_pump(const pool_state_t *current_state)
+{
+    ESP_LOGD(TAG, "mqtt_publish_pump: speed_rpm=%d valid=%d",
+             current_state->pump_speed, current_state->pump_speed_valid);
+
+    // Check if anything changed
+    if (s_last_published_state.pump_speed_valid == current_state->pump_speed_valid &&
+        s_last_published_state.pump_speed == current_state->pump_speed) {
+        return;  // No change, skip publish
+    }
+
+    char device_id[32];
+    mqtt_get_device_id(device_id, sizeof(device_id));
+
+    char topic[128];
+    snprintf(topic, sizeof(topic), "pool/%s/pump/state", device_id);
+
+    char payload[128];
+    int len = snprintf(payload, sizeof(payload), "{");
+
+    // Pump speed
+    if (current_state->pump_speed_valid) {
+        len += snprintf(payload + len, sizeof(payload) - len,
+                       "\"speed_rpm\":%d}", current_state->pump_speed);
+    } else {
+        len += snprintf(payload + len, sizeof(payload) - len, "\"speed_rpm\":null}");
+    }
+
+    mqtt_publish(topic, payload, 0, true);
+
+    // Update last published state
+    s_last_published_state.pump_speed = current_state->pump_speed;
+    s_last_published_state.pump_speed_valid = current_state->pump_speed_valid;
+
+    ESP_LOGI(TAG, "Published pump: speed_rpm=%d", current_state->pump_speed);
+}
+
+// ======================================================
 // Valve Publishing
 // ======================================================
 
