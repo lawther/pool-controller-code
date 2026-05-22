@@ -118,6 +118,10 @@ static const char *MSG_TYPE_GATEWAY_STATUS =          "02 00 F0 FF FF 80 00 12 0
 // selects Pool/Spa (0x01/0x02, 3-byte payload from 0x00F0 Gateway) or heater
 // pair (0x03, 5-byte payload from 0x0050 Touch Screen to 0x007F).
 
+// A0 Viron Pump Telemetry
+static const char *MSG_TYPE_PUMP_SPEED =              "02 00 A0 FF FF 80 00 3B 0E 69";
+static const char *MSG_TYPE_PUMP_BUTTONS =            "02 00 A0 FF FF 80 00 1B 0D 48";
+
 // F0 Gateway Control Commands (Gateway -> Controller)
 static const char *MSG_TYPE_CHANNEL_TOGGLE_CMD =      "02 00 F0 FF FF 80 00 10 0D 8D";
 static const char *MSG_TYPE_LIGHT_CONTROL_CMD =       "02 00 F0 FF FF 80 00 3A 0F B9";
@@ -428,7 +432,7 @@ const char* get_device_name(uint8_t addr_hi, uint8_t addr_lo, char *fallback_buf
             case 0x74: return "ICI Gas Heater";
             case 0x84: return "Viron Chlorinator";
             case 0x90: return "RolaChem";
-            case 0xA0: return "Internal Salt Cell";
+            case 0xA0: return "Viron XT Pump";
             case 0xF0: return "Internet Gateway";
         }
     }
@@ -2595,6 +2599,60 @@ static bool handle_channel_status(
 }
 
 // ======================================================
+// Viron XT Pump Telemetry (device 0x00A0) Handlers
+// ======================================================
+
+/**
+ * Handler: Pump speed telemetry (CMD 0x3B, source 0x00A0).
+ * Two-byte big-endian RPM value broadcast every ~60 seconds by the
+ * Viron XT Variable Speed Pump. See PROTOCOL.md command `0x3B`.
+ */
+static bool handle_pump_speed(
+    const uint8_t *data, int len,
+    const uint8_t *payload, int payload_len,
+    const char *addr_info,
+    message_decoder_context_t *ctx)
+{
+    if (payload_len < 2) return false;
+
+    uint16_t speed_rpm = ((uint16_t)payload[0] << 8) | payload[1];
+    ESP_LOGI(TAG, "%s Pump speed - %u RPM", addr_info, speed_rpm);
+
+    pool_state_t snapshot;
+    if (!ctx->state_mutex || xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGW(TAG, "Failed to acquire mutex for pump speed");
+        return true;
+    }
+    ctx->pool_state->pump_speed = speed_rpm;
+    ctx->pool_state->pump_speed_valid = true;
+    ctx->pool_state->last_update_ms = xTaskGetTickCount() * portTICK_PERIOD_MS;
+    snapshot = *ctx->pool_state;
+    xSemaphoreGive(ctx->state_mutex);
+
+    if (ctx->enable_mqtt) {
+        mqtt_publish_pump(&snapshot);
+    }
+
+    return true;
+}
+
+/**
+ * Handler: Pump button/UI activity notification (CMD 0x1B, source 0x00A0).
+ * Burst of messages emitted by the pump when physical buttons are pressed.
+ * Log-only — no pool_state update. See PROTOCOL.md command `0x1B`.
+ */
+static bool handle_pump_buttons(
+    const uint8_t *data, int len,
+    const uint8_t *payload, int payload_len,
+    const char *addr_info,
+    message_decoder_context_t *ctx)
+{
+    uint8_t activity = (payload_len >= 1) ? payload[0] : 0xFF;
+    ESP_LOGI(TAG, "%s Pump button activity: 0x%02X", addr_info, activity);
+    return true;
+}
+
+// ======================================================
 // Main decoder function
 // ======================================================
 
@@ -2902,6 +2960,15 @@ static bool dispatch_message(
 
     if (match_pattern(data, len, MSG_TYPE_TOUCHSCREEN_UNKNOWN3)) {
         return handle_touchscreen_unknown3(data, len, payload, payload_len, addr_info, ctx);
+    }
+
+    // Viron Pump Telemetry (0x00A0) messages
+    if (match_pattern(data, len, MSG_TYPE_PUMP_SPEED)) {
+        return handle_pump_speed(data, len, payload, payload_len, addr_info, ctx);
+    }
+
+    if (match_pattern(data, len, MSG_TYPE_PUMP_BUTTONS)) {
+        return handle_pump_buttons(data, len, payload, payload_len, addr_info, ctx);
     }
 
     // No handler matched - log as unknown
