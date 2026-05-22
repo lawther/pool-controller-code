@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Added tests runner for message decoder to make it easier to track changes and prevent regressions
 - Added GitHub Actions workflow that runs the host-based test suite on every push and pull request
+- Added many new unknown registers to PROTOCOL.md
 - Added Viron XT Variable Speed Pump support (device `0x00A0`): decodes speed telemetry (CMD `0x3B`) and pump button activity (CMD `0x1B`)
 ### Changed
 - Renamed device `0x00A0` from "Internal Salt Cell" to "Viron XT Pump"
