@@ -37,22 +37,22 @@ I (65801721) MSG_DECODER: [Genus Heater -> Broadcast] Genus Heater setpoints - h
 02 00 70 FF FF 80 00 17 0E 15 18 19 31 03
 
 Alternate lawther (including firmware version in case it helps explain differences)
-I (00:43:22.064) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 0A 0E FA 02 05 07 03 
-I (00:43:22.066) MSG_DECODER: [Connect 8/10 -> Broadcast] Firmware version - 2.5
-02 00 62 FF FF 80 00 0A 0E FA 02 05 07 03 
-I (00:43:22.134) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 16 0E 06 00 00 00 03 
-I (00:43:22.135) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature - 0°C (temp2: 0°C)
-02 00 62 FF FF 80 00 16 0E 06 00 00 00 03 
-I (00:43:22.204) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 31 0E 21 B8 B8 70 03 
-W (00:43:22.205) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature (alt) - INVALID (raw 0xB8), temp2: INVALID (raw 0xB8)
-02 00 62 FF FF 80 00 31 0E 21 B8 B8 70 03 
+I (00:43:22.064) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 0A 0E FA 02 05 07 03
+I (00:43:22.064) MSG_DECODER: [Connect 8/10 -> Broadcast] Firmware version - 2.5
+02 00 62 FF FF 80 00 0A 0E FA 02 05 07 03
+I (00:43:22.134) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 16 0E 06 00 00 00 03
+I (00:43:22.134) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature - 0°C (temp2: 0°C)
+02 00 62 FF FF 80 00 16 0E 06 00 00 00 03
+I (00:43:22.204) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 31 0E 21 B8 B8 70 03
+W (00:43:22.204) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature (alt) - INVALID (raw 0xB8), temp2: INVALID (raw 0xB8)
+02 00 62 FF FF 80 00 31 0E 21 B8 B8 70 03
 
-I (00:43:57.764) MSG_DECODER: RX MSG: 02 00 74 FF FF 80 00 16 0D 17 10 10 03 
-I (00:43:57.766) MSG_DECODER: [ICI Gas Heater -> Broadcast] Current temperature - 16°C
-02 00 74 FF FF 80 00 16 0D 17 10 10 03 
-I (00:43:58.134) MSG_DECODER: RX MSG: 02 00 74 FF FF 80 00 17 0E 19 0F 1B 2A 03 
-I (00:43:58.136) MSG_DECODER: [ICI Gas Heater -> Broadcast] ICI Gas Heater setpoints - spa=15°C, pool=27°C
-02 00 74 FF FF 80 00 17 0E 19 0F 1B 2A 03 
-I (00:43:58.504) MSG_DECODER: RX MSG: 02 00 74 FF FF 80 00 0A 0E 0C 02 06 08 03 
-I (00:43:58.506) MSG_DECODER: [ICI Gas Heater -> Broadcast] Firmware version - 2.6
-02 00 74 FF FF 80 00 0A 0E 0C 02 06 08 03 
+I (00:43:57.764) MSG_DECODER: RX MSG: 02 00 74 FF FF 80 00 16 0D 17 10 10 03
+I (00:43:57.764) MSG_DECODER: [ICI Gas Heater -> Broadcast] Current temperature - 16°C
+02 00 74 FF FF 80 00 16 0D 17 10 10 03
+I (00:43:58.134) MSG_DECODER: RX MSG: 02 00 74 FF FF 80 00 17 0E 19 0F 1B 2A 03
+I (00:43:58.134) MSG_DECODER: [ICI Gas Heater -> Broadcast] ICI Gas Heater setpoints - spa=15°C, pool=27°C
+02 00 74 FF FF 80 00 17 0E 19 0F 1B 2A 03
+I (00:43:58.504) MSG_DECODER: RX MSG: 02 00 74 FF FF 80 00 0A 0E 0C 02 06 08 03
+I (00:43:58.504) MSG_DECODER: [ICI Gas Heater -> Broadcast] Firmware version - 2.6
+02 00 74 FF FF 80 00 0A 0E 0C 02 06 08 03

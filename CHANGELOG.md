@@ -21,9 +21,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added tests runner for message decoder to make it easier to track changes and prevent regressions
 - Added GitHub Actions workflow that runs the host-based test suite on every push and pull request
 - Added many new unknown registers to PROTOCOL.md
-- Added Viron XT Variable Speed Pump support (device `0x00A0`): decodes speed telemetry (CMD `0x3B`) and pump button activity (CMD `0x1B`)
+- Added Viron XT Variable Speed Pump support (device `0x00A0`): decodes speed telemetry (CMD `0x3B`)
+- Added pump physical speed preset button presses (CMD `0x1B`, mapping Low/Med/High), and controller-to-pump speed commands (CMD `0x18`, mapping Low/Med/High)
 ### Changed
 - Renamed device `0x00A0` from "Internal Salt Cell" to "Viron XT Pump"
+- Renamed CMD `0x18` from "Chlorinator Cell Mode" to "Pump Speed Command" in the command name table
 ### Removed
 ### Fixed
 - Fixed mixed-validity temperature logging (CMD `0x16` / `0x31`): when one of `temp1` / `temp2` is INVALID the still-valid temperature now logs its decoded °C value rather than a generic `OK (raw 0xXX)` label

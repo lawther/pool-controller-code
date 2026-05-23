@@ -198,7 +198,7 @@ static const cmd_name_entry_t CMD_NAME_TABLE[] = {
     {0x14, "Mode"},
     {0x16, "Temperature Reading"},
     {0x17, "Temperature Setting"},
-    {0x18, "Chlorinator Cell Mode"},
+    {0x18, "Pump Speed Command"},
     {0x19, "Temp Set Cmd"},
     {0x1D, "Chlorinator Setpoint"},
     {0x1F, "Chlorinator Reading"},
@@ -2672,8 +2672,34 @@ static bool handle_pump_speed(
 }
 
 /**
- * Handler: Pump button/UI activity notification (CMD 0x1B, source 0x00A0).
- * Burst of messages emitted by the pump when physical buttons are pressed.
+ * Handler: Pump speed command (Controller -> Pump)
+ * Pattern: "02 00 50 00 A0 80 00 18 0D 97" or "02 00 84 00 A0 80 00 18 0D CB"
+ *
+ * Master speed preset command sent from the controller to the pump.
+ * Mapping: 0x00=LOW, 0x01=MED, 0x02=HIGH.
+ */
+static bool handle_pump_speed_cmd(
+    const uint8_t *data, int len,
+    const uint8_t *payload, int payload_len,
+    const char *addr_info,
+    message_decoder_context_t *ctx)
+{
+    if (payload_len < 1) return false;
+
+    uint8_t speed_preset_val = payload[0];
+    const char *speed_preset_name = (speed_preset_val == 0x00) ? "Low" :
+                                    (speed_preset_val == 0x01) ? "Med" :
+                                    (speed_preset_val == 0x02) ? "High" : "Unknown";
+
+    ESP_LOGI(TAG, "%s Set Pump speed - %s (0x%02X)",
+             addr_info, speed_preset_name, speed_preset_val);
+
+    return true;
+}
+
+/**
+ * Handler: Pump speed preset button activity notification (CMD 0x1B, source 0x00A0).
+ * Emitted by the pump when physical speed preset buttons on pump are pressed.
  * Log-only — no pool_state update. See PROTOCOL.md command `0x1B`.
  */
 static bool handle_pump_buttons(
@@ -2683,7 +2709,12 @@ static bool handle_pump_buttons(
     message_decoder_context_t *ctx)
 {
     uint8_t activity = (payload_len >= 1) ? payload[0] : 0xFF;
-    ESP_LOGI(TAG, "%s Pump button activity: 0x%02X", addr_info, activity);
+    const char *button_name = (activity == 0x00) ? "Low" :
+                              (activity == 0x01) ? "Med" :
+                              (activity == 0x02) ? "High" : "Unknown";
+
+    ESP_LOGI(TAG, "%s Speed button on Pump pressed - %s (0x%02X)",
+             addr_info, button_name, activity);
     return true;
 }
 
@@ -2803,6 +2834,12 @@ static bool dispatch_message(
     // the same handler. See PROTOCOL.md commands `0x16` and `0x31`.
     if (data[7] == 0x16 || data[7] == 0x31) {
         return handle_temp_reading(data, len, payload, payload_len, addr_info, ctx);
+    }
+
+    // Pump speed command (CMD 0x18) — master speed preset command from
+    // controller (Touchscreen 0x0050 or Viron Chlorinator 0x0084).
+    if (data[7] == 0x18) {
+        return handle_pump_speed_cmd(data, len, payload, payload_len, addr_info, ctx);
     }
 
     // Temperature setpoint command (CMD 0x19) — source-agnostic. Routed by

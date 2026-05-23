@@ -1,14 +1,36 @@
-Alternate lawther
+# Trace from lawther
 
-# Pump speed
-I (22:49:23.216) MSG_DECODER: RX MSG: 02 00 A0 FF FF 80 00 3B 0E 69 06 40 46 03 
-I (22:49:23.218) MSG_DECODER: [Viron XT Pump -> Broadcast] Pump speed - 1600 RPM
-02 00 A0 FF FF 80 00 3B 0E 69 06 40 46 03 
+# Pump RPM telemetry
+I (22:49:23.216) MSG_DECODER: RX MSG: 02 00 A0 FF FF 80 00 3B 0E 69 06 40 46 03
+I (22:49:23.216) MSG_DECODER: [Viron XT Pump -> Broadcast] Pump speed - 1600 RPM
+02 00 A0 FF FF 80 00 3B 0E 69 06 40 46 03
 
-# Pump Buttons
-I (01:59:39.491) MSG_DECODER: RX MSG: 02 00 A0 FF FF 80 00 1B 0D 48 02 02 03 
-I (01:59:39.493) MSG_DECODER: [Viron XT Pump -> Broadcast] Pump button activity: 0x02
-02 00 A0 FF FF 80 00 1B 0D 48 02 02 03 
-I (01:59:40.381) MSG_DECODER: RX MSG: 02 00 A0 FF FF 80 00 1B 0D 48 01 01 03 
-I (01:59:40.383) MSG_DECODER: [Viron XT Pump -> Broadcast] Pump button activity: 0x01
-02 00 A0 FF FF 80 00 1B 0D 48 01 01 03 
+# Pump Physical Buttons
+# High Speed
+I (01:59:39.491) MSG_DECODER: RX MSG: 02 00 A0 FF FF 80 00 1B 0D 48 02 02 03
+I (01:59:39.491) MSG_DECODER: [Viron XT Pump -> Broadcast] Speed button on Pump pressed - High (0x02)
+I MSG_DECODER: [Viron XT Pump -> Broadcast] Speed button on Pump pressed - High (0x02)
+02 00 A0 FF FF 80 00 1B 0D 48 02 02 03
+# Medium Speed
+I (01:59:40.381) MSG_DECODER: RX MSG: 02 00 A0 FF FF 80 00 1B 0D 48 01 01 03
+I (01:59:40.381) MSG_DECODER: [Viron XT Pump -> Broadcast] Speed button on Pump pressed - Med (0x01)
+I MSG_DECODER: [Viron XT Pump -> Broadcast] Speed button on Pump pressed - Med (0x01)
+02 00 A0 FF FF 80 00 1B 0D 48 01 01 03
+# Low Speed
+I (01:59:40.381) MSG_DECODER: RX MSG: 02 00 A0 FF FF 80 00 1B 0D 48 00 00 03
+I (01:59:40.381) MSG_DECODER: [Viron XT Pump -> Broadcast] Speed button on Pump pressed - Low (0x00)
+I MSG_DECODER: [Viron XT Pump -> Broadcast] Speed button on Pump pressed - Low (0x00)
+02 00 A0 FF FF 80 00 1B 0D 48 01 01 03
+
+# Pump speed control by other devices
+# Command Pump Speed Low
+I (01:03:17.685) MSG_DECODER: RX MSG: 02 00 50 00 A0 80 00 18 0D 97 00 00 03
+I (01:03:17.685) MSG_DECODER: [Touch Screen -> Viron XT Pump] Set Pump speed - Low (0x00)
+I MSG_DECODER: [Touch Screen -> Viron XT Pump] Set Pump speed - Low (0x00)
+02 00 50 00 A0 80 00 18 0D 97 00 00 03
+
+# Command Pump Speed High
+I (00:03:27.999) MSG_DECODER: RX MSG: 02 00 50 00 A0 80 00 18 0D 97 02 02 03
+I (00:03:27.999) MSG_DECODER: [Touch Screen -> Viron XT Pump] Set Pump speed - High (0x02)
+I MSG_DECODER: [Touch Screen -> Viron XT Pump] Set Pump speed - High (0x02)
+02 00 50 00 A0 80 00 18 0D 97 02 02 03
