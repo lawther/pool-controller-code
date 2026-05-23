@@ -929,7 +929,7 @@ Setpoint broadcasts from chlorinator devices. The slot byte (byte 10) selects wh
 
 | Slot | Source | Meaning | Value units |
 |------|--------|---------|-------------|
-| `0x00` | `0x0081` VX 11S v3 | Chlorine output level | Integer 1–8 (byte 11); byte 12 = `0x00` |
+| `0x00` | `0x0081` | Chlorine output level | Integer 1–8 (byte 11); byte 12 = `0x00` |
 | `0x01` | `0x0090`, `0x0084` | pH setpoint | pH × 10, little-endian (e.g. `4E 00` = 78 → 7.8) |
 | `0x02` | `0x0090`, `0x0084` | ORP setpoint | mV, little-endian (e.g. `8A 02` = 0x028A = 650 mV) |
 
@@ -944,22 +944,22 @@ Setpoint broadcasts from chlorinator devices. The slot byte (byte 10) selects wh
 
 02 00 81 FF FF 80 00 1D 0F 2D 00 03 00 03 03   Chlorine output level = 3
 02 00 81 FF FF 80 00 1D 0F 2D 00 02 00 02 03   Chlorine output level = 2
-                              ^^ Always 0x00
-                                 ^^ chlorine output level (integer)
+                              ^^ Slot (0x00 - Chlorine Output Level)
+                                 ^^ Chlorine Output Level value
                                     ^^ Always 0x00
                                        ^^ Data checksum
 ```
 
-**Data Fields (slots 0x01 / 0x02):**
+**Data Fields (RolaChem and Viron Chlorinators):**
 
-- Byte 10: Slot (`0x01` = pH, `0x02` = ORP)
+- Byte 10: Slot `0x01` = pH, `0x02` = ORP)
 - Bytes 11-12: Value (little-endian; pH × 10 or mV depending on slot)
 
 **Data Fields (VX 11S v3 Salt Chlorinator):**
 
 - Byte 10: `0x00` in all observed captures.
 - Byte 11: Chlorine output level (integer 1–8; matches the 8 physical LEDs on the device)
-- Byte 12: `0x00` in all observed captures (normal operation). Suspected warning flags bitmask — the device has two documented warnings (LOW SALT, NO FLOW) that may be encoded here as bits. ⚠️ Unconfirmed: capture a message while a warning is active to verify.
+- Byte 12: `0x00` in all observed captures (normal operation). This could potentially carry warning flags — the device has two warnings lights (LOW SALT, NO FLOW) that may be encoded here as bits. ⚠️ Unconfirmed: capture a message while a warning is active to verify.
 
 **Notes (VX 11S v3 Salt Chlorinator):**
 
