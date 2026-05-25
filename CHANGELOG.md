@@ -18,6 +18,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+### Changed
+### Removed
+### Fixed
+### Deprecated
+### Security
+
+## [1.5.0] - 2026-05-19
+### Added
 - Added tests runner for message decoder to make it easier to track changes and prevent regressions
 - Added GitHub Actions workflow that runs the host-based test suite on every push and pull request
 - Added many new unknown registers to PROTOCOL.md
@@ -26,12 +34,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Renamed device `0x00A0` from "Internal Salt Cell" to "Viron XT Pump"
 - Renamed CMD `0x18` from "Chlorinator Cell Mode" to "Pump Speed Command" in the command name table
-### Removed
+- Updated temperature samples by @lawther
 ### Fixed
 - Fixed mixed-validity temperature logging (CMD `0x16` / `0x31`): when one of `temp1` / `temp2` is INVALID the still-valid temperature now logs its decoded °C value rather than a generic `OK (raw 0xXX)` label
 - Re-enabled the `test_message_decoder` and `test_mqtt_commands` host-test suites that had drifted out of sync with the current decoder/state and `bus_send_bytes`/`s_pool_state` interfaces, and cleared the `SKIP_LIST` in `run_tests.sh`
-### Deprecated
-### Security
+- Fixed: ICI Gas Heater setpoints not being saved to pool state by @lawther
 
 ## [1.4.1] - 2026-05-19
 ### Added
