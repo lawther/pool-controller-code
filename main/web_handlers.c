@@ -254,6 +254,7 @@ static esp_err_t home_get_handler(httpd_req_t *req)
         "const c=data.chlorinator;"
         "if(c.ph_reading!==null)rows.push(['pH',c.ph_reading+' (setpoint '+c.ph_setpoint+')']);"
         "if(c.orp_reading!==null)rows.push(['ORP',c.orp_reading+'mV (setpoint '+c.orp_setpoint+'mV)']);"
+        "if(c.chlor_output_level!==null)rows.push(['Chlorine Output Level',c.chlor_output_level]);"
         "if(data.timers&&data.timers.length>0){"
         "data.timers.forEach(t=>rows.push(['Timer '+t.num,t.start+' \u2013 '+t.stop+' ['+t.days+']']));}"
         "const mc=data.message_counts;"
@@ -788,6 +789,11 @@ static esp_err_t status_get_handler(httpd_req_t *req)
     } else {
         cJSON_AddNullToObject(chlorinator, "orp_setpoint");
         cJSON_AddNullToObject(chlorinator, "orp_reading");
+    }
+    if (state.chlor_output_level_valid) {
+        cJSON_AddNumberToObject(chlorinator, "chlor_output_level", state.chlor_output_level);
+    } else {
+        cJSON_AddNullToObject(chlorinator, "chlor_output_level");
     }
     cJSON_AddItemToObject(root, "chlorinator", chlorinator);
 
