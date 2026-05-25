@@ -21,6 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Decode Heater 2 pool setpoint (register `0xEA`) in both the touchscreen register broadcast and gateway register-write paths, instead of logging it as an unknown register
 - Updated CMD 0x17 to show its payload is Spa and Pool temperature setpoints (see issue #31)
 - Added HiNRG Gas Heater (0x0072) support (see issue #31)
+- Note about CMD 0x05 observed with payload 0x00. Added to PROTOCOL.md and new sample trace.
+- Note about CMD 0x12 observed with payload 0x01 0x00. Added to PROTOCOL.md and new sample trace.
+- Parsing for CMD 0x12 updated so `0x01 0x00` no longer reported as unexpected.
 ### Changed
 - Combined documentation for heater devices sending cmd 0x16 (water temperature)
 - Combined existing heater setpoint temperature handlers

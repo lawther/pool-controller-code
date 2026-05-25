@@ -173,18 +173,18 @@ Single-byte broadcast emitted by the Touchscreen (`0x0050`) immediately after a 
 
 ```
 02 00 50 FF FF 80 00 05 0D E2 01 01 03
-                              ^^ Always 0x01 in observed captures
+                              ^^ Always 0x00 or 0x01 in observed captures
 ```
 
 **Data Fields:**
 
-- Byte 10: Acknowledgement value (always `0x01` observed)
+- Byte 10: Acknowledgement value (always `0x00` or `0x01` in observed captures)
 
 **Notes:**
 
 - Decoded in code by `handle_touchscreen_unknown3` — log-only, no `pool_state` update.
 - Triggered by [0x2A Mode/Favourite Control Command](#0x2a--modefavourite-control-command-); see that section for the full activation sequence.
-- Status ⚠️ because the meaning of the constant `0x01` is unconfirmed — it could be a fixed "ack" sentinel or a single-value-observed flags field.
+- Status ⚠️ because the meaning of the constants `0x00` and `0x01` is unconfirmed — it could be a fixed "ack" sentinel or a single-value-observed flags field.
 
 ---
 
@@ -411,7 +411,7 @@ Status broadcast emitted by multiple devices. The CMD byte is shared but the **p
 
 | Source                          | LENGTH | Payload shape                            | Status | Handler                       |
 |---------------------------------|--------|------------------------------------------|--------|-------------------------------|
-| `0x0050` Touchscreen            | `0x0E` | 2 bytes — always `05 00` observed        | ⚠️     | `handle_touchscreen_unknown1` |
+| `0x0050` Touchscreen            | `0x0E` | 2 bytes — always `01 00` or `05 00` observed        | ⚠️     | `handle_touchscreen_unknown1` |
 | `0x0062` Connect 8/10 Controller| `0x0F` | 3 bytes — heater state + unknowns        | ⚠️     | `handle_heater`               |
 | `0x0074` ICI Gas Heater         | `0x10` | 4 bytes — `{00, status, 00, 00}`         | ✅     | `handle_ici_heater_status`    |
 | `0x0081` VX 11S v3 Salt Chlorinator | `0x0D` | 2 bytes — always `00 00` observed   | ⚠️     | **No (doc only)**             |
@@ -422,14 +422,14 @@ Status broadcast emitted by multiple devices. The CMD byte is shared but the **p
 
 #### Touchscreen (`0x0050`) ⚠️
 
-Broadcast consistently after the firmware version message. Currently appears to always carry data `05 00`.
+Broadcast consistently after the firmware version message. Currently appears to always carry data `01 00` or `05 00`.
 
 Pattern: `02 00 50 FF FF 80 00 12 0E F0`
 
 Example: `02 00 50 FF FF 80 00 12 0E F0 05 00 05 03`
 
 Data fields:
-- Byte 10: Unknown (always `0x05` in observed samples)
+- Byte 10: Unknown (always `0x01` or `0x05` in observed samples)
 - Byte 11: Unknown (always `0x00` in observed samples)
 
 Part of the regular touchscreen status sequence.

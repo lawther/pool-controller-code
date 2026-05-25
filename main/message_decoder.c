@@ -1230,8 +1230,8 @@ static bool handle_touchscreen_unknown1(
     uint8_t data_byte1 = payload[0];
     uint8_t data_byte2 = payload[1];
 
-    if (data_byte1 != 0x05 || data_byte2 != 0x00) {
-        ESP_LOGW(TAG, "%s Touchscreen other status - UNEXPECTED VALUE: Byte1: 0x%02X (%d), Byte2: 0x%02X (%d) (expected 0x05 0x00)",
+    if ((data_byte1 != 0x01 && data_byte1 != 0x05) || data_byte2 != 0x00) {
+        ESP_LOGW(TAG, "%s Touchscreen other status - UNEXPECTED VALUE: Byte1: 0x%02X (%d), Byte2: 0x%02X (%d) (expected 0x01|0x05 0x00)",
                  addr_info, data_byte1, data_byte1, data_byte2, data_byte2);
     } else {
         ESP_LOGI(TAG, "%s Touchscreen other status - Byte1: 0x%02X (%d), Byte2: 0x%02X (%d)",
@@ -1299,7 +1299,7 @@ static bool handle_touchscreen_unknown2(
 
 /**
  * Handler: Touchscreen unknown broadcast (CMD 0x05)
- * Invariant across all captures: data byte always 0x01.
+ * Invariant across all captures: data byte always 0x00 or 0x01.
  * Silenced here to avoid spurious "Unhandled" warnings.
  */
 static bool handle_touchscreen_unknown3(
