@@ -35,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Renamed device `0x00A0` from "Internal Salt Cell" to "Viron XT Pump"
 - Renamed CMD `0x18` from "Chlorinator Cell Mode" to "Pump Speed Command" in the command name table
 - Updated temperature samples by @lawther
+- Increase the timeout and retrys if wifi is not available to 15 second retry and 10 attempts. [#25](https://github.com/marklynch/pool-controller-code/issues/25)
 ### Fixed
 - Fixed mixed-validity temperature logging (CMD `0x16` / `0x31`): when one of `temp1` / `temp2` is INVALID the still-valid temperature now logs its decoded °C value rather than a generic `OK (raw 0xXX)` label
 - Re-enabled the `test_message_decoder` and `test_mqtt_commands` host-test suites that had drifted out of sync with the current decoder/state and `bus_send_bytes`/`s_pool_state` interfaces, and cleared the `SKIP_LIST` in `run_tests.sh`
