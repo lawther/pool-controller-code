@@ -155,6 +155,10 @@ typedef struct {
     uint16_t gateway_comms_status;
     bool gateway_comms_status_valid;
 
+    // Pump
+    uint16_t pump_speed;       // Current pump speed in RPM (from device 0x00A0)
+    bool pump_speed_valid;
+
     // Chlorinator
     uint16_t ph_setpoint;      // pH * 10 (e.g., 74 = 7.4)
     uint16_t ph_reading;       // pH * 10
@@ -164,8 +168,6 @@ typedef struct {
     bool orp_valid;
     uint8_t chlor_mode;        // 0=Off, 1=Auto, 2=On (tentative — see PROTOCOL.md §32)
     bool chlor_mode_valid;
-    uint16_t pump_speed;       // Current pump speed in RPM (from device 0x00A0)
-    bool pump_speed_valid;
     uint8_t chlor_output_level;       // Chlorine output level 1–8 (from VX 11S v3, address 0x0081)
     bool chlor_output_level_valid;
     uint8_t chlor_version_major;

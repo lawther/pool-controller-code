@@ -130,8 +130,8 @@ Click any CMD in the first column to jump to the full section in [Commands](#com
 | [`0x14`](#0x14--mode-spapool-)                                 | Mode (Spa/Pool)                     | `0x0050` → Broadcast                                                   |                                                                                             | Yes                     |
 | [`0x16`](#0x16--water-temperature-reading-)                    | Water Temperature Reading           | `0x0062` (LEN `0x0E`), `0x0070`/`0x0072`/`0x0074` (LEN `0x0D`) → Broadcast | Payload length differs by source: LEN `0x0E` = `{temp1, temp2}`, LEN `0x0D` = `{temp1}`; dispatched on CMD byte alone | Yes (unified handler)   |
 | [`0x17`](#0x17--temperature-settings-)                         | Temperature Settings                | `0x0050` (LEN `0x10`), `0x0070`/`0x0074` (LEN `0x0E`) → Broadcast | Source-dependent payload layout                                                             | Yes (per-source)        |
-| [`0x18`](#0x18--chlorinator-cell-mode-️)                       | Chlorinator Cell Mode               | `0x0084`, `0x0050` → `0x00A0` Viron XT Pump                            | Inter-device unicast                                                                        | **No (doc only)**       |
-| [`0x1B`](#0x1b--pump-button-activity-️)                        | Pump Button Activity                | `0x00A0` Viron XT Pump → Broadcast                                      | 1-byte payload; burst when pump panel buttons pressed                                       | Yes (log-only)          |
+| [`0x18`](#0x18--pump-speed-command-)                           | Pump Speed Command                  | `0x0050`, `0x0084` → `0x00A0` Viron XT Pump                            | Set pump speed (low/med/high)                                                       | Yes                     |
+| [`0x1B`](#0x1b--pump-button-activity-)                         | Pump Button Activity                | `0x00A0` Viron XT Pump → Broadcast                                      | Speed button pressed on pump (Low/Med/High)                                                  | Yes (log-only)          |
 | [`0x19`](#0x19--temperature-setpoint-command-)                 | Temperature Setpoint Command        | `0x00F0` Gateway, `0x0050` Touchscreen → Broadcast                     | Sub-dispatched by slot byte (`0x01`/`0x02` Pool/Spa from Gateway, `0x03` heater pair from Touchscreen); dispatched on CMD byte alone | Yes (unified handler)   |
 | [`0x1D`](#0x1d--chlorinator-setpoint-)                         | Chlorinator Setpoint                | `0x0090` RolaChem, `0x0084` Viron, `0x0081` VX 11S v3 → Broadcast         | Byte 10: `0x00`=chlorine output level (VX 11S v3 only), `0x01`=pH, `0x02`=ORP; dispatched on CMD byte alone | Yes (unified handler)   |
 | [`0x1F`](#0x1f--chlorinator-reading-)                          | Chlorinator Reading                 | `0x0090` RolaChem, `0x0084` Viron → Broadcast                          | Byte 10: `0x01`=pH, `0x02`=ORP; same payload from both sources; dispatched on CMD byte alone | Yes (unified handler)   |
@@ -781,65 +781,35 @@ Examples:
 
 ---
 
-### 0x18 — Chlorinator Cell Mode ⚠️
+### 0x18 — Pump Speed Command ✅
 
-Inter-device unicast carrying the chlorinator's current mode to the Viron XT Pump (`0x00A0`). Observed on systems with chlorinator address `0x0084` (Viron — mutually exclusive with the `0x0090` RolaChem variant; see [Device Addresses](#device-addresses)). Both the Viron Chlorinator and the Touchscreen can send this — the Touchscreen variant appears when the cell mode is changed from the touchscreen UI.
+Inter-device unicast sent by the controller (Touchscreen `0x0050` or Viron Chlorinator `0x0084`) to the Viron XT Pump (`0x00A0`) to set the pump speed. The controller sends this periodically (approx. every 60 seconds) and whenever the speed needs to change (e.g., due to timers or manual mode changes).
 
-**Source variants:**
+**Pattern:** `02 00 50 00 A0 80 00 18 0D 97` (Touchscreen)
+**Pattern:** `02 00 84 00 A0 80 00 18 0D CB` (Chlorinator)
 
-| Source                     | Destination                  | Payload                | Status |
-|----------------------------|------------------------------|------------------------|--------|
-| `0x0084` Viron Chlorinator | `0x00A0` Viron XT Pump  | 1 byte — mode value    | ⚠️     |
-| `0x0050` Touchscreen       | `0x00A0` Viron XT Pump  | 1 byte — mode value    | ⚠️     |
-
-No handler in `message_decoder.c` — documented only.
-
----
-
-#### Viron Chlorinator → Cell (`0x0084` → `0x00A0`) ⚠️
-
-Pattern: `02 00 84 00 A0 80 00 18 0D CB`
-
-Examples:
-
+**Examples:**
 ```
-02 00 84 00 A0 80 00 18 0D CB 01 01 03   mode = 0x01 (Manual)
-02 00 84 00 A0 80 00 18 0D CB 02 02 03   mode = 0x02 (Automatic)
+02 00 50 00 A0 80 00 18 0D 97 02 02 03   Touchscreen sets Pump to High
+                              ^^ Target Speed (0x02 = High)
 ```
 
----
+**Data Fields:**
 
-#### Touchscreen → Cell (`0x0050` → `0x00A0`) ⚠️
+- Byte 10: Speed command value
+- Byte 11: Data checksum (equals byte 10 — single data byte)
 
-Pattern: `02 00 50 00 A0 80 00 18 0D 97`
+**Observed values:**
 
-Example:
-
-```
-02 00 50 00 A0 80 00 18 0D 97 02 02 03   Touchscreen echoes mode = 0x02 to Cell
-```
-
-The touchscreen sends this when the operator changes cell mode from the UI.
-
----
-
-**Data fields (both variants):**
-
-- Byte 10: Mode value
-- Byte 11: Data checksum (equals byte 10 — only one data byte)
-
-**Observed mode values (tentative):**
-
-| Value  | Meaning (tentative) |
-|--------|---------------------|
-| `0x00` | Off                 |
-| `0x01` | Manual              |
-| `0x02` | Automatic           |
+| Value  | Meaning    |
+|--------|------------|
+| `0x00` | Low Speed  |
+| `0x01` | Med Speed  |
+| `0x02` | High Speed |
 
 **Notes:**
 
-- ⚠️ Mode-value mapping is tentative. Three distinct values (`0x00`, `0x01`, `0x02`) have been observed across one capture; the order seen did not unambiguously match a user-described Manual→Off→Auto sequence. The values match the standard channel-state encoding ([0x0B](#0x0b--channel-status-)) — but whether the labels are Off/Manual/Auto (per the capture) or Off/Auto/On (per the protocol-wide convention) needs another capture pair to confirm.
-- The chlorinator reports its current mode separately to the touchscreen via [CMD 0x0F](#0x0f--chlorinator-mode--touchscreen-️) — the two messages may briefly disagree during transitions.
+- The Touchscreen sends this command to implement its timers
 - The `0x0090` RolaChem chlorinator variant has not been observed using this command; the `0x18` traffic appears specific to the `0x0084` Viron / `0x00A0` Viron XT Pump two-module chlorinator topology.
 
 ---
@@ -875,40 +845,41 @@ Command from the Internet Gateway (`0x00F0`) to set the pool or spa temperature 
 
 ---
 
-### 0x1B — Pump Button Activity ⚠️
+### 0x1B — Pump Button Activity ✅
 
-Broadcast by the Viron XT Pump (`0x00A0`) in a burst when the user presses buttons on the physical pump panel.
+Broadcast by the Viron XT Pump (`0x00A0`) when one of the three preset speed buttons is pressed on the physical pump panel.
 
 **Pattern:** `02 00 A0 FF FF 80 00 1B 0D 48`
 
 **Example:**
 
 ```
-02 00 A0 FF FF 80 00 1B 0D 48 01 01 03
-                              ^^ Activity value
-                                 ^^ Data checksum (equals byte 10)
+02 00 A0 FF FF 80 00 1B 0D 48 00 00 03   
+                              ^^ Low button pressed
+02 00 A0 FF FF 80 00 1B 0D 48 01 01 03   
+                              ^^ Med button pressed
+02 00 A0 FF FF 80 00 1B 0D 48 02 02 03   
+                              ^^ HIGH button pressed
 ```
 
 **Data Fields:**
 
-- Byte 10: Activity value (see table below)
+- Byte 10: Button identifier
 - Byte 11: Data checksum (equals byte 10 — single data byte)
 
 **Observed values:**
 
-| Value  | Observed pattern |
-|--------|------------------|
-| `0x00` | Seen at device boot only; not observed during any speed change |
-| `0x01` | Seen during every observed speed change (both small and large adjustments) |
-| `0x02` | Seen interleaved with `0x01` during longer multi-step adjustments only; never seen alone |
+| Value  | Button |
+|--------|--------|
+| `0x00` | Low    |
+| `0x01` | Med    |
+| `0x02` | High   |
 
 **Notes:**
 
-- During a small speed change (1350 → 1500, +150 RPM): two `0x01` messages, no `0x02`.
-- During a larger speed change (1125 → 1350, +225 RPM): `0x01` and `0x02` interleaved in bursts (pattern: `01 01 02 01 02` … `01 02 01 02`), spread across ~30 s.
-- No `0x1B` messages were observed for the one speed decrease captured (1500 → 1125); 
-- The direction encoded by `0x01` vs `0x02` is unknown — both appeared during speed *increases*. `0x02` may be an auto-repeat or hold event from the same button rather than a separate down/confirm action.
-- The burst stops once the new speed is committed; the next CMD `0x3B` broadcast ~60 s later reflects the updated RPM.
+- Only the preset speed buttons (LOW, MED, HIGH) trigger this message.
+- Other buttons on the panel (Power ON/OFF, Menu, Enter, UP/DOWN arrows) do **not** trigger a `0x1B` broadcast.
+- The controller's [0x18 Speed Command](#0x18--pump-speed-command-) will override manual button presses during its next scheduled broadcast (every 60s).
 - Decoded in code by `handle_pump_buttons` — log-only, no `pool_state` update.
 
 ---
@@ -1700,11 +1671,12 @@ Speed telemetry broadcast by the Viron XT Variable Speed Pump (`0x00A0`). Emitte
 | Bytes 10–11 | RPM  | Notes                         |
 |-------------|------|-------------------------------|
 | `00 00`     | 0    | Pump stopped (transitioning)  |
-| `04 65`     | 1125 | -                             |
-| `05 46`     | 1350 | —                             |
+| `04 65`     | 1125 | LOW Preset                    |
+| `05 46`     | 1350 | MED Preset                    |
+| `05 F5`     | 1525 | Manual adjustment (via DOWN)  |
 | `05 DC`     | 1500 | —                             |
-| `06 40`     | 1600 | —                             |
-| `08 02`     | 2050 | —                             |
+| `06 40`     | 1600 | HIGH Preset                   |
+| `08 02`     | 2050 | Priming / Manual ON           |
 
 **Notes:**
 
