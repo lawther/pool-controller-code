@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 ### Removed
 ### Fixed
+- Configured devcontainer to use ESP-IDF 5.5 for consistency
 ### Deprecated
 ### Security
 
