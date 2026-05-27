@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added HiNRG Gas Heater (0x0072) support (see issue #31)
 - Added per-heater pool and spa temperature setpoints, exposed as separate Home Assistant Number entities per heater ("Heater N Pool/Spa Setpoint"); writable via CMD `0x19` for Heater 1 and register writes `0xEA`/`0xEB` for Heater 2
 - Added Heater 2 on/off support: state decoded from register `0xE9` and controllable via the "Heater 2" switch
+- VX 11S v3 chlorinator status handler
 ### Changed
 - Combined documentation for heater devices sending cmd 0x16 (water temperature)
 - Combined existing heater setpoint temperature handlers

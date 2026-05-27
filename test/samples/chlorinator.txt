@@ -1,0 +1,4 @@
+# lawther VX 11S v3 Chlorinator
+I (23:22:12.177) MSG_DECODER: RX MSG: 02 00 81 FF FF 80 00 12 0D 20 00 00 03 
+I (23:22:12.179) MSG_DECODER: [VX 11S v3 Salt Chlorinator -> Broadcast] VX 11S v3 Salt Chlorinator status: 0x00
+02 00 81 FF FF 80 00 12 0D 20 00 00 03 

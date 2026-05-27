@@ -106,6 +106,8 @@ static const char *MSG_TYPE_ICI_HEATER_TEMP_SETTING = "02 00 74 FF FF 80 00 17 0
 // Chlorinator status broadcast (CMD 0x12) — same payload shape from either variant
 static const char *MSG_TYPE_CHLOR_STATUS_A = "02 00 90 FF FF 80 00 12 0D 2F";
 static const char *MSG_TYPE_CHLOR_STATUS_B = "02 00 84 FF FF 80 00 12 0D 23";
+// VX 11S v3 Chlorinator CMD 0x12 status broadcast (meaning unknown; payload always 0x00 in captures)
+static const char *MSG_TYPE_VX11S_STATUS = "02 00 81 FF FF 80 00 12 0D 20";
 
 // F0 Internet Gateway
 static const char *MSG_TYPE_SERIAL_NUMBER =           "02 00 F0 FF FF 80 00 37 11 B8";
@@ -1949,6 +1951,31 @@ static bool handle_chlor_status(
 }
 
 /**
+ * Handler: VX 11S v3 Chlorinator status broadcast
+ * Pattern: "02 00 81 FF FF 80 00 12 0D 20"
+ *
+ * 1-byte payload: Always 0x00 observed. Mapping unknown.
+ */
+static bool handle_vx11s_status(
+    const uint8_t *data, int len,
+    const uint8_t *payload, int payload_len,
+    const char *addr_info,
+    message_decoder_context_t *ctx)
+{
+    if (payload_len < 1) return false;
+
+    uint8_t data_byte = payload[0];
+
+    if (data_byte != 0x00) {
+        ESP_LOGI(TAG, "%s VX 11S v3 Salt Chlorinator status - UNEXPECTED VALUE: payload=0x%02X (expected 0x00)", addr_info, data_byte);
+    } else {
+        ESP_LOGI(TAG, "%s VX 11S v3 Salt Chlorinator status: 0x%02X", addr_info, data_byte);
+    }
+
+    return true;
+}
+
+/**
  * Handler: Light configuration message
  * Pattern: "02 00 50 FF FF 80 00 06 0E E4"
  */
@@ -3046,6 +3073,11 @@ static bool dispatch_message(
     if (match_pattern(data, len, MSG_TYPE_CHLOR_STATUS_A) ||
         match_pattern(data, len, MSG_TYPE_CHLOR_STATUS_B)) {
         return handle_chlor_status(data, len, payload, payload_len, addr_info, ctx);
+    }
+
+    // VX 11S v3 CMD 0x12 status broadcast (payload meaning unknown)
+    if (match_pattern(data, len, MSG_TYPE_VX11S_STATUS)) {
+        return handle_vx11s_status(data, len, payload, payload_len, addr_info, ctx);
     }
 
     // Gateway messages
