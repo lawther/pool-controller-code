@@ -145,7 +145,7 @@ Click any CMD in the first column to jump to the full section in [Commands](#com
 | [`0x37`](#0x37--internet-gateway-info-️)                       | Internet Gateway Info               | `0x00F0` → Broadcast                                                   | LEN distinguishes serial (`0x11`), network config (`0x15`), comms status (`0x0F`) variants  | Yes (3 handlers)        |
 | [`0x38`](#0x38--register-data-️)                               | Register Data (Response)            | `0x0050` Touchscreen → Broadcast                                       | Universal register system — sub-dispatched by register + slot (see [Appendix A](#appendix-a-register-dispatch-table)); dispatched on CMD byte alone | Yes (unified handler)   |
 | [`0x39`](#0x39--register-read-request-)                        | Register Read Request               | `0x00F0` Gateway → Broadcast                                           | Dispatched on CMD byte alone                                                                | Yes (unified handler)   |
-| [`0x3A`](#0x3a--register-write--control-)                      | Register Write / Control            | `0x00F0` Gateway → Broadcast                                           | Used for Light Zone Control (`0xC0`–`0xC7`/slot `0x01`), Heater Control (`0xE6`/slot `0x00`), and Heater 2 setpoint (`0xEA`, tentative) | Yes (both)              |
+| [`0x3A`](#0x3a--register-write--control-)                      | Register Write / Control            | `0x00F0` Gateway → Broadcast                                           | Used for Light Zone Control (`0xC0`–`0xC7`/slot `0x01`), Heater Control (`0xE6`/slot `0x00`), and Heater 2 pool setpoint (`0xEA`/slot `0x00`) | Yes (both)              |
 | [`0x3B`](#0x3b--pump-speed-)                                   | Pump Speed Telemetry                | `0x00A0` Viron XT Pump → Broadcast                                      | 2-byte big-endian RPM value; broadcast every ~60 seconds                                    | Yes                     |
 | [`0xFD`](#0xfd--controller-daytimeclock-)                      | Controller Day/Time/Clock           | `0x0050` → Broadcast                                                   |                                                                                             | Yes                     |
 
@@ -1558,7 +1558,7 @@ Sent by the Internet Gateway (`0x00F0`) to write a single controller register. T
 |------------|--------|------------------------|-------------------------------------------------------------|
 | `0xC0`–`0xC7` | `0x01` | Light Zone state    | [Light Zone Control](#light-zone-control-register-0xc00xc7-slot-0x01) |
 | `0xE6`     | `0x00` | Heater 1 on/off        | [Heater Control](#heater-control-register-0xe6-slot-0x00)   |
-| `0xEA`     | `0x00` | Heater 2 pool setpoint | Tentative — see [Appendix A](#appendix-a-register-dispatch-table) Heater 2 trio note |
+| `0xEA`     | `0x00` | Heater 2 pool setpoint | [Appendix A](#appendix-a-register-dispatch-table) Heater 2 trio note |
 
 **Data Fields:**
 
@@ -1616,7 +1616,7 @@ Sets a light zone's state (Off/Auto/On).
 
 #### Heater Control (Register `0xE6`, Slot `0x00`) ✅
 
-Turns the (primary) heater on or off. Heater 1 only — see [Appendix A](#appendix-a-register-dispatch-table) for the tentative Heater 2 register set (`0xE9`/`0xEA`/`0xEB`).
+Turns the (primary) heater on or off. Heater 1 only — see [Appendix A](#appendix-a-register-dispatch-table) for the Heater 2 register set (`0xEA` confirmed pool setpoint; `0xE9`/`0xEB` tentative).
 
 **Example — Turn Heater On:**
 
@@ -1757,7 +1757,7 @@ The register ID and slot together determine the message meaning. The slot distin
 | `0xE8`         | `0x00` | Spa Temperature Setpoint (Heater 1)  | 1-byte °C value                    |
 | `0xE9` ⚠️       | `0x00` | Heater 2 State (tentative)     | 1-byte (`0x00`=Off, `0x01`=On). See note below. |
 | `0xE8`–`0xE9` ⚠️| `0x03` | Unknown               | Only `0x01` observed. Repeats ~every 8 minutes   |
-| `0xEA` ⚠️       | `0x00` | Heater 2 Pool Setpoint (tentative) | 1-byte °C value — writable via gateway CMD `0x3A`. See note below. |
+| `0xEA`         | `0x00` | Heater 2 Pool Setpoint | 1-byte °C value — writable via gateway CMD `0x3A`. See note below. |
 | `0xEB` ⚠️       | `0x00` | Heater 2 Spa Setpoint (tentative)  | 1-byte °C value. See note below.   |
 | `0xEC` ⚠️       | `0x00` | Unknown                | Only `0x01` observed. Repeats ~every 8 minutes |
 | `0xF0` ⚠️       | `0x01` | Unknown                | Only `0xFF` observed. Repeats ~every 8 minutes |
@@ -1768,10 +1768,8 @@ The register ID and slot together determine the message meaning. The slot distin
 - Register ranges can overlap (e.g., `0xD0`–`0xD7`) but are distinguished by the slot value
 - The same slot value (e.g., `0x02`) can represent different data formats depending on the register
 - Slot values appear to be context-dependent rather than globally defining a data type
-- **`0xE9`/`0xEA`/`0xEB` (Heater 2 trio) — tentative ⚠️**: Slot `0x00` already holds the Heater 1 trio at `0xE6` (state), `0xE7` (Pool setpoint), `0xE8` (Spa setpoint). The next three registers (`0xE9`/`0xEA`/`0xEB`) appear to be the analogous trio for a second heater, based on the following evidence:
-  - **Structural symmetry**: a 3-register block in the same slot, immediately adjacent to the Heater 1 trio.
-  - **`0xEA` is user-writable** via the gateway register-write command (CMD `0x3A` / second-byte `0xB9`). An observed write `02 00 F0 FF FF 80 00 3A 0F B9 EA 00 1B 05 03` set the value to `0x1B` (27°C) and the touchscreen immediately rebroadcast `EA 00 1B`.
-  - **Value match to H2**: that 27°C exactly matches the **H2** value carried in the heater's (`0x0070`) CMD `0x17` `[H1, H2]` broadcast (where H1=24°C also matches `0xE7`).
+- **`0xEA` (Heater 2 Pool Setpoint) — confirmed ✅**: Slot `0x00` holds the Heater 1 trio at `0xE6` (state), `0xE7` (Pool setpoint), `0xE8` (Spa setpoint), and `0xEA` is the analogous pool setpoint for the second heater. Confirmed by UI-driven capture: changing the heat pump's set temperature in the UI sends a gateway register-write (CMD `0x3A` / second-byte `0xB9`) to `0xEA`/slot `0x00`, and the touchscreen immediately rebroadcasts the new value via CMD `0x38`. Observed writes set 21°C (`EA 00 15`, checksum `FF`), 22°C (`EA 00 16`, checksum `00`), and 27°C (`EA 00 1B`); the 27°C value matched the **H2** value carried in the heater's (`0x0070`) CMD `0x17` `[H1, H2]` broadcast (where H1=24°C also matched `0xE7`). The 1-byte value is the setpoint in °C. (On the test install the second heater is a heat pump; "Heater 2" is kept as the generic name since another install's second heater may be a different type.)
+- **`0xE9`/`0xEB` (rest of the Heater 2 trio) — tentative ⚠️**: By structural symmetry with the Heater 1 trio and the now-confirmed `0xEA`, `0xE9` is likely the Heater 2 state (`0x00`=Off, `0x01`=On) and `0xEB` the Heater 2 spa setpoint, but neither has been confirmed by a UI-driven write:
   - **Mutually exclusive broadcast**: in captures observed so far the touchscreen broadcasts *either* the `E6/E7/E8` trio *or* the `E9/EA/EB` trio in slot `0x00`, but not both — consistent with a config-dependent enable (likely [0x26](#0x26--configuration-️) byte 10 bit 3 = heater count).
   - **Caveats**: `0xEB` has been observed fixed at `0x0A` (10°C) across multiple installs — an unusual spa setpoint, but explainable as an unused default when the second heater isn't actually plumbed to spa. Single-bit toggle confirmation (changing spa setpoint in the UI and watching which register updates) has not yet been performed.
 
