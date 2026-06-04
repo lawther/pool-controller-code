@@ -18,7 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- Updated CMD 0x17 to show its payload is Spa and Pool temperature setpoints (see issue #31)
+- Added HiNRG Gas Heater (0x0072) support (see issue #31)
 ### Changed
+- Combined documentation for heater devices sending cmd 0x16 (water temperature)
+- Combined existing heater setpoint temperature handlers
 ### Removed
 ### Fixed
 - Configured devcontainer to use ESP-IDF 5.5 for consistency

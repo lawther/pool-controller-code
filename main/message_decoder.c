@@ -89,7 +89,12 @@ static const char *MSG_TYPE_HEATER =                "02 00 62 FF FF 80 00 12 0F 
 // 70 Genus Heater (Active i25 Evo)
 static const char *MSG_TYPE_GENUS_HEATER_TEMP_SETTING = "02 00 70 FF FF 80 00 17 0E 15";
 
-// 74 ICI Gas Heater (Astral/Fluidra ICI 400B NG)
+// 72 AstralPool HiNRG Gas Heater
+// CMD 0x16 (temperature reading) is handled by the source-agnostic handler above.
+static const char *MSG_TYPE_HINRG_HEATER_STATUS =       "02 00 72 FF FF 80 00 12 10 15";
+static const char *MSG_TYPE_HINRG_HEATER_TEMP_SETTING = "02 00 72 FF FF 80 00 17 0E 17";
+
+// 74 AstralPool ICI Gas Heater (Astral/Fluidra ICI 400B NG)
 // CMD 0x16 (temperature reading) is handled by the source-agnostic handler above.
 static const char *MSG_TYPE_ICI_HEATER_STATUS =       "02 00 74 FF FF 80 00 12 10 16";
 static const char *MSG_TYPE_ICI_HEATER_TEMP_SETTING = "02 00 74 FF FF 80 00 17 0E 19";
@@ -429,6 +434,7 @@ const char* get_device_name(uint8_t addr_hi, uint8_t addr_lo, char *fallback_buf
             case 0x62: return "Connect 8/10";
             case 0x6F: return "Internal Channels";
             case 0x70: return "Genus Heater";
+            case 0x72: return "HiNRG Gas Heater";
             case 0x74: return "ICI Gas Heater";
             case 0x81: return "VX 11S v3 Salt Chlorinator";
             case 0x84: return "Viron Chlorinator";
@@ -841,24 +847,21 @@ static bool handle_channel_count(
 }
 
 /**
- * Handler: Genus Heater setpoints
- * Pattern: "02 00 70 FF FF 80 00 17 0E 15"
+ * Handler: HiNRG Gas Heater device status
+ * Pattern: "02 00 72 FF FF 80 00 12 10 15"
  *
- * Two-byte payload carrying both heater setpoints in °C.
+ * Four-byte payload. All bytes are 0x00 when the heater is idle (modulation=0).
+ * Full byte meanings when actively heating are not yet decoded.
  */
-static bool handle_genus_heater_temp_setting(
+static bool handle_hinrg_heater_status(
     const uint8_t *data, int len,
     const uint8_t *payload, int payload_len,
     const char *addr_info,
     message_decoder_context_t *ctx)
 {
-    if (payload_len < 2) return false;
-
-    uint8_t heater1_set = payload[0];
-    uint8_t heater2_set = payload[1];
-
-    ESP_LOGI(TAG, "%s Genus Heater setpoints - heater1=%d°C, heater2=%d°C",
-             addr_info, heater1_set, heater2_set);
+    if (payload_len < 4) return false;
+    ESP_LOGI(TAG, "%s ICI Gas Heater status - [%02X %02X %02X %02X]",
+             addr_info, payload[0], payload[1], payload[2], payload[3]);
     return true;
 }
 
@@ -882,14 +885,15 @@ static bool handle_ici_heater_status(
 }
 
 /**
- * Handler: ICI Gas Heater setpoints
- * Pattern: "02 00 74 FF FF 80 00 17 0E 19"
+ * Handler: Genus / HiNRG Gas Heater / ICI Gas Heater setpoints
+ * Pattern (`0x0070`): `02 00 70 FF FF 80 00 17 0E 15` (Genus Heater)
+ * Pattern (`0x0072`): `02 00 72 FF FF 80 00 17 0E 17` (HiNRG Gas Heater)
+ * Pattern (`0x0074`): `02 00 74 FF FF 80 00 17 0E 19` (ICI Gas Heater)
  *
- * Two-byte payload — same frame format as the Genus Heater (0x0070) CMD 0x17 variant:
- * byte 10 = heat exchanger maximum temperature (°C), byte 11 = pool water target (°C).
- * Confirmed by observing byte 11 track button presses on the heater's local display.
+ * Two-byte payload:
+ * byte 10 = Spa setpoint (°C), byte 11 = Pool setpoint (°C).
  */
-static bool handle_ici_heater_temp_setting(
+static bool handle_heater_temp_setting(
     const uint8_t *data, int len,
     const uint8_t *payload, int payload_len,
     const char *addr_info,
@@ -900,12 +904,16 @@ static bool handle_ici_heater_temp_setting(
     uint8_t spa_setpoint  = payload[0];
     uint8_t pool_setpoint = payload[1];
 
-    ESP_LOGI(TAG, "%s ICI Gas Heater setpoints - spa=%d°C, pool=%d°C",
-             addr_info, spa_setpoint, pool_setpoint);
+    uint8_t device_hi = data[1], device_lo = data[2];
+    char heater_name_buf[16];
+    const char *heater_name = get_device_name(device_hi, device_lo, heater_name_buf, sizeof(heater_name_buf));
+
+    ESP_LOGI(TAG, "%s %s setpoints - Spa=%d°C, Pool=%d°C",
+             addr_info, heater_name, spa_setpoint, pool_setpoint);
 
     pool_state_t snapshot;
     if (!ctx->state_mutex || xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
-        ESP_LOGW(TAG, "Failed to acquire mutex for ICI heater temp setting");
+        ESP_LOGW(TAG, "Failed to acquire mutex for %s temperature setpoints", heater_name);
         return true;
     }
     ctx->pool_state->spa_setpoint   = spa_setpoint;
@@ -2967,17 +2975,20 @@ static bool dispatch_message(
     }
 
     // Genus Heater (0x0070) messages
-    if (match_pattern(data, len, MSG_TYPE_GENUS_HEATER_TEMP_SETTING)) {
-        return handle_genus_heater_temp_setting(data, len, payload, payload_len, addr_info, ctx);
+    if (match_pattern(data, len, MSG_TYPE_GENUS_HEATER_TEMP_SETTING) ||
+        match_pattern(data, len, MSG_TYPE_HINRG_HEATER_TEMP_SETTING) || 
+        match_pattern(data, len, MSG_TYPE_ICI_HEATER_TEMP_SETTING)) {
+        return handle_heater_temp_setting(data, len, payload, payload_len, addr_info, ctx);
+    }
+
+    // AstralPool HiNRG Gas Heater (0x0072) messages
+    if (match_pattern(data, len, MSG_TYPE_HINRG_HEATER_STATUS)) {
+        return handle_hinrg_heater_status(data, len, payload, payload_len, addr_info, ctx);
     }
 
     // ICI Gas Heater (0x0074) messages
     if (match_pattern(data, len, MSG_TYPE_ICI_HEATER_STATUS)) {
         return handle_ici_heater_status(data, len, payload, payload_len, addr_info, ctx);
-    }
-
-    if (match_pattern(data, len, MSG_TYPE_ICI_HEATER_TEMP_SETTING)) {
-        return handle_ici_heater_temp_setting(data, len, payload, payload_len, addr_info, ctx);
     }
 
     // Chlorinator status broadcast (§32) — both 0x0090 and 0x0084 variants
