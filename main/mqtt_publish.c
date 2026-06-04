@@ -19,6 +19,7 @@ static struct {
     bool lights[MAX_LIGHT_ZONES];
     bool valves[MAX_VALVE_SLOTS];
     bool heaters[MAX_HEATERS];
+    bool heater_setpoints[MAX_HEATERS];
     bool favourite;
     bool temp_sensors[MAX_SEEN_DEVICES][2];   // [dev_idx][sensor_index-1]
 } s_discovery_published = {0};
@@ -27,34 +28,48 @@ static struct {
 // Setpoint and Temperature Publishing
 // ======================================================
 
-void mqtt_publish_setpoints(const pool_state_t *current_state)
+void mqtt_publish_heater_setpoints(const pool_state_t *current_state, int index)
 {
-    if (s_last_published_state.pool_setpoint == current_state->pool_setpoint &&
-        s_last_published_state.spa_setpoint == current_state->spa_setpoint &&
+    if (index < 0 || index >= MAX_HEATERS) {
+        return;
+    }
+
+    const pool_heater_t *heater = &current_state->heaters[index];
+    const pool_heater_t *last = &s_last_published_state.heaters[index];
+
+    // Check if anything changed
+    if (last->pool_setpoint == heater->pool_setpoint &&
+        last->spa_setpoint == heater->spa_setpoint &&
         s_last_published_state.temp_scale_fahrenheit == current_state->temp_scale_fahrenheit) {
         return;  // No change, skip publish
+    }
+
+    // Publish discovery on first publish
+    if (!s_discovery_published.heater_setpoints[index]) {
+        mqtt_publish_heater_setpoint_discovery_single(index);
+        s_discovery_published.heater_setpoints[index] = true;
     }
 
     char device_id[32];
     mqtt_get_device_id(device_id, sizeof(device_id));
 
     char topic[128];
-    snprintf(topic, sizeof(topic), "pool/%s/setpoints/state", device_id);
+    snprintf(topic, sizeof(topic), "pool/%s/heater/%d/setpoints/state", device_id, index);
 
     char payload[256];
     snprintf(payload, sizeof(payload),
              "{\"pool_sp\":%d,\"spa_sp\":%d,\"scale\":\"%s\"}",
-             current_state->pool_setpoint, current_state->spa_setpoint,
+             heater->pool_setpoint, heater->spa_setpoint,
              current_state->temp_scale_fahrenheit ? "F" : "C");
 
     mqtt_publish(topic, payload, 0, true);
 
-    s_last_published_state.pool_setpoint = current_state->pool_setpoint;
-    s_last_published_state.spa_setpoint = current_state->spa_setpoint;
+    s_last_published_state.heaters[index].pool_setpoint = heater->pool_setpoint;
+    s_last_published_state.heaters[index].spa_setpoint = heater->spa_setpoint;
     s_last_published_state.temp_scale_fahrenheit = current_state->temp_scale_fahrenheit;
 
-    ESP_LOGI(TAG, "Published setpoints: pool=%d, spa=%d, scale=%s",
-             current_state->pool_setpoint, current_state->spa_setpoint,
+    ESP_LOGI(TAG, "Published heater %d setpoints: pool=%d, spa=%d, scale=%s",
+             index, heater->pool_setpoint, heater->spa_setpoint,
              current_state->temp_scale_fahrenheit ? "F" : "C");
 }
 

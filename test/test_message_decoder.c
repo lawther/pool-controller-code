@@ -35,7 +35,7 @@ void xSemaphoreGive(SemaphoreHandle_t xSemaphore)
 
 // Mock MQTT functions (disabled in tests)
 void mqtt_publish_mode(const pool_state_t *state) {}
-void mqtt_publish_setpoints(const pool_state_t *state) {}
+void mqtt_publish_heater_setpoints(const pool_state_t *state, int index) {}
 void mqtt_publish_temperature_reading(const pool_state_t *state, int dev_idx, uint8_t sensor_index) {}
 void mqtt_publish_heater(const pool_state_t *state, int index) {}
 void mqtt_publish_chlorinator(const pool_state_t *state) {}
@@ -214,8 +214,44 @@ void test_decode_temperature_setting(void)
     bool decoded = decode_message(msg, sizeof(msg), &test_ctx);
 
     TEST_ASSERT(decoded, "Temperature setting message should be decoded");
-    TEST_ASSERT(test_pool_state.spa_setpoint == 37, "Spa setpoint should be 37°C");
-    TEST_ASSERT(test_pool_state.pool_setpoint == 29, "Pool setpoint should be 29°C");
+    TEST_ASSERT(test_pool_state.heaters[0].spa_setpoint == 37, "Heater 1 spa setpoint should be 37°C");
+    TEST_ASSERT(test_pool_state.heaters[0].pool_setpoint == 29, "Heater 1 pool setpoint should be 29°C");
+    TEST_ASSERT(test_pool_state.heaters[0].setpoint_valid, "Heater 1 setpoint should be valid");
+}
+
+/**
+ * Test: Heater 2 setpoint registers (0xEA pool, 0xEB spa, slot 0x00) via CMD 0x38.
+ */
+void test_heater2_setpoint_registers(void)
+{
+    init_test_context();
+
+    // Register 0xEA (Heater 2 pool setpoint) = 0x1B (27°C)
+    // 02 00 50 FF FF 80 00 38 0F 17 EA 00 1B 05 03
+    uint8_t pool_msg[] = {
+        0x02, 0x00, 0x50, 0xFF, 0xFF, 0x80, 0x00,
+        0x38, 0x0F, 0x17,
+        0xEA, 0x00, 0x1B,       // reg 0xEA, slot 0x00, value 27°C
+        0x05,                   // data checksum (0xEA+0x00+0x1B)
+        0x03
+    };
+    bool pool_decoded = decode_message(pool_msg, sizeof(pool_msg), &test_ctx);
+    TEST_ASSERT(pool_decoded, "Heater 2 pool setpoint register should be decoded");
+    TEST_ASSERT(test_pool_state.heaters[1].pool_setpoint == 27, "Heater 2 pool setpoint should be 27°C");
+    TEST_ASSERT(test_pool_state.heaters[1].setpoint_valid, "Heater 2 setpoint should be valid");
+
+    // Register 0xEB (Heater 2 spa setpoint) = 0x18 (24°C)
+    // checksum = (0xEB+0x00+0x18) & 0xFF = 0x03
+    uint8_t spa_msg[] = {
+        0x02, 0x00, 0x50, 0xFF, 0xFF, 0x80, 0x00,
+        0x38, 0x0F, 0x17,
+        0xEB, 0x00, 0x18,       // reg 0xEB, slot 0x00, value 24°C
+        0x03,                   // data checksum (0xEB+0x00+0x18)
+        0x03
+    };
+    bool spa_decoded = decode_message(spa_msg, sizeof(spa_msg), &test_ctx);
+    TEST_ASSERT(spa_decoded, "Heater 2 spa setpoint register should be decoded");
+    TEST_ASSERT(test_pool_state.heaters[1].spa_setpoint == 24, "Heater 2 spa setpoint should be 24°C");
 }
 
 /**
@@ -658,6 +694,7 @@ int main(void)
     test_decode_mode_spa();
     test_decode_mode_pool();
     test_decode_temperature_setting();
+    test_heater2_setpoint_registers();
     test_decode_temp_reading();
     test_decode_heater_on();
     test_decode_heater_off();

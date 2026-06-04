@@ -111,8 +111,14 @@ static void handle_heater_command(const char *payload, int payload_len, int inde
 {
     ESP_LOGI(TAG, "Heater %d command: %.*s", index, payload_len, payload);
 
-    if (index != 0) {
-        ESP_LOGW(TAG, "Heater %d command not yet supported", index);
+    // State register per heater: Heater 1 = 0xE6, Heater 2 = 0xE9.
+    uint8_t reg;
+    if (index == 0) {
+        reg = 0xE6;
+    } else if (index == 1) {
+        reg = 0xE9;
+    } else {
+        ESP_LOGW(TAG, "No state register known for heater %d", index);
         return;
     }
 
@@ -127,22 +133,22 @@ static void handle_heater_command(const char *payload, int payload_len, int inde
     }
 
     // Build UART command
-    // Pattern: 02 00 F0 FF FF 80 00 3A 0F B9 E6 00 [STATE] [CHECKSUM] 03
-    // Checksum = 0xE6 + 0x00 + state
+    // Pattern: 02 00 F0 FF FF 80 00 3A 0F B9 [REG] 00 [STATE] [CHECKSUM] 03
+    // Checksum = reg + 0x00 + state
     uint8_t cmd[] = {
         0x02,             // START
         0x00, 0xF0,       // SOURCE: Internet Gateway
         0xFF, 0xFF,       // DEST: Broadcast
         0x80, 0x00,       // CONTROL
         0x3A, 0x0F, 0xB9, // Command pattern
-        0xE6,             // Register ID (heater 0)
+        reg,              // Register ID (heater state)
         0x00,             // Slot
         state,            // State (0x00=Off, 0x01=On)
-        (0xE6 + 0x00 + state) & 0xFF, // Checksum
+        (reg + 0x00 + state) & 0xFF, // Checksum
         0x03              // END
     };
 
-    ESP_LOGI(TAG, "Sending heater %s command", state ? "ON" : "OFF");
+    ESP_LOGI(TAG, "Sending heater %d %s command", index, state ? "ON" : "OFF");
     send_uart_command(cmd, sizeof(cmd));
 }
 
@@ -301,6 +307,61 @@ static void handle_temperature_command(bool is_pool, const char *payload, int pa
     send_uart_command(cmd, sizeof(cmd));
 }
 
+// Per-heater setpoint write.
+//  - Heater 1 (index 0): the system pool/spa setpoint command (CMD 0x19).
+//  - Heater 2 (index 1): gateway register write (CMD 0x3A) to 0xEA (pool) / 0xEB (spa).
+static void handle_heater_setpoint_command(int index, bool is_pool,
+                                           const char *payload, int payload_len)
+{
+    if (index == 0) {
+        handle_temperature_command(is_pool, payload, payload_len);
+        return;
+    }
+    // index == 1 (Heater 2): gateway register write to 0xEA (pool) / 0xEB (spa).
+
+    // Parse temperature value (Celsius)
+    char temp_str[16];
+    if (payload_len >= (int)sizeof(temp_str)) {
+        ESP_LOGE(TAG, "Temperature payload too long");
+        return;
+    }
+    memcpy(temp_str, payload, payload_len);
+    temp_str[payload_len] = '\0';
+
+    char *endptr;
+    long temp_parsed = strtol(temp_str, &endptr, 10);
+    if (endptr == temp_str || *endptr != '\0') {
+        ESP_LOGE(TAG, "Invalid temperature value: \"%s\"", temp_str);
+        return;
+    }
+    if (temp_parsed < TEMP_SETPOINT_MIN_C || temp_parsed > TEMP_SETPOINT_MAX_C) {
+        ESP_LOGE(TAG, "Temperature out of range: %ld°C (valid: %d-%d)",
+                 temp_parsed, TEMP_SETPOINT_MIN_C, TEMP_SETPOINT_MAX_C);
+        return;
+    }
+
+    uint8_t reg  = is_pool ? 0xEA : 0xEB;   // Heater 2 pool / spa setpoint register
+    uint8_t slot = 0x00;
+    uint8_t val  = (uint8_t)temp_parsed;
+
+    // Pattern: 02 00 F0 FF FF 80 00 3A 0F B9 [REG] [SLOT] [VAL] [CHECKSUM] 03
+    uint8_t cmd[] = {
+        0x02,             // START
+        0x00, 0xF0,       // SOURCE: Internet Gateway
+        0xFF, 0xFF,       // DEST: Broadcast
+        0x80, 0x00,       // CONTROL
+        0x3A, 0x0F, 0xB9, // Register write command pattern
+        reg,              // Register ID
+        slot,             // Slot
+        val,              // Value °C
+        (reg + slot + val) & 0xFF, // Checksum
+        0x03              // END
+    };
+
+    ESP_LOGI(TAG, "Setting Heater 2 %s setpoint to %ld°C", is_pool ? "pool" : "spa", temp_parsed);
+    send_uart_command(cmd, sizeof(cmd));
+}
+
 // ======================================================
 // Valve Control
 // ======================================================
@@ -411,13 +472,20 @@ void mqtt_handle_command(const char *topic, int topic_len, const char *data, int
         }
     }
     else if (strncmp(cmd_topic, "heater/", 7) == 0) {
+        // Suffixes: "/set" (on/off), "/pool_setpoint/set", "/spa_setpoint/set"
         char *endptr;
         int idx = (int)strtol(cmd_topic + 7, &endptr, 10);
-        if (endptr == cmd_topic + 7 || strncmp(endptr, "/set", 4) != 0
-            || idx < 0 || idx >= MAX_HEATERS) {
+        int suffix_len = cmd_topic_len - (int)(endptr - cmd_topic);
+        if (endptr == cmd_topic + 7 || idx < 0 || idx >= MAX_HEATERS) {
             ESP_LOGE(TAG, "Invalid heater topic: %s", cmd_topic);
-        } else {
+        } else if (suffix_len == 4 && strncmp(endptr, "/set", 4) == 0) {
             handle_heater_command(data, data_len, idx);
+        } else if (suffix_len == 18 && strncmp(endptr, "/pool_setpoint/set", 18) == 0) {
+            handle_heater_setpoint_command(idx, true, data, data_len);
+        } else if (suffix_len == 17 && strncmp(endptr, "/spa_setpoint/set", 17) == 0) {
+            handle_heater_setpoint_command(idx, false, data, data_len);
+        } else {
+            ESP_LOGE(TAG, "Invalid heater topic: %s", cmd_topic);
         }
     }
     else if (strncmp(cmd_topic, "mode/set", 8) == 0) {
@@ -425,12 +493,6 @@ void mqtt_handle_command(const char *topic, int topic_len, const char *data, int
     }
     else if (strncmp(cmd_topic, "favourite/set", 13) == 0) {
         handle_favourite_command(data, data_len);
-    }
-    else if (strncmp(cmd_topic, "temperature/pool/set", 20) == 0) {
-        handle_temperature_command(true, data, data_len);
-    }
-    else if (strncmp(cmd_topic, "temperature/spa/set", 19) == 0) {
-        handle_temperature_command(false, data, data_len);
     }
     else {
         ESP_LOGW(TAG, "Unknown command topic: %.*s", cmd_topic_len, cmd_topic);
