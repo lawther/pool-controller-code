@@ -1616,7 +1616,7 @@ Sets a light zone's state (Off/Auto/On).
 
 #### Heater Control (Register `0xE6`, Slot `0x00`) ✅
 
-Turns the (primary) heater on or off. Heater 1 only — see [Appendix A](#appendix-a-register-dispatch-table) for the Heater 2 register set (`0xEA` confirmed pool setpoint; `0xE9`/`0xEB` tentative).
+Turns the (primary) heater on or off. Heater 1 only — see [Appendix A](#appendix-a-register-dispatch-table) for the tentative Heater 2 register set (`0xE9`/`0xEA`/`0xEB`).
 
 **Example — Turn Heater On:**
 
