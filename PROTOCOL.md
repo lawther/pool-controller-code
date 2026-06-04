@@ -636,11 +636,13 @@ Data fields:
 
 ---
 
-#### Genus Heater (`0x0070` / `0x0072`) ✅
+#### Genus Heater (`0x0070`) / HiNRG Gas Heater (`0x0072`) / ICI Gas Heater (`0x0074`) ✅
 
-When an Active i25 Evo (Genus) heater is fitted it broadcasts its own current water-temperature reading on the same CMD but with a shorter LENGTH (`0x0D`) and only one data byte. Both `0x0070` and `0x0072` heater addresses have been observed using this layout.
+When an Active i25 Evo (Genus) / HiNRG Gas Heater or ICI Gas Heater is fitted it broadcasts its own current water-temperature reading on the same CMD but with a shorter LENGTH (`0x0D`) and only one data byte.
 
 Pattern (`0x0070`): `02 00 70 FF FF 80 00 16 0D 13`
+Pattern (`0x0072`): `02 00 72 FF FF 80 00 16 0D 15`
+Pattern (`0x0074`): `02 00 74 FF FF 80 00 16 0D 17`
 
 Example:
 
@@ -654,27 +656,9 @@ Data fields:
 - Byte 10: Current water temperature in °C
 - Byte 11: Data checksum (equals byte 10)
 
-This is the Genus Heater's own water-temperature reading; it is independent of the controller's reading and may differ if the two sensors are sited differently in the plumbing.
+This is the Heater's own water-temperature reading; it is independent of the controller's reading and may differ if the two sensors are sited differently in the plumbing. 
 
----
-
-#### ICI Gas Heater (`0x0074`) ✅
-
-Pattern: `02 00 74 FF FF 80 00 16 0D 17`
-
-Example:
-
-```
-02 00 74 FF FF 80 00 16 0D 17 10 10 03
-                              ^^ Current water temperature (0x10 = 16°C)
-                                 ^^ Data checksum (equals byte 10 — only one data byte)
-```
-
-Data fields:
-- Byte 10: Current water temperature in °C
-- Byte 11: Data checksum (equals byte 10)
-
-Identical frame format to the Genus Heater (`0x0070`/`0x0072`) variant — only the source address and header checksum differ. Handled by the unified `handle_temp_reading()` via the LEN `0x0D` path. Confirmed against the heater's own front-panel display ("Water 16.2°C").
+Handled by the unified `handle_temp_reading()` via the LEN `0x0D` path.
 
 ---
 
@@ -686,9 +670,10 @@ Setpoint broadcast. CMD `0x17` is shared across two sources with different paylo
 
 | Source                | LENGTH | Payload                                | Status | Handler                       |
 |-----------------------|--------|----------------------------------------|--------|-------------------------------|
-| `0x0050` Touchscreen  | `0x10` | 4 bytes — spa/pool °C + spa/pool °F    | ✅     | `handle_temp_setting`         |
-| `0x0070` Genus Heater | `0x0E` | 2 bytes — Heater 1 °C, Heater 2 °C     | ✅     | `handle_genus_heater_temp_setting`|
-| `0x0074` ICI Gas Heater | `0x0E` | 2 bytes — spa setpoint °C, pool setpoint °C | ✅     | `handle_ici_heater_temp_setting`  |
+| `0x0050` Touchscreen  | `0x10` | 4 bytes — spa/pool setpoint °C + spa/pool setpoint °F    | ✅     | `handle_temp_setting`         |
+| `0x0070` Genus Heater | `0x0E` | 2 bytes — Spa setpoint °C, Pool setpoint °C | ✅     | `handle_genus_heater_temp_setting`|
+| `0x0072` HiNRG Heater | `0x0E` | 2 bytes — Spa setpoint °C, Pool setpoint °C | ✅     | `handle_genus_heater_temp_setting`|
+| `0x0074` ICI Gas Heater | `0x0E` | 2 bytes — Spa setpoint °C, Pool setpoint °C | ✅     | `handle_ici_heater_temp_setting`  |
 
 The same setpoints are also broadcast individually via the register system — see the [Register-based variant](#register-based-temperature-setpoints) below.
 
@@ -718,48 +703,29 @@ Temperature scale (Celsius vs Fahrenheit) is set by [0x26 Configuration](#0x26--
 
 ---
 
-#### Genus Heater (`0x0070`) ✅
+#### Genus Heater (`0x0070`) / HiNRG Gas Heater (`0x0072`) / ICI Gas Heater (`0x0074`) ✅
 
-When an Active i25 Evo (Genus) heater is fitted it broadcasts its own setpoints using the same CMD but a shorter LENGTH and a different payload — both heater setpoints in a single frame, °C only.
+When an Active i25 Evo (Genus) / HiNRG Gas Heater or ICI Gas Heater is fitted it broadcasts its own setpoints using the same CMD but a shorter LENGTH and a different payload — both heater setpoints in a single frame, °C only.
 
-Pattern: `02 00 70 FF FF 80 00 17 0E 15`
+Pattern (`0x0070`): `02 00 70 FF FF 80 00 17 0E 15` (Genus Heater)
+Pattern (`0x0072`): `02 00 72 FF FF 80 00 17 0E 17` (HiNRG Gas Heater)
+Pattern (`0x0074`): `02 00 74 FF FF 80 00 17 0E 19` (ICI Gas Heater)
 
 Example:
 
 ```
 02 00 70 FF FF 80 00 17 0E 15 18 1B 33 03
-                              ^^ Heater 1 setpoint °C (0x18 = 24°C)
-                                 ^^ Heater 2 setpoint °C (0x1B = 27°C)
-                                    ^^ Data checksum (0x18 + 0x1B = 0x33)
-```
-
-Data fields:
-- Byte 10: Heater 1 setpoint (°C)
-- Byte 11: Heater 2 setpoint (°C)
-- Byte 12: Data checksum (sum of bytes 10–11)
-
-Both heater setpoints are carried in a single broadcast; the Genus Heater never sends them separately. The actual current water temperature is reported separately via [0x16](#0x16--water-temperature-reading-) (Genus Heater variant).
-
----
-
-#### ICI Gas Heater (`0x0074`) ✅
-
-Pattern: `02 00 74 FF FF 80 00 17 0E 19`
-
-Example:
-
-```
-02 00 74 FF FF 80 00 17 0E 19 23 1B 3E 03
-                              ^^ Spa setpoint °C (0x23 = 35°C)
+                              ^^ Spa setpoint °C (0x18 = 24°C)
                                  ^^ Pool setpoint °C (0x1B = 27°C)
-                                    ^^ Data checksum (0x23 + 0x1B = 0x3E)
+                                    ^^ Data checksum (0x18 + 0x1B = 0x33)
 ```
 
 Data fields:
 - Byte 10: Spa setpoint (°C)
 - Byte 11: Pool setpoint (°C)
+- Byte 12: Data checksum (sum of bytes 10–11)
 
-Identical frame format to the Genus Heater (`0x0070`) variant — same LENGTH and payload structure, only source address and header checksum differ. Byte 11 tracking the pool setpoint was confirmed by pressing the up/down buttons on the heater's front panel and observing the byte increment/decrement on the bus. Byte 10 as spa setpoint was confirmed by switching into spa mode and observing 0x23 = 35°C on the heater's display.
+Both setpoints are carried in a single broadcast; these heaters never send them separately. The actual current water temperature is reported separately via [0x16](#0x16--water-temperature-reading-) (Genus Heater variant).
 
 ---
 
