@@ -562,6 +562,7 @@ static bool handle_valve_state(const uint8_t *data, int len, const uint8_t *payl
 static bool handle_touchscreen_unknown3(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 static bool handle_heater1_state(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 static bool handle_heater2_state(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
+static bool handle_heater2_pool_setpoint(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 
 /**
  * Register message dispatch table
@@ -604,6 +605,9 @@ static const register_handler_t REGISTER_HANDLERS[] = {
 
     // Heater 2 state (slot 0x00, register 0xE9) — tentative; see PROTOCOL.md Appendix A note
     {0xE9, 0xE9, 0x00, handle_heater2_state,          "Heater 2 State"},
+
+    // Heater 2 pool setpoint (slot 0x00, register 0xEA) — confirmed; see PROTOCOL.md Appendix A
+    {0xEA, 0xEA, 0x00, handle_heater2_pool_setpoint,  "Heater 2 Pool Setpoint"},
 
     {0xF4, 0xF4, 0x01, handle_channel_count,          "Channel Count"},
 };
@@ -815,6 +819,25 @@ static bool handle_heater2_state(
     ESP_LOGI(TAG, "%s Heater 2 state (tentative) - %s (0x%02X)", addr_info,
              state == 0x00 ? "Off" : state == 0x01 ? "On" : "Unknown",
              state);
+
+    return true;
+}
+
+/**
+ * Handler: Heater 2 pool setpoint
+ * Register 0xEA, Slot 0x00. See PROTOCOL.md Appendix A (confirmed).
+ * Log-only — Heater 2 has no dedicated pool_state field yet.
+ */
+static bool handle_heater2_pool_setpoint(
+    const uint8_t *data, int len,
+    const uint8_t *payload, int payload_len,
+    const char *addr_info,
+    message_decoder_context_t *ctx)
+{
+    if (payload_len < 3) return false;
+
+    uint8_t temp_c = payload[2];
+    ESP_LOGI(TAG, "%s Heater 2 pool temperature setpoint - %d°C", addr_info, temp_c);
 
     return true;
 }
@@ -1654,6 +1677,10 @@ static bool handle_light_control_cmd(
         // Heater on/off control (0xE6, slot 0x00)
         ESP_LOGI(TAG, "%s Gateway heater control command - Heater -> %s",
                  addr_info, state ? "On" : "Off");
+    } else if (reg_id == 0xEA && slot == 0x00) {
+        // Heater 2 pool setpoint write (0xEA, slot 0x00) — see PROTOCOL.md 0x3A
+        ESP_LOGI(TAG, "%s Gateway heater 2 pool setpoint command -> %d°C",
+                 addr_info, state);
     } else {
         ESP_LOGW(TAG, "%s Gateway register write command - Unknown Reg=0x%02X, Slot=0x%02X, State=0x%02X",
                  addr_info, reg_id, slot, state);
