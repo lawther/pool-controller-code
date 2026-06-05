@@ -571,45 +571,45 @@ static bool handle_heater2_pool_setpoint(const uint8_t *data, int len, const uin
  */
 static const register_handler_t REGISTER_HANDLERS[] = {
     // Timers (slot 0x04, registers 0x08-0x17 = timers 1-16)
-    {0x08, 0x17, 0x04, handle_timer,              "Timer"},
+    {REG_ID_TIMER_0,                 REG_ID_TIMER_15,                0x04, handle_timer,                 "Timer"},
 
     // Channel configuration
-    {0x6C, 0x73, 0x02, handle_channel_type,       "Channel Type"},
-    {0x7C, 0x83, 0x02, handle_channel_name,       "Channel Name"},
-    {0x8C, 0x93, 0x02, handle_channel_state,      "Channel State"},
+    {REG_ID_CHANNEL_TYPE_0,          REG_ID_CHANNEL_TYPE_7,          0x02, handle_channel_type,          "Channel Type"},
+    {REG_ID_CHANNEL_NAME_0,          REG_ID_CHANNEL_NAME_7,          0x02, handle_channel_name,          "Channel Name"},
+    {REG_ID_CHANNEL_STATE_0,         REG_ID_CHANNEL_STATE_7,         0x02, handle_channel_state,         "Channel State"},
 
-    // Lighting zones — reg_end capped to base + MAX_LIGHT_ZONES - 1 (= base + 3)
-    {0xA0, 0xA3, 0x01, handle_light_zone_multicolor, "Light Zone Multicolor"},
-    {0xB0, 0xB3, 0x01, handle_light_zone_name,    "Light Zone Name"},
-    {0xC0, 0xC3, 0x01, handle_light_zone_state,   "Light Zone State"},
-    {0xD0, 0xD3, 0x01, handle_light_zone_color,   "Light Zone Color"},
-    {0xE0, 0xE3, 0x01, handle_light_zone_active,  "Light Zone Active"},
+    // Lighting zones — reg_end capped at index 3 (MAX_LIGHT_ZONES - 1)
+    {REG_ID_LIGHT_ZONE_MULTICOLOR_0, REG_ID_LIGHT_ZONE_MULTICOLOR_3, 0x01, handle_light_zone_multicolor, "Light Zone Multicolor"},
+    {REG_ID_LIGHT_ZONE_NAME_0,       REG_ID_LIGHT_ZONE_NAME_3,       0x01, handle_light_zone_name,       "Light Zone Name"},
+    {REG_ID_LIGHT_ZONE_STATE_0,      REG_ID_LIGHT_ZONE_STATE_3,      0x01, handle_light_zone_state,      "Light Zone State"},
+    {REG_ID_LIGHT_ZONE_COLOR_0,      REG_ID_LIGHT_ZONE_COLOR_3,      0x01, handle_light_zone_color,      "Light Zone Color"},
+    {REG_ID_LIGHT_ZONE_ACTIVE_0,     REG_ID_LIGHT_ZONE_ACTIVE_3,     0x01, handle_light_zone_active,     "Light Zone Active"},
 
     // Valve labels (slot 0x02)
-    {0xD0, 0xD1, 0x02, handle_valve_label,        "Valve Label"},
+    {REG_ID_VALVE_LABEL_0,           REG_ID_VALVE_LABEL_1,           0x02, handle_valve_label,           "Valve Label"},
 
     // Favourite/mode enable flags (slot 0x03, registers 0x21-0x28 = Pool,Spa,Fav1-6)
-    {0x21, 0x28, 0x03, handle_favourite_enable,       "Favourite Enable"},
+    {REG_ID_FAVOURITE_ENABLE_0,      REG_ID_FAVOURITE_ENABLE_7,      0x03, handle_favourite_enable,      "Favourite Enable"},
 
     // Favourite/mode labels (slot 0x03, registers 0x31-0x38 = Pool,Spa,Fav1-6)
-    {0x31, 0x38, 0x03, handle_favourite_label,        "Favourite Label"},
+    {REG_ID_FAVOURITE_LABEL_0,       REG_ID_FAVOURITE_LABEL_7,       0x03, handle_favourite_label,       "Favourite Label"},
 
     // Heater 1 state (slot 0x00, register 0xE6) — touchscreen register-response broadcast.
     // The CMD 0x12 broadcast from 0x0062 is the authoritative state source that updates
     // pool_state->heaters[0]; this entry just names the register-response broadcast so it
     // stops being logged as "Unhandled register".
-    {0xE6, 0xE6, 0x00, handle_heater1_state,          "Heater 1 State"},
+    {REG_ID_HEATER1_ONOFF,          REG_ID_HEATER1_ONOFF,          0x00, handle_heater1_state,         "Heater 1 State"},
 
     // Temperature setpoints (slot 0x00, registers 0xE7=Pool, 0xE8=Spa)
-    {0xE7, 0xE8, 0x00, handle_temp_setpoint,          "Temperature Setpoint"},
+    {REG_ID_HEATER1_POOL_SETPOINT, REG_ID_HEATER1_SPA_SETPOINT,  0x00, handle_temp_setpoint,         "Temperature Setpoint"},
 
     // Heater 2 state (slot 0x00, register 0xE9) — tentative; see PROTOCOL.md Appendix A note
-    {0xE9, 0xE9, 0x00, handle_heater2_state,          "Heater 2 State"},
+    {REG_ID_HEATER2_ONOFF,         REG_ID_HEATER2_ONOFF,         0x00, handle_heater2_state,         "Heater 2 State"},
 
     // Heater 2 pool setpoint (slot 0x00, register 0xEA) — confirmed; see PROTOCOL.md Appendix A
-    {0xEA, 0xEA, 0x00, handle_heater2_pool_setpoint,  "Heater 2 Pool Setpoint"},
+    {REG_ID_HEATER2_POOL_SETPOINT, REG_ID_HEATER2_POOL_SETPOINT, 0x00, handle_heater2_pool_setpoint, "Heater 2 Pool Setpoint"},
 
-    {0xF4, 0xF4, 0x01, handle_channel_count,          "Channel Count"},
+    {REG_ID_CHANNEL_COUNT,         REG_ID_CHANNEL_COUNT,         0x01, handle_channel_count,         "Channel Count"},
 };
 
 #define REGISTER_HANDLER_COUNT (sizeof(REGISTER_HANDLERS) / sizeof(REGISTER_HANDLERS[0]))
@@ -756,7 +756,7 @@ static bool handle_temp_setpoint(
 
     uint8_t reg_id = payload[0];
     uint8_t temp_c = payload[2];
-    bool is_pool = (reg_id == 0xE7);
+    bool is_pool = (reg_id == REG_ID_HEATER1_POOL_SETPOINT);
 
     ESP_LOGI(TAG, "%s %s temperature setpoint - %d°C", addr_info,
              is_pool ? "Pool" : "Spa", temp_c);
@@ -1667,18 +1667,18 @@ static bool handle_light_control_cmd(
     uint8_t state = payload[2];
 
     // Dispatch based on register ID and slot
-    if (reg_id >= 0xC0 && reg_id <= 0xC7 && slot == 0x01) {
-        // Light zone state control (0xC0-0xC7, slot 0x01)
-        uint8_t zone_num = reg_id - 0xC0 + 1;
+    if (reg_id >= REG_ID_LIGHT_ZONE_STATE_0 && reg_id <= REG_ID_LIGHT_ZONE_STATE_7 && slot == 0x01) {
+        // Light zone state control (REG_ID_LIGHT_ZONE_STATE_0–REG_ID_LIGHT_ZONE_STATE_7, slot 0x01)
+        uint8_t zone_num = reg_id - REG_ID_LIGHT_ZONE_STATE_0 + 1;
         const char *state_name = (state == 0x00) ? "Off" : (state == 0x01) ? "Auto" : (state == 0x02) ? "On" : "Unknown";
         ESP_LOGI(TAG, "%s Gateway light control command - Zone %d -> %s (0x%02X)",
                  addr_info, zone_num, state_name, state);
-    } else if (reg_id == 0xE6 && slot == 0x00) {
-        // Heater on/off control (0xE6, slot 0x00)
+    } else if (reg_id == REG_ID_HEATER1_ONOFF && slot == 0x00) {
+        // Heater on/off control (REG_ID_HEATER1_ONOFF, slot 0x00)
         ESP_LOGI(TAG, "%s Gateway heater control command - Heater -> %s",
                  addr_info, state ? "On" : "Off");
-    } else if (reg_id == 0xEA && slot == 0x00) {
-        // Heater 2 pool setpoint write (0xEA, slot 0x00) — see PROTOCOL.md 0x3A
+    } else if (reg_id == REG_ID_HEATER2_POOL_SETPOINT && slot == 0x00) {
+        // Heater 2 pool setpoint write (REG_ID_HEATER2_POOL_SETPOINT, slot 0x00) — see PROTOCOL.md 0x3A
         ESP_LOGI(TAG, "%s Gateway heater 2 pool setpoint command -> %d°C",
                  addr_info, state);
     } else {
@@ -2018,7 +2018,7 @@ static bool handle_timer(
     uint8_t stop_minute  = payload[5];
     uint8_t days         = payload[6];
 
-    uint8_t timer_num = reg_id - 0x08 + 1;
+    uint8_t timer_num = reg_id - REG_ID_TIMER_0 + 1;
 
     // Build compact day string: MTWTFSS where '-' means not set
     // Assumed mapping: bit0=Mon, bit1=Tue, bit2=Wed, bit3=Thu, bit4=Fri, bit5=Sat, bit6=Sun
@@ -2082,7 +2082,7 @@ static bool handle_channel_type(
 
     uint8_t reg_id = payload[0];
     uint8_t ch_type = payload[2];
-    uint8_t ch_num = reg_id - 0x6C + 1;
+    uint8_t ch_num = reg_id - REG_ID_CHANNEL_TYPE_0 + 1;
 
     const char *type_name = get_channel_type_name(ch_type);
     ESP_LOGI(TAG, "%s Channel %d type - %s (%d)", addr_info, ch_num, type_name, ch_type);
@@ -2114,7 +2114,7 @@ static bool handle_channel_name(
     if (payload_len < 3) return false;
 
     uint8_t reg_id = payload[0];
-    uint8_t ch_num = reg_id - 0x7C + 1;
+    uint8_t ch_num = reg_id - REG_ID_CHANNEL_NAME_0 + 1;
 
     // Safely copy string from payload — protocol does not guarantee null termination
     char name[32] = {0};
@@ -2159,7 +2159,7 @@ static bool handle_channel_state(
 
     uint8_t reg_id = payload[0];
     uint8_t state  = payload[2];
-    uint8_t ch_num = reg_id - 0x8C + 1;
+    uint8_t ch_num = reg_id - REG_ID_CHANNEL_STATE_0 + 1;
 
     const char *state_name = (state < CHANNEL_STATE_COUNT) ? CHANNEL_STATE_NAMES[state] : "Unknown";
     ESP_LOGI(TAG, "%s Channel %d state - %s", addr_info, ch_num, state_name);
@@ -2201,7 +2201,7 @@ static bool handle_light_zone_state(
 
     uint8_t reg_id = payload[0];
     uint8_t state = payload[2];
-    uint8_t zone_idx = reg_id - 0xC0;
+    uint8_t zone_idx = reg_id - REG_ID_LIGHT_ZONE_STATE_0;
 
     if (zone_idx >= MAX_LIGHT_ZONES) {
         ESP_LOGW(TAG, "%s Lighting zone state: zone_idx %d out of range (max %d)", addr_info, zone_idx, MAX_LIGHT_ZONES);
@@ -2250,7 +2250,7 @@ static bool handle_light_zone_color(
 
     uint8_t reg_id = payload[0];
     uint8_t color = payload[2];
-    uint8_t zone_idx = reg_id - 0xD0;
+    uint8_t zone_idx = reg_id - REG_ID_LIGHT_ZONE_COLOR_0;
 
     if (zone_idx >= MAX_LIGHT_ZONES) {
         ESP_LOGW(TAG, "%s Lighting zone color: zone_idx %d out of range (max %d)", addr_info, zone_idx, MAX_LIGHT_ZONES);
@@ -2298,7 +2298,7 @@ static bool handle_light_zone_multicolor(
 
     uint8_t reg_id = payload[0];
     uint8_t capable = payload[2];
-    uint8_t zone_idx = reg_id - 0xA0;
+    uint8_t zone_idx = reg_id - REG_ID_LIGHT_ZONE_MULTICOLOR_0;
 
     if (zone_idx >= MAX_LIGHT_ZONES) {
         ESP_LOGW(TAG, "%s Lighting zone multicolor: zone_idx %d out of range (max %d)", addr_info, zone_idx, MAX_LIGHT_ZONES);
@@ -2340,7 +2340,7 @@ static bool handle_light_zone_name(
 
     uint8_t reg_id = payload[0];
     uint8_t name_id = payload[2];
-    uint8_t zone_idx = reg_id - 0xB0;
+    uint8_t zone_idx = reg_id - REG_ID_LIGHT_ZONE_NAME_0;
 
     if (zone_idx >= MAX_LIGHT_ZONES) {
         ESP_LOGW(TAG, "%s Lighting zone name: zone_idx %d out of range (max %d)", addr_info, zone_idx, MAX_LIGHT_ZONES);
@@ -2383,7 +2383,7 @@ static bool handle_light_zone_active(
 
     uint8_t reg_id = payload[0];
     uint8_t active = payload[2];
-    uint8_t zone_idx = reg_id - 0xE0;
+    uint8_t zone_idx = reg_id - REG_ID_LIGHT_ZONE_ACTIVE_0;
 
     if (zone_idx >= MAX_LIGHT_ZONES) {
         ESP_LOGW(TAG, "%s Lighting zone active: zone_idx %d out of range (max %d)", addr_info, zone_idx, MAX_LIGHT_ZONES);
@@ -2429,7 +2429,7 @@ static bool handle_valve_label(
     if (payload_len < 3) return false;
 
     uint8_t reg_id = payload[0];
-    uint8_t zone_num = reg_id - 0xD0 + 1;
+    uint8_t zone_num = reg_id - REG_ID_VALVE_LABEL_0 + 1;
 
     // Safely copy string from payload — protocol does not guarantee null termination
     char label[32] = {0};
@@ -2464,7 +2464,7 @@ static bool handle_valve_label(
     }
 
     // Also store directly in valve state for MQTT name-change detection
-    int valve_idx = reg_id - 0xD0;
+    int valve_idx = reg_id - REG_ID_VALVE_LABEL_0;
     if (valve_idx >= 0 && valve_idx < MAX_VALVE_SLOTS) {
         strncpy(ctx->pool_state->valves[valve_idx].name, label,
                 sizeof(ctx->pool_state->valves[valve_idx].name) - 1);
@@ -2496,7 +2496,7 @@ static bool handle_favourite_label(
     if (payload_len < 3) return false;
 
     uint8_t reg_id = payload[0];
-    int index = reg_id - 0x31;
+    int index = reg_id - REG_ID_FAVOURITE_LABEL_0;
     if (index < 0 || index >= MAX_FAVOURITES) return false;
 
     char label[32] = {0};
@@ -2537,7 +2537,7 @@ static bool handle_favourite_enable(
     if (payload_len < 3) return false;
 
     uint8_t reg_id = payload[0];
-    int index = reg_id - 0x21;
+    int index = reg_id - REG_ID_FAVOURITE_ENABLE_0;
     if (index < 0 || index >= MAX_FAVOURITES) return false;
 
     bool enabled = (payload[2] != 0x00);

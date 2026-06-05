@@ -1,4 +1,5 @@
 #include "register_requester.h"
+#include "message_decoder.h"
 #include "bus.h"
 #include "pool_state.h"
 #include "config.h"
@@ -63,7 +64,7 @@ static void register_requester_task(void *arg)
             }
             for (int i = 0; i < MAX_VALVE_SLOTS; i++) {
                 valve_configured[i] = s_state->valves[i].configured;
-                uint8_t reg_id = 0xD0 + i;
+                uint8_t reg_id = REG_ID_VALVE_LABEL_0 + i;
                 for (int j = 0; j < MAX_REGISTER_LABELS; j++) {
                     if (s_state->register_labels[j].valid &&
                         s_state->register_labels[j].reg_id == reg_id) {
@@ -93,7 +94,7 @@ static void register_requester_task(void *arg)
                     if (!timers_valid[i]) {
                         char desc[16];
                         snprintf(desc, sizeof(desc), "timer %d", i + 1);
-                        send_request(0x08 + i, 0x04, desc);
+                        send_request(REG_ID_TIMER_0 + i, 0x04, desc);
                     }
                 }
             }
@@ -106,13 +107,13 @@ static void register_requester_task(void *arg)
                     ESP_LOGI(TAG, "Requesting missing light %d zone multicolor", i + 1);
                     char desc[24];
                     snprintf(desc, sizeof(desc), "light %d multicolor", i + 1);
-                    send_request(0xA0 + i, 0x01, desc);
+                    send_request(REG_ID_LIGHT_ZONE_MULTICOLOR_0 + i, 0x01, desc);
                 }
                 if (!light_name_valid[i]) {
                     ESP_LOGI(TAG, "Requesting missing light %d zone name", i + 1);
                     char desc[24];
                     snprintf(desc, sizeof(desc), "light %d name", i + 1);
-                    send_request(0xB0 + i, 0x01, desc);
+                    send_request(REG_ID_LIGHT_ZONE_NAME_0 + i, 0x01, desc);
                 }
             }
 
@@ -123,7 +124,7 @@ static void register_requester_task(void *arg)
                     ESP_LOGI(TAG, "Requesting missing valve %d label", i + 1);
                     char desc[24];
                     snprintf(desc, sizeof(desc), "valve %d label", i + 1);
-                    send_request(0xD0 + i, 0x02, desc);
+                    send_request(REG_ID_VALVE_LABEL_0 + i, 0x02, desc);
                 }
             }
 
@@ -132,12 +133,12 @@ static void register_requester_task(void *arg)
                 if (!fav_enabled_valid[i]) {
                     char desc[32];
                     snprintf(desc, sizeof(desc), "favourite %d enable", i);
-                    send_request(0x21 + i, 0x03, desc);
+                    send_request(REG_ID_FAVOURITE_ENABLE_0 + i, 0x03, desc);
                 }
                 if (!fav_name_valid[i]) {
                     char desc[32];
                     snprintf(desc, sizeof(desc), "favourite %d label", i);
-                    send_request(0x31 + i, 0x03, desc);
+                    send_request(REG_ID_FAVOURITE_LABEL_0 + i, 0x03, desc);
                 }
             }
         }
