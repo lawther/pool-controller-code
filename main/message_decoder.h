@@ -144,9 +144,9 @@ typedef enum {
     REG_ID_LIGHT_ZONE_ACTIVE_0     = 0xE0,  // Zone 0 active flag (0–7 → 0xE0–0xE7, slot 0x01)
     REG_ID_LIGHT_ZONE_ACTIVE_3     = 0xE3,  // Zone 3 active (usable max; capped by MAX_LIGHT_ZONES)
     REG_ID_LIGHT_ZONE_ACTIVE_7     = 0xE7,  // Zone 7 active (protocol max)
-REG_ID_HEATER1_ONOFF
+
     // Point registers
-             = 0xE6,  // Heater 1 on/off state
+    REG_ID_HEATER1_ONOFF         = 0xE6,  // Heater 1 on/off state
     REG_ID_HEATER1_POOL_SETPOINT = 0xE7,  // Pool temperature setpoint (Heater 1)
     REG_ID_HEATER1_SPA_SETPOINT  = 0xE8,  // Spa temperature setpoint (Heater 1)
     REG_ID_HEATER2_ONOFF         = 0xE9,  // Heater 2 on/off state — tentative, see PROTOCOL.md Appendix A
