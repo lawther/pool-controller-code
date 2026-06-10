@@ -170,6 +170,8 @@ typedef struct {
     uint16_t orp_reading;      // mV
     bool ph_valid;
     bool orp_valid;
+    bool ph_setpoint_valid;
+    bool orp_setpoint_valid;
     uint8_t chlor_mode;        // 0=Off, 1=Auto, 2=On (tentative — see PROTOCOL.md §32)
     bool chlor_mode_valid;
     uint8_t chlor_output_level;       // Chlorine output level 1–8 (from VX 11S v3, address 0x0081)

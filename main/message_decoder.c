@@ -1795,6 +1795,7 @@ static bool handle_chlor_ph_setpoint(
         return true;
     }
     ctx->pool_state->ph_setpoint = value;
+    ctx->pool_state->ph_setpoint_valid = true;
     ctx->pool_state->last_update_ms = xTaskGetTickCount() * portTICK_PERIOD_MS;
     snapshot = *ctx->pool_state;
     xSemaphoreGive(ctx->state_mutex);
@@ -1829,6 +1830,7 @@ static bool handle_chlor_orp_setpoint(
         return true;
     }
     ctx->pool_state->orp_setpoint = value;
+    ctx->pool_state->orp_setpoint_valid = true;
     ctx->pool_state->last_update_ms = xTaskGetTickCount() * portTICK_PERIOD_MS;
     snapshot = *ctx->pool_state;
     xSemaphoreGive(ctx->state_mutex);

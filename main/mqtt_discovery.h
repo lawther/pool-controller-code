@@ -34,4 +34,13 @@ void mqtt_publish_temperature_sensor_discovery_single(
 // Publish favourite select discovery (called on connect and when names/enable flags change)
 void mqtt_publish_favourite_discovery_single(const pool_state_t *state);
 
+// Chemistry and pump sensor discovery, published lazily on each entity's
+// first valid value (see mqtt_publish_chlorinator / mqtt_publish_pump).
+void mqtt_publish_ph_discovery_single(void);
+void mqtt_publish_orp_discovery_single(void);
+void mqtt_publish_ph_setpoint_discovery_single(void);
+void mqtt_publish_orp_setpoint_discovery_single(void);
+void mqtt_publish_chlor_output_level_discovery_single(void);
+void mqtt_publish_pump_discovery_single(void);
+
 #endif // MQTT_DISCOVERY_H
