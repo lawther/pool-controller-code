@@ -33,6 +33,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 ### Fixed
 - Configured devcontainer to use ESP-IDF 5.5 for consistency
+- Fixed pool/spa setpoint commands having no effect after the per-heater refactor: the device now subscribes to the new `heater/<n>/pool_setpoint/set` and `heater/<n>/spa_setpoint/set` command topics (the old `temperature/...` subscriptions pointed at handlers that no longer exist)
+- Fixed phantom "Chlorine Output Level", "Pump Speed" and pH/ORP Home Assistant entities appearing on systems without a chlorinator or variable-speed pump: chemistry and pump discovery is now published lazily on each entity's first valid value instead of unconditionally at MQTT connect, and pH/ORP setpoints report `null` until a real setpoint has been received
 ### Deprecated
 ### Security
 

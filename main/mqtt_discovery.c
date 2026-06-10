@@ -724,6 +724,25 @@ static void publish_pump_discovery(const char *device_id, const char *mac_suffix
 // Individual Discovery Functions (called when items first configured)
 // ======================================================
 
+// Fetch device_id/mac_suffix and invoke a no-arg discovery publisher.
+static void publish_single(void (*publish_fn)(const char *device_id, const char *mac_suffix))
+{
+    char device_id[32];
+    mqtt_get_device_id(device_id, sizeof(device_id));
+
+    char mac_suffix[DEVICE_MAC_SUFFIX_LEN];
+    device_get_mac_suffix(mac_suffix, sizeof(mac_suffix));
+
+    publish_fn(device_id, mac_suffix);
+}
+
+void mqtt_publish_ph_discovery_single(void)                { publish_single(publish_ph_discovery); }
+void mqtt_publish_orp_discovery_single(void)               { publish_single(publish_orp_discovery); }
+void mqtt_publish_ph_setpoint_discovery_single(void)       { publish_single(publish_ph_setpoint_discovery); }
+void mqtt_publish_orp_setpoint_discovery_single(void)      { publish_single(publish_orp_setpoint_discovery); }
+void mqtt_publish_chlor_output_level_discovery_single(void) { publish_single(publish_chlor_output_level_discovery); }
+void mqtt_publish_pump_discovery_single(void)              { publish_single(publish_pump_discovery); }
+
 void mqtt_publish_channel_discovery_single(int channel_num, const char *channel_name)
 {
     char device_id[32];
@@ -940,15 +959,11 @@ void mqtt_publish_discovery(void)
         publish_favourite_discovery(device_id, mac_suffix, &snapshot);
     }
 
-    // Chemistry
-    publish_ph_discovery(device_id, mac_suffix);
-    publish_orp_discovery(device_id, mac_suffix);
-    publish_ph_setpoint_discovery(device_id, mac_suffix);
-    publish_orp_setpoint_discovery(device_id, mac_suffix);
-    publish_chlor_output_level_discovery(device_id, mac_suffix);
-
-    // Pump
-    publish_pump_discovery(device_id, mac_suffix);
+    // Note: Chemistry (pH/ORP readings and setpoints, chlorine output level)
+    // and pump speed are NOT published here. Each entity is published
+    // individually on its first valid reading (see mqtt_publish_chlorinator
+    // and mqtt_publish_pump in mqtt_publish.c), so systems without a
+    // chlorinator or variable-speed pump never create the HA entities.
 
     ESP_LOGI(TAG, "Discovery messages published");
 }

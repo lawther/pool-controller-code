@@ -22,6 +22,12 @@ static struct {
     bool heater_setpoints[MAX_HEATERS];
     bool favourite;
     bool temp_sensors[MAX_SEEN_DEVICES][2];   // [dev_idx][sensor_index-1]
+    bool ph;
+    bool orp;
+    bool ph_setpoint;
+    bool orp_setpoint;
+    bool chlor_output_level;
+    bool pump;
 } s_discovery_published = {0};
 
 // ======================================================
@@ -389,6 +395,8 @@ void mqtt_publish_chlorinator(const pool_state_t *current_state)
     // Check if anything changed
     if (s_last_published_state.ph_valid == current_state->ph_valid &&
         s_last_published_state.orp_valid == current_state->orp_valid &&
+        s_last_published_state.ph_setpoint_valid == current_state->ph_setpoint_valid &&
+        s_last_published_state.orp_setpoint_valid == current_state->orp_setpoint_valid &&
         s_last_published_state.ph_reading == current_state->ph_reading &&
         s_last_published_state.orp_reading == current_state->orp_reading &&
         s_last_published_state.ph_setpoint == current_state->ph_setpoint &&
@@ -396,6 +404,28 @@ void mqtt_publish_chlorinator(const pool_state_t *current_state)
         s_last_published_state.chlor_output_level_valid == current_state->chlor_output_level_valid &&
         s_last_published_state.chlor_output_level == current_state->chlor_output_level) {
         return;  // No change, skip publish
+    }
+
+    // Publish discovery lazily, per entity, on its first valid value
+    if (current_state->ph_valid && !s_discovery_published.ph) {
+        mqtt_publish_ph_discovery_single();
+        s_discovery_published.ph = true;
+    }
+    if (current_state->orp_valid && !s_discovery_published.orp) {
+        mqtt_publish_orp_discovery_single();
+        s_discovery_published.orp = true;
+    }
+    if (current_state->ph_setpoint_valid && !s_discovery_published.ph_setpoint) {
+        mqtt_publish_ph_setpoint_discovery_single();
+        s_discovery_published.ph_setpoint = true;
+    }
+    if (current_state->orp_setpoint_valid && !s_discovery_published.orp_setpoint) {
+        mqtt_publish_orp_setpoint_discovery_single();
+        s_discovery_published.orp_setpoint = true;
+    }
+    if (current_state->chlor_output_level_valid && !s_discovery_published.chlor_output_level) {
+        mqtt_publish_chlor_output_level_discovery_single();
+        s_discovery_published.chlor_output_level = true;
     }
 
     char device_id[32];
@@ -416,8 +446,12 @@ void mqtt_publish_chlorinator(const pool_state_t *current_state)
     }
 
     // pH setpoint
-    len += snprintf(payload + len, sizeof(payload) - len,
-                   ",\"ph_setpoint\":%.1f", current_state->ph_setpoint / 10.0);
+    if (current_state->ph_setpoint_valid) {
+        len += snprintf(payload + len, sizeof(payload) - len,
+                       ",\"ph_setpoint\":%.1f", current_state->ph_setpoint / 10.0);
+    } else {
+        len += snprintf(payload + len, sizeof(payload) - len, ",\"ph_setpoint\":null");
+    }
 
     // ORP reading
     if (current_state->orp_valid) {
@@ -428,8 +462,12 @@ void mqtt_publish_chlorinator(const pool_state_t *current_state)
     }
 
     // ORP setpoint
-    len += snprintf(payload + len, sizeof(payload) - len,
-                   ",\"orp_setpoint\":%d", current_state->orp_setpoint);
+    if (current_state->orp_setpoint_valid) {
+        len += snprintf(payload + len, sizeof(payload) - len,
+                       ",\"orp_setpoint\":%d", current_state->orp_setpoint);
+    } else {
+        len += snprintf(payload + len, sizeof(payload) - len, ",\"orp_setpoint\":null");
+    }
 
     // Salt chlorinator setpoint
     if (current_state->chlor_output_level_valid) {
@@ -448,6 +486,8 @@ void mqtt_publish_chlorinator(const pool_state_t *current_state)
     s_last_published_state.orp_setpoint = current_state->orp_setpoint;
     s_last_published_state.ph_valid = current_state->ph_valid;
     s_last_published_state.orp_valid = current_state->orp_valid;
+    s_last_published_state.ph_setpoint_valid = current_state->ph_setpoint_valid;
+    s_last_published_state.orp_setpoint_valid = current_state->orp_setpoint_valid;
     s_last_published_state.chlor_output_level = current_state->chlor_output_level;
     s_last_published_state.chlor_output_level_valid = current_state->chlor_output_level_valid;
 
@@ -470,6 +510,12 @@ void mqtt_publish_pump(const pool_state_t *current_state)
     if (s_last_published_state.pump_speed_valid == current_state->pump_speed_valid &&
         s_last_published_state.pump_speed == current_state->pump_speed) {
         return;  // No change, skip publish
+    }
+
+    // Publish discovery on first valid reading
+    if (current_state->pump_speed_valid && !s_discovery_published.pump) {
+        mqtt_publish_pump_discovery_single();
+        s_discovery_published.pump = true;
     }
 
     char device_id[32];
