@@ -24,6 +24,16 @@ typedef bool (*tcp_bridge_decode_fn)(const uint8_t *data, int len);
 // Called when RX or TX LED should flash
 typedef void (*tcp_bridge_led_flash_fn)(void);
 
+// Framing errors detected by the reassembly layer (data is discarded)
+typedef enum {
+    TCP_BRIDGE_FRAME_ERR_NO_START,     // No START byte (0x02) in buffer, all bytes discarded
+    TCP_BRIDGE_FRAME_ERR_BAD_CONTROL,  // START found but control bytes != 80 00, resync by one byte
+    TCP_BRIDGE_FRAME_ERR_NO_END,       // Buffer filled without a checksum+END match (too long / corrupt)
+} tcp_bridge_frame_error_t;
+
+// Called when the reassembly layer discards data due to a framing error
+typedef void (*tcp_bridge_frame_error_fn)(tcp_bridge_frame_error_t error);
+
 /**
  * Configuration structure for TCP bridge
  */
@@ -34,6 +44,7 @@ typedef struct {
     tcp_bridge_decode_fn decode_message;     // Message decoder callback
     tcp_bridge_led_flash_fn led_flash_rx;    // RX LED callback (can be NULL)
     tcp_bridge_led_flash_fn led_flash_tx;    // TX LED callback (can be NULL)
+    tcp_bridge_frame_error_fn on_frame_error; // Framing error callback (can be NULL)
 } tcp_bridge_config_t;
 
 /**

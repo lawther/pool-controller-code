@@ -185,6 +185,47 @@ I (12345) MSG_DECODER: [Controller -> Broadcast] Lighting zone 1 state - On
 
 This allows you to quickly test message patterns and verify decoder behavior without needing to send messages to the actual bus.
 
+## Message Counters
+
+The device keeps global counters of all bus traffic, shown in the **Messages** row of the home page and in the `/status` JSON:
+
+```json
+"message_counts": {
+  "decoded": 12345,
+  "unknown": 67,
+  "errors": 3,
+  "error_detail": {
+    "no_start_byte": 0,
+    "bad_control": 1,
+    "no_end": 2,
+    "bad_framing": 0,
+    "length_mismatch": 0,
+    "header_checksum": 0,
+    "data_checksum": 0
+  }
+}
+```
+
+- **decoded** — frames matched and handled by the decoder
+- **unknown** — well-formed frames the decoder has no handler for
+- **errors** — frames or byte stretches broken at the protocol level
+
+The three buckets are exclusive: `decoded + unknown + errors` equals the total traffic seen. A frame with a validation error is still dispatched to the decoder, but counts only as an error.
+
+`error_detail` breaks errors down by type:
+
+| Type | Detected by | Meaning |
+|------|-------------|---------|
+| `no_start_byte` | frame reassembly | Buffer contained no START byte (`0x02`); all bytes discarded |
+| `bad_control` | frame reassembly | START byte found but control bytes weren't `80 00`; resynced by one byte |
+| `no_end` | frame reassembly | Buffer filled without a valid data checksum + END (`0x03`) match — an over-long message or a corrupted data checksum (indistinguishable, since the checksum is used to locate the end of frame) |
+| `bad_framing` | decoder | Frame shorter than 12 bytes or missing START/END markers |
+| `length_mismatch` | decoder | Length field (byte 8) didn't match the actual frame length |
+| `header_checksum` | decoder | Header checksum (byte 9) didn't match the sum of bytes 0–8 |
+| `data_checksum` | decoder | Data checksum didn't match (defensive — frame reassembly already validates it) |
+
+The frame-reassembly counters count discard *events*, not messages: a single corrupt stretch can increment `bad_control` once per stray `0x02` it contains, and `no_start_byte` counts whole-buffer discards. Treat them as bus-corruption indicators rather than exact message counts.
+
 ## Host-based Tests
 
 The decoder can be exercised on the host (no device required) by replaying captured log files through `message_decoder.c`. Each `RX MSG: <hex>` line in a sample is fed into `decode_message()`, and the captured ESP_LOG output is diffed against the `MSG_DECODER:` lines that follow in the file (timestamps ignored). This catches behaviour drift between a captured trace and the current decoder.
