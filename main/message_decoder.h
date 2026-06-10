@@ -100,4 +100,59 @@ const char* get_channel_type_name(uint8_t type_code);
 #define CHANNEL_TYPE_HEATER     0xFD  // Channel is a heater (handled separately)
 #define CHANNEL_TYPE_LIGHT_ZONE 0xFE  // Channel is a lighting zone (handled separately)
 
+// Register IDs used in CMD 0x38 (register data) and CMD 0x3A (register write).
+// See PROTOCOL.md Appendix A for the full dispatch table.
+typedef enum {
+    // Range registers 
+    REG_ID_TIMER_0                 = 0x08,  // Timer index 0    (0–15 → 0x08–0x17, slot 0x04)
+    REG_ID_TIMER_15                = 0x17,  // Timer index 15 (last)
+
+    REG_ID_FAVOURITE_ENABLE_0      = 0x21,  // Fav enable index 0  (0–7 → 0x21–0x28, slot 0x03)
+    REG_ID_FAVOURITE_ENABLE_7      = 0x28,  // Fav enable index 7 (last)
+
+    REG_ID_FAVOURITE_LABEL_0       = 0x31,  // Fav label index 0   (0–7 → 0x31–0x38, slot 0x03)
+    REG_ID_FAVOURITE_LABEL_7       = 0x38,  // Fav label index 7 (last)
+
+    REG_ID_CHANNEL_TYPE_0          = 0x6C,  // Channel 0 type  (0–7 → 0x6C–0x73, slot 0x02)
+    REG_ID_CHANNEL_TYPE_7          = 0x73,  // Channel 7 type (last)
+
+    REG_ID_CHANNEL_NAME_0          = 0x7C,  // Channel 0 name  (0–7 → 0x7C–0x83, slot 0x02)
+    REG_ID_CHANNEL_NAME_7          = 0x83,  // Channel 7 name (last)
+
+    REG_ID_CHANNEL_STATE_0         = 0x8C,  // Channel 0 state (0–7 → 0x8C–0x93, slot 0x02)
+    REG_ID_CHANNEL_STATE_7         = 0x93,  // Channel 7 state (last)
+
+    REG_ID_LIGHT_ZONE_MULTICOLOR_0 = 0xA0,  // Zone 0 multicolor (0–7 → 0xA0–0xA7, slot 0x01)
+    REG_ID_LIGHT_ZONE_MULTICOLOR_3 = 0xA3,  // Zone 3 multicolor (usable max; capped by MAX_LIGHT_ZONES)
+    REG_ID_LIGHT_ZONE_MULTICOLOR_7 = 0xA7,  // Zone 7 multicolor (protocol max)
+
+    REG_ID_LIGHT_ZONE_NAME_0       = 0xB0,  // Zone 0 name code (0–7 → 0xB0–0xB7, slot 0x01)
+    REG_ID_LIGHT_ZONE_NAME_3       = 0xB3,  // Zone 3 name      (usable max; capped by MAX_LIGHT_ZONES)
+    REG_ID_LIGHT_ZONE_NAME_7       = 0xB7,  // Zone 7 name      (protocol max)
+
+    REG_ID_LIGHT_ZONE_STATE_0      = 0xC0,  // Zone 0 state (0–7 → 0xC0–0xC7, slot 0x01)
+    REG_ID_LIGHT_ZONE_STATE_3      = 0xC3,  // Zone 3 state (usable max; capped by MAX_LIGHT_ZONES)
+    REG_ID_LIGHT_ZONE_STATE_7      = 0xC7,  // Zone 7 state (protocol max)
+
+    REG_ID_LIGHT_ZONE_COLOR_0      = 0xD0,  // Zone 0 color (0–7 → 0xD0–0xD7, slot 0x01, shares range with REG_ID_VALVE_LABEL_[0|1])
+    REG_ID_LIGHT_ZONE_COLOR_3      = 0xD3,  // Zone 3 color (usable max; capped by MAX_LIGHT_ZONES)
+    REG_ID_LIGHT_ZONE_COLOR_7      = 0xD7,  // Zone 7 color (protocol max)
+
+    REG_ID_VALVE_LABEL_0           = 0xD0,  // Valve 0 label (0–1 → 0xD0–0xD1, slot 0x02; shares range with REG_ID_LIGHT_ZONE_COLOR_[0|1])
+    REG_ID_VALVE_LABEL_1           = 0xD1,  // Valve 1 label (last)
+    
+    REG_ID_LIGHT_ZONE_ACTIVE_0     = 0xE0,  // Zone 0 active flag (0–7 → 0xE0–0xE7, slot 0x01)
+    REG_ID_LIGHT_ZONE_ACTIVE_3     = 0xE3,  // Zone 3 active (usable max; capped by MAX_LIGHT_ZONES)
+    REG_ID_LIGHT_ZONE_ACTIVE_7     = 0xE7,  // Zone 7 active (protocol max)
+REG_ID_HEATER1_ONOFF
+    // Point registers
+             = 0xE6,  // Heater 1 on/off state
+    REG_ID_HEATER1_POOL_SETPOINT = 0xE7,  // Pool temperature setpoint (Heater 1)
+    REG_ID_HEATER1_SPA_SETPOINT  = 0xE8,  // Spa temperature setpoint (Heater 1)
+    REG_ID_HEATER2_ONOFF         = 0xE9,  // Heater 2 on/off state — tentative, see PROTOCOL.md Appendix A
+    REG_ID_HEATER2_POOL_SETPOINT = 0xEA,  // Heater 2 pool setpoint
+    REG_ID_HEATER2_SPA_SETPOINT  = 0xEB,  // Heater 2 spa setpoint — tentative, see PROTOCOL.md Appendix A
+    REG_ID_CHANNEL_COUNT         = 0xF4,  // Total number of channels
+} reg_id_t;
+
 #endif // MESSAGE_DECODER_H

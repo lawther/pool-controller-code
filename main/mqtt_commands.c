@@ -1,5 +1,6 @@
 #include "mqtt_commands.h"
 #include "config.h"
+#include "message_decoder.h"
 #include "mqtt_poolclient.h"
 #include "pool_state.h"
 #include "bus.h"
@@ -77,8 +78,7 @@ static void handle_light_command(int zone, const char *payload, int payload_len)
         return;
     }
 
-    // Calculate register ID (0xC0 for zone 1, 0xC1 for zone 2, etc.)
-    uint8_t reg_id = 0xC0 + (zone - 1);
+    uint8_t reg_id = REG_ID_LIGHT_ZONE_STATE_0 + (zone - 1);
 
     // Build UART command
     // Pattern: 02 00 F0 FF FF 80 00 3A 0F B9 [REG_ID] 01 [STATE] [CHECKSUM] 03
@@ -114,9 +114,9 @@ static void handle_heater_command(const char *payload, int payload_len, int inde
     // State register per heater: Heater 1 = 0xE6, Heater 2 = 0xE9.
     uint8_t reg;
     if (index == 0) {
-        reg = 0xE6;
+        reg = REG_ID_HEATER1_ONOFF;
     } else if (index == 1) {
-        reg = 0xE9;
+        reg = REG_ID_HEATER2_ONOFF;
     } else {
         ESP_LOGW(TAG, "No state register known for heater %d", index);
         return;
