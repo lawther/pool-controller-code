@@ -1,5 +1,6 @@
 #include "mqtt_commands.h"
 #include "config.h"
+#include "message_decoder.h"
 #include "mqtt_poolclient.h"
 #include "pool_state.h"
 #include "bus.h"
@@ -77,8 +78,7 @@ static void handle_light_command(int zone, const char *payload, int payload_len)
         return;
     }
 
-    // Calculate register ID (0xC0 for zone 1, 0xC1 for zone 2, etc.)
-    uint8_t reg_id = 0xC0 + (zone - 1);
+    uint8_t reg_id = REG_ID_LIGHT_ZONE_STATE_0 + (zone - 1);
 
     // Build UART command
     // Pattern: 02 00 F0 FF FF 80 00 3A 0F B9 [REG_ID] 01 [STATE] [CHECKSUM] 03
@@ -128,17 +128,16 @@ static void handle_heater_command(const char *payload, int payload_len, int inde
 
     // Build UART command
     // Pattern: 02 00 F0 FF FF 80 00 3A 0F B9 E6 00 [STATE] [CHECKSUM] 03
-    // Checksum = 0xE6 + 0x00 + state
     uint8_t cmd[] = {
         0x02,             // START
         0x00, 0xF0,       // SOURCE: Internet Gateway
         0xFF, 0xFF,       // DEST: Broadcast
         0x80, 0x00,       // CONTROL
         0x3A, 0x0F, 0xB9, // Command pattern
-        0xE6,             // Register ID (heater 0)
+        REG_ID_HEATER1_ONOFF, // Register ID (heater 0)
         0x00,             // Slot
         state,            // State (0x00=Off, 0x01=On)
-        (0xE6 + 0x00 + state) & 0xFF, // Checksum
+        (REG_ID_HEATER1_ONOFF + 0x00 + state) & 0xFF, // Checksum
         0x03              // END
     };
 

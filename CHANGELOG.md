@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Combined documentation for heater devices sending cmd 0x16 (water temperature)
 - Combined existing heater setpoint temperature handlers
+- Introduce reg_id_t enum for named register IDs
 ### Removed
 ### Fixed
 - Configured devcontainer to use ESP-IDF 5.5 for consistency
