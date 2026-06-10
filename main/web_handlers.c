@@ -662,24 +662,29 @@ static esp_err_t status_get_handler(httpd_req_t *req)
     }
     cJSON_AddItemToObject(root, "devices", devices);
 
-    // Temperature setpoints (current readings now live per-device above).
+    // Temperature scale (per-heater setpoints live in the heaters[] array below;
+    // current readings live per-device above).
     cJSON *temperature = cJSON_CreateObject();
-    cJSON_AddNumberToObject(temperature, "pool_setpoint",   state.pool_setpoint);
-    cJSON_AddNumberToObject(temperature, "spa_setpoint",    state.spa_setpoint);
-    cJSON_AddNumberToObject(temperature, "pool_setpoint_f", state.pool_setpoint_f);
-    cJSON_AddNumberToObject(temperature, "spa_setpoint_f",  state.spa_setpoint_f);
     cJSON_AddStringToObject(temperature, "scale", state.temp_scale_fahrenheit ? "Fahrenheit" : "Celsius");
     cJSON_AddItemToObject(root, "temperature", temperature);
 
-    // Heaters (only include discovered/valid heaters)
+    // Heaters (include heaters that have on/off state and/or setpoints)
     cJSON *heaters_arr = cJSON_CreateArray();
     for (int i = 0; i < MAX_HEATERS; i++) {
-        if (!state.heaters[i].valid) {
+        if (!state.heaters[i].valid && !state.heaters[i].setpoint_valid) {
             continue;
         }
         cJSON *heater = cJSON_CreateObject();
         cJSON_AddNumberToObject(heater, "index", i);
-        cJSON_AddStringToObject(heater, "state", state.heaters[i].on ? "On" : "Off");
+        if (state.heaters[i].valid) {
+            cJSON_AddStringToObject(heater, "state", state.heaters[i].on ? "On" : "Off");
+        }
+        if (state.heaters[i].setpoint_valid) {
+            cJSON_AddNumberToObject(heater, "pool_setpoint",   state.heaters[i].pool_setpoint);
+            cJSON_AddNumberToObject(heater, "spa_setpoint",    state.heaters[i].spa_setpoint);
+            cJSON_AddNumberToObject(heater, "pool_setpoint_f", state.heaters[i].pool_setpoint_f);
+            cJSON_AddNumberToObject(heater, "spa_setpoint_f",  state.heaters[i].spa_setpoint_f);
+        }
         cJSON_AddItemToArray(heaters_arr, heater);
     }
     cJSON_AddItemToObject(root, "heaters", heaters_arr);

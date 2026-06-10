@@ -562,7 +562,6 @@ static bool handle_valve_state(const uint8_t *data, int len, const uint8_t *payl
 static bool handle_touchscreen_unknown3(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 static bool handle_heater1_state(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 static bool handle_heater2_state(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
-static bool handle_heater2_pool_setpoint(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 
 /**
  * Register message dispatch table
@@ -600,14 +599,14 @@ static const register_handler_t REGISTER_HANDLERS[] = {
     // stops being logged as "Unhandled register".
     {REG_ID_HEATER1_ONOFF,          REG_ID_HEATER1_ONOFF,          0x00, handle_heater1_state,         "Heater 1 State"},
 
-    // Temperature setpoints (slot 0x00, registers 0xE7=Pool, 0xE8=Spa)
-    {REG_ID_HEATER1_POOL_SETPOINT, REG_ID_HEATER1_SPA_SETPOINT,  0x00, handle_temp_setpoint,         "Temperature Setpoint"},
+    // Heater 1 setpoints (slot 0x00, registers 0xE7=Pool, 0xE8=Spa)
+    {REG_ID_HEATER1_POOL_SETPOINT, REG_ID_HEATER1_SPA_SETPOINT, 0x00, handle_temp_setpoint,          "Heater 1 Setpoint"},
 
-    // Heater 2 state (slot 0x00, register 0xE9) — tentative; see PROTOCOL.md Appendix A note
-    {REG_ID_HEATER2_ONOFF,         REG_ID_HEATER2_ONOFF,         0x00, handle_heater2_state,         "Heater 2 State"},
+    // Heater 2 state (slot 0x00, register 0xE9): 0x00=Off, 0x01=On
+    {REG_ID_HEATER2_ONOFF,         REG_ID_HEATER2_ONOFF,         0x00, handle_heater2_state,          "Heater 2 State"},
 
-    // Heater 2 pool setpoint (slot 0x00, register 0xEA) — confirmed; see PROTOCOL.md Appendix A
-    {REG_ID_HEATER2_POOL_SETPOINT, REG_ID_HEATER2_POOL_SETPOINT, 0x00, handle_heater2_pool_setpoint, "Heater 2 Pool Setpoint"},
+    // Heater 2 setpoints (slot 0x00, registers 0xEA=Pool, 0xEB=Spa)
+    {REG_ID_HEATER2_POOL_SETPOINT, REG_ID_HEATER2_SPA_SETPOINT, 0x00, handle_temp_setpoint,          "Heater 2 Setpoint"},
 
     {REG_ID_CHANNEL_COUNT,         REG_ID_CHANNEL_COUNT,         0x01, handle_channel_count,         "Channel Count"},
 };
@@ -743,8 +742,10 @@ static bool handle_temp_reading(
 }
 
 /**
- * Handler: Temperature setpoint register messages
- * Register 0xE7 (Pool), 0xE8 (Spa), Slot 0x00
+ * Handler: Per-heater temperature setpoint register messages, Slot 0x00.
+ * Heater 1: register 0xE7 (Pool), 0xE8 (Spa).
+ * Heater 2: register 0xEA (Pool), 0xEB (Spa).
+ * °F is derived from °C (registers carry °C only).
  */
 static bool handle_temp_setpoint(
     const uint8_t *data, int len,
@@ -756,27 +757,41 @@ static bool handle_temp_setpoint(
 
     uint8_t reg_id = payload[0];
     uint8_t temp_c = payload[2];
-    bool is_pool = (reg_id == REG_ID_HEATER1_POOL_SETPOINT);
 
-    ESP_LOGI(TAG, "%s %s temperature setpoint - %d°C", addr_info,
-             is_pool ? "Pool" : "Spa", temp_c);
+    // Map register -> (heater index, pool vs spa)
+    int heater_idx;
+    bool is_pool;
+    switch (reg_id) {
+        case REG_ID_HEATER1_POOL_SETPOINT: heater_idx = 0; is_pool = true;  break;
+        case REG_ID_HEATER1_SPA_SETPOINT: heater_idx = 0; is_pool = false; break;
+        case REG_ID_HEATER2_POOL_SETPOINT: heater_idx = 1; is_pool = true;  break;
+        case REG_ID_HEATER2_SPA_SETPOINT: heater_idx = 1; is_pool = false; break;
+        default:   return false;
+    }
+
+    ESP_LOGI(TAG, "%s Heater %d %s setpoint - %d°C", addr_info,
+             heater_idx + 1, is_pool ? "Pool" : "Spa", temp_c);
 
     pool_state_t state_snapshot;
     if (!ctx->state_mutex || xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
         ESP_LOGW(TAG, "Failed to acquire mutex for temp setpoint");
         return true;
     }
+    pool_heater_t *heater = &ctx->pool_state->heaters[heater_idx];
     if (is_pool) {
-        ctx->pool_state->pool_setpoint = temp_c;
+        heater->pool_setpoint   = temp_c;
+        heater->pool_setpoint_f = temp_c * 9 / 5 + 32;
     } else {
-        ctx->pool_state->spa_setpoint = temp_c;
+        heater->spa_setpoint    = temp_c;
+        heater->spa_setpoint_f  = temp_c * 9 / 5 + 32;
     }
+    heater->setpoint_valid = true;
     ctx->pool_state->last_update_ms = xTaskGetTickCount() * portTICK_PERIOD_MS;
     state_snapshot = *ctx->pool_state;
     xSemaphoreGive(ctx->state_mutex);
 
     if (ctx->enable_mqtt) {
-        mqtt_publish_setpoints(&state_snapshot);
+        mqtt_publish_heater_setpoints(&state_snapshot, heater_idx);
     }
 
     return true;
@@ -804,8 +819,9 @@ static bool handle_heater1_state(
 }
 
 /**
- * Handler: Heater 2 state — tentative
- * Register 0xE9, Slot 0x00. See PROTOCOL.md Appendix A.
+ * Handler: Heater 2 state
+ * Register 0xE9, Slot 0x00 (0x00=Off, 0x01=On). Authoritative state source for
+ * Heater 2 (heaters[1]); Heater 1 (heaters[0]) is driven by CMD 0x12 instead.
  */
 static bool handle_heater2_state(
     const uint8_t *data, int len,
@@ -816,28 +832,24 @@ static bool handle_heater2_state(
     if (payload_len < 3) return false;
 
     uint8_t state = payload[2];
-    ESP_LOGI(TAG, "%s Heater 2 state (tentative) - %s (0x%02X)", addr_info,
+    ESP_LOGI(TAG, "%s Heater 2 state - %s (0x%02X)", addr_info,
              state == 0x00 ? "Off" : state == 0x01 ? "On" : "Unknown",
              state);
 
-    return true;
-}
+    pool_state_t snapshot;
+    if (!ctx->state_mutex || xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGW(TAG, "Failed to acquire mutex for heater 2 state");
+        return true;
+    }
+    ctx->pool_state->heaters[1].on = (state != 0);
+    ctx->pool_state->heaters[1].valid = true;
+    ctx->pool_state->last_update_ms = xTaskGetTickCount() * portTICK_PERIOD_MS;
+    snapshot = *ctx->pool_state;
+    xSemaphoreGive(ctx->state_mutex);
 
-/**
- * Handler: Heater 2 pool setpoint
- * Register 0xEA, Slot 0x00. See PROTOCOL.md Appendix A (confirmed).
- * Log-only — Heater 2 has no dedicated pool_state field yet.
- */
-static bool handle_heater2_pool_setpoint(
-    const uint8_t *data, int len,
-    const uint8_t *payload, int payload_len,
-    const char *addr_info,
-    message_decoder_context_t *ctx)
-{
-    if (payload_len < 3) return false;
-
-    uint8_t temp_c = payload[2];
-    ESP_LOGI(TAG, "%s Heater 2 pool temperature setpoint - %d°C", addr_info, temp_c);
+    if (ctx->enable_mqtt) {
+        mqtt_publish_heater(&snapshot, 1);
+    }
 
     return true;
 }
@@ -913,8 +925,13 @@ static bool handle_ici_heater_status(
  * Pattern (`0x0072`): `02 00 72 FF FF 80 00 17 0E 17` (HiNRG Gas Heater)
  * Pattern (`0x0074`): `02 00 74 FF FF 80 00 17 0E 19` (ICI Gas Heater)
  *
- * Two-byte payload:
- * byte 10 = Spa setpoint (°C), byte 11 = Pool setpoint (°C).
+ * Two-byte payload: byte 10 = Spa setpoint (°C), byte 11 = Pool setpoint (°C).
+ *
+ * Log-only: per-heater setpoint state is driven authoritatively by the
+ * controller's register broadcasts (0xE7/0xE8 Heater 1, 0xEA/0xEB Heater 2)
+ * via handle_temp_setpoint. A physical heater that isn't plumbed to both
+ * circuits broadcasts the 0x0A (10°C) "uninstalled" default in the unused slot,
+ * so writing state from here would clobber the real setpoint.
  */
 static bool handle_heater_temp_setting(
     const uint8_t *data, int len,
@@ -933,23 +950,6 @@ static bool handle_heater_temp_setting(
 
     ESP_LOGI(TAG, "%s %s setpoints - Spa=%d°C, Pool=%d°C",
              addr_info, heater_name, spa_setpoint, pool_setpoint);
-
-    pool_state_t snapshot;
-    if (!ctx->state_mutex || xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
-        ESP_LOGW(TAG, "Failed to acquire mutex for %s temperature setpoints", heater_name);
-        return true;
-    }
-    ctx->pool_state->spa_setpoint   = spa_setpoint;
-    ctx->pool_state->pool_setpoint  = pool_setpoint;
-    ctx->pool_state->spa_setpoint_f  = spa_setpoint  * 9 / 5 + 32;
-    ctx->pool_state->pool_setpoint_f = pool_setpoint * 9 / 5 + 32;
-    ctx->pool_state->last_update_ms = xTaskGetTickCount() * portTICK_PERIOD_MS;
-    snapshot = *ctx->pool_state;
-    xSemaphoreGive(ctx->state_mutex);
-
-    if (ctx->enable_mqtt) {
-        mqtt_publish_setpoints(&snapshot);
-    }
 
     return true;
 }
@@ -989,8 +989,12 @@ static bool handle_heater(
 }
 
 /**
- * Handler: Temperature setting message
+ * Handler: Temperature setting message — Touchscreen (0x0050) broadcast.
  * Pattern: "02 00 50 FF FF 80 00 17 10 F7"
+ *
+ * This is the controller's own setpoint broadcast (carries real °C and °F for
+ * both circuits). Routed to Heater 1 (heaters[0]) — the primary heater whose
+ * setpoints the controller exposes via registers 0xE7/0xE8.
  */
 static bool handle_temp_setting(
     const uint8_t *data, int len,
@@ -1005,7 +1009,7 @@ static bool handle_temp_setting(
     uint8_t spa_set_temp_f = payload[2];
     uint8_t pool_set_temp_f = payload[3];
 
-    ESP_LOGI(TAG, "%s Temperature settings - spa=%d°C/%d°F, pool=%d°C/%d°F",
+    ESP_LOGI(TAG, "%s Heater 1 setpoints - spa=%d°C/%d°F, pool=%d°C/%d°F",
              addr_info, spa_set_temp_c, spa_set_temp_f, pool_set_temp_c, pool_set_temp_f);
 
     // Update state and publish
@@ -1014,16 +1018,18 @@ static bool handle_temp_setting(
         ESP_LOGW(TAG, "Failed to acquire mutex for temp setting");
         return true;
     }
-    ctx->pool_state->spa_setpoint = spa_set_temp_c;
-    ctx->pool_state->pool_setpoint = pool_set_temp_c;
-    ctx->pool_state->spa_setpoint_f = spa_set_temp_f;
-    ctx->pool_state->pool_setpoint_f = pool_set_temp_f;
+    pool_heater_t *heater1 = &ctx->pool_state->heaters[0];
+    heater1->spa_setpoint    = spa_set_temp_c;
+    heater1->pool_setpoint   = pool_set_temp_c;
+    heater1->spa_setpoint_f  = spa_set_temp_f;
+    heater1->pool_setpoint_f = pool_set_temp_f;
+    heater1->setpoint_valid  = true;
     ctx->pool_state->last_update_ms = xTaskGetTickCount() * portTICK_PERIOD_MS;
     snapshot = *ctx->pool_state;
     xSemaphoreGive(ctx->state_mutex);
 
     if (ctx->enable_mqtt) {
-        mqtt_publish_setpoints(&snapshot);
+        mqtt_publish_heater_setpoints(&snapshot, 0);
     }
 
     return true;

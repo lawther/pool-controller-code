@@ -22,9 +22,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Decode Heater 2 pool setpoint (register `0xEA`) in both the touchscreen register broadcast and gateway register-write paths, instead of logging it as an unknown register
 - Updated CMD 0x17 to show its payload is Spa and Pool temperature setpoints (see issue #31)
 - Added HiNRG Gas Heater (0x0072) support (see issue #31)
+- Added per-heater pool and spa temperature setpoints, exposed as separate Home Assistant Number entities per heater ("Heater N Pool/Spa Setpoint"); writable via CMD `0x19` for Heater 1 and register writes `0xEA`/`0xEB` for Heater 2
+- Added Heater 2 on/off support: state decoded from register `0xE9` and controllable via the "Heater 2" switch
 ### Changed
 - Combined documentation for heater devices sending cmd 0x16 (water temperature)
 - Combined existing heater setpoint temperature handlers
+- **Breaking (MQTT/HTTP):** replaced the single global "Pool Setpoint"/"Spa Setpoint" entities with per-heater setpoints. The `pool/<id>/setpoints/state` topic and the global setpoint Number entities are gone, replaced by `pool/<id>/heater/<index>/setpoints/state` and per-heater entities; `GET /status` now carries setpoints inside each `heaters[]` entry instead of a global `temperature` block
+- Heater setpoints are now keyed per heater by the controller's registers (`0xE7`/`0xE8` Heater 1, `0xEA`/`0xEB` Heater 2); the physical heater devices' CMD `0x17` broadcasts are now log-only so an unplumbed heater's `0x0A` default no longer clobbers the active setpoint
 - Introduce reg_id_t enum for named register IDs
 ### Removed
 ### Fixed

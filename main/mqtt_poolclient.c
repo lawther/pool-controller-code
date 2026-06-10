@@ -184,9 +184,13 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
             esp_mqtt_client_subscribe(s_mqtt_client, topic, 0);
         }
 
-        // Subscribe to heater commands (heater/0/set, heater/1/set, ...)
+        // Subscribe to heater commands: on/off and pool/spa setpoints per heater
         for (int i = 0; i < MAX_HEATERS; i++) {
             snprintf(topic, sizeof(topic), "pool/%s/heater/%d/set", device_id, i);
+            esp_mqtt_client_subscribe(s_mqtt_client, topic, 0);
+            snprintf(topic, sizeof(topic), "pool/%s/heater/%d/pool_setpoint/set", device_id, i);
+            esp_mqtt_client_subscribe(s_mqtt_client, topic, 0);
+            snprintf(topic, sizeof(topic), "pool/%s/heater/%d/spa_setpoint/set", device_id, i);
             esp_mqtt_client_subscribe(s_mqtt_client, topic, 0);
         }
 
@@ -196,12 +200,6 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 
         // Subscribe to favourite command
         snprintf(topic, sizeof(topic), "pool/%s/favourite/set", device_id);
-        esp_mqtt_client_subscribe(s_mqtt_client, topic, 0);
-
-        // Subscribe to temperature setpoint commands
-        snprintf(topic, sizeof(topic), "pool/%s/temperature/pool/set", device_id);
-        esp_mqtt_client_subscribe(s_mqtt_client, topic, 0);
-        snprintf(topic, sizeof(topic), "pool/%s/temperature/spa/set", device_id);
         esp_mqtt_client_subscribe(s_mqtt_client, topic, 0);
 
         // Subscribe to valve commands (valves 1-MAX_VALVE_SLOTS)

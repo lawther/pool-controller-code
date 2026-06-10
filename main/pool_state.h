@@ -56,6 +56,13 @@ typedef struct {
 typedef struct {
     bool on;
     bool valid;
+
+    // Temperature setpoints (per heater): 0xE7/0xE8 (Heater 1), 0xEA/0xEB (Heater 2)
+    uint8_t pool_setpoint;     // °C
+    uint8_t spa_setpoint;      // °C
+    uint8_t pool_setpoint_f;   // °F
+    uint8_t spa_setpoint_f;    // °F
+    bool setpoint_valid;       // true once a setpoint has been received
 } pool_heater_t;
 
 typedef struct {
@@ -109,11 +116,8 @@ typedef struct {
 } favourite_t;
 
 typedef struct {
-    // Temperature setpoints (per-source readings live on seen_device_t entries)
-    uint8_t pool_setpoint;
-    uint8_t spa_setpoint;
-    uint8_t pool_setpoint_f;  // Fahrenheit setpoint
-    uint8_t spa_setpoint_f;   // Fahrenheit setpoint
+    // Temperature setpoints now live per-heater on heaters[] (pool_heater_t);
+    // per-source temperature readings live on seen_device_t entries.
     bool temp_scale_fahrenheit;
 
     // Heaters (up to MAX_HEATERS)
