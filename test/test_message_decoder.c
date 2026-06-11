@@ -501,6 +501,63 @@ void test_decode_channel_status_lights_active(void)
 }
 
 /**
+ * Test: Channel status message — multi-speed pump channel (extended states)
+ * Real messages from ninkasi bus capture: a Filter channel driving the Viron XT
+ * pump reports On at Medium (0x04) then High (0x05) instead of plain On (0x02):
+ * 02 00 50 FF FF 80 00 0B 25 00 08 01 04 01 04 00 00 FB 00 00 ... 1F 03
+ * 02 00 50 FF FF 80 00 0B 25 00 08 01 05 01 04 00 00 FB 00 00 ... 20 03
+ */
+void test_decode_channel_status_multispeed_pump(void)
+{
+    init_test_context();
+
+    uint8_t msg_med[] = {
+        0x02, 0x00, 0x50, 0xFF, 0xFF, 0x80, 0x00,
+        0x0B, 0x25, 0x00,
+        0x08,
+        0x01, 0x04, 0x01,  // Ch1: Filter, On - Medium Speed (0x04), Active
+        0x04, 0x00, 0x00,  // Ch2: Booster, Off, Inactive
+        0xFE, 0x00, 0x00,  // Ch3: Light Zone, Off, Inactive
+        0xFB, 0x00, 0x00,  // Ch4: Secondary Heater, Off, Inactive
+        0x00, 0x00, 0x00,  // Ch5: Unused
+        0x00, 0x00, 0x00,  // Ch6: Unused
+        0x0A, 0x00, 0x00,  // Ch7: Swimjet, Off, Inactive
+        0x0A, 0x00, 0x00,  // Ch8: Swimjet, Off, Inactive
+        0x1F,  // Data checksum
+        0x03
+    };
+
+    bool decoded = decode_message(msg_med, sizeof(msg_med), &test_ctx);
+
+    TEST_ASSERT(decoded, "Channel status (multi-speed Medium) should be decoded");
+    TEST_ASSERT(test_pool_state.channels[0].type == 0x01, "Ch1 type should be Filter (0x01)");
+    TEST_ASSERT(test_pool_state.channels[0].state == 4, "Ch1 state should be On - Medium Speed (4)");
+    TEST_ASSERT(test_pool_state.channels[0].active, "Ch1 should be active");
+
+    uint8_t msg_high[] = {
+        0x02, 0x00, 0x50, 0xFF, 0xFF, 0x80, 0x00,
+        0x0B, 0x25, 0x00,
+        0x08,
+        0x01, 0x05, 0x01,  // Ch1: Filter, On - High Speed (0x05), Active
+        0x04, 0x00, 0x00,
+        0xFE, 0x00, 0x00,
+        0xFB, 0x00, 0x00,
+        0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00,
+        0x0A, 0x00, 0x00,
+        0x0A, 0x00, 0x00,
+        0x20,  // Data checksum
+        0x03
+    };
+
+    decoded = decode_message(msg_high, sizeof(msg_high), &test_ctx);
+
+    TEST_ASSERT(decoded, "Channel status (multi-speed High) should be decoded");
+    TEST_ASSERT(test_pool_state.channels[0].state == 5, "Ch1 state should be On - High Speed (5)");
+    TEST_ASSERT(test_pool_state.channels[0].active, "Ch1 should be active");
+}
+
+/**
  * Test: Chlorinator pH setpoint
  * Real message: 02 00 90 FF FF 80 00 1D 0F 3C 01 4E 00 4F 03
  * pH setpoint = UINT16_LE(payload[1..2]) = 0x004E = 78 (= 7.8 pH)
@@ -703,6 +760,7 @@ int main(void)
     printf("\n--- Channel Status Tests ---\n");
     test_decode_channel_status_all_off();
     test_decode_channel_status_lights_active();
+    test_decode_channel_status_multispeed_pump();
 
     // Chlorinator tests
     printf("\n--- Chlorinator Tests ---\n");

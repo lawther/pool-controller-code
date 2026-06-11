@@ -306,6 +306,11 @@ Detailed status for all configured channels. Broadcast by the Touchscreen (`0x00
 - `0x00`: Off
 - `0x01`: Auto
 - `0x02`: On
+- `0x03`: On — Low Speed
+- `0x04`: On — Medium Speed
+- `0x05`: On — High Speed
+
+States `0x03`–`0x05` are used by channels driving a multi-speed pump (e.g. a Filter channel paired with the `0x00A0` Viron XT Variable Speed Pump) in place of the plain `0x02` On; simple on/off channels only use `0x00`–`0x02`. When a multi-speed channel enters one of these states, the Touchscreen unicasts the matching speed preset to the pump via [CMD `0x18`](#0x18--pump-speed-command-) (`0x03`→Low, `0x04`→Med, `0x05`→High) within ~130 ms of the channel status broadcast.
 
 ---
 
@@ -399,7 +404,7 @@ Command from the Internet Gateway (`0x00F0`) to cycle a channel through its avai
 - Sending this command always advances the state — there is no direct way to set a specific state.
 - The controller will respond with an updated [Channel Status message (0x0B)](#0x0b--channel-status-).
 - Channel index is 0-based and corresponds to the channel's position in the controller configuration.
-- ⚠️ Multi-speed pump channels are not yet documented — only the simple On/Off and Auto/On/Off state cycles above have been captured. Status is ⚠️ pending characterisation of how multi-speed channels respond to this command.
+- ⚠️ Multi-speed pump channels report extended states `0x03`–`0x05` (On at Low/Med/High — see [Channel States](#0x0b--channel-status-)), but how this command cycles through them has not been captured. Status is ⚠️ pending characterisation of how multi-speed channels respond to this command.
 
 ---
 
@@ -776,6 +781,7 @@ Inter-device unicast sent by the controller (Touchscreen `0x0050` or Viron Chlor
 **Notes:**
 
 - The Touchscreen sends this command to implement its timers
+- The speed value mirrors the driving channel's extended state in the [Channel Status (0x0B)](#0x0b--channel-status-) broadcast: channel states `0x03`/`0x04`/`0x05` (On at Low/Med/High) map to speed `0x00`/`0x01`/`0x02`, with the `0x18` unicast following the channel broadcast within ~130 ms.
 - The `0x0090` RolaChem chlorinator variant has not been observed using this command; the `0x18` traffic appears specific to the `0x0084` Viron / `0x00A0` Viron XT Pump two-module chlorinator topology.
 
 ---

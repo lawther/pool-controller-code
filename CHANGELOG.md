@@ -18,6 +18,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+### Changed
+### Removed
+### Fixed
+### Deprecated
+### Security
+
+
+## [1.6.0-rc1]
+### Added
 - Global protocol-error counters alongside the decoded/unknown totals, broken down by failure type (no start byte, bad control bytes, no end found/buffer overflow, bad framing, length-field mismatch, header checksum, data checksum); exposed in the `/status` JSON (`message_counts.errors` and `message_counts.error_detail`) and the home page Messages row
 - Decode Heater 2 pool setpoint (register `0xEA`) in both the touchscreen register broadcast and gateway register-write paths, instead of logging it as an unknown register
 - Updated CMD 0x17 to show its payload is Spa and Pool temperature setpoints (see issue #31)
@@ -30,13 +39,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Breaking (MQTT/HTTP):** replaced the single global "Pool Setpoint"/"Spa Setpoint" entities with per-heater setpoints. The `pool/<id>/setpoints/state` topic and the global setpoint Number entities are gone, replaced by `pool/<id>/heater/<index>/setpoints/state` and per-heater entities; `GET /status` now carries setpoints inside each `heaters[]` entry instead of a global `temperature` block
 - Heater setpoints are now keyed per heater by the controller's registers (`0xE7`/`0xE8` Heater 1, `0xEA`/`0xEB` Heater 2); the physical heater devices' CMD `0x17` broadcasts are now log-only so an unplumbed heater's `0x0A` default no longer clobbers the active setpoint
 - Introduce reg_id_t enum for named register IDs
-### Removed
 ### Fixed
 - Configured devcontainer to use ESP-IDF 5.5 for consistency
 - Fixed pool/spa setpoint commands having no effect after the per-heater refactor: the device now subscribes to the new `heater/<n>/pool_setpoint/set` and `heater/<n>/spa_setpoint/set` command topics (the old `temperature/...` subscriptions pointed at handlers that no longer exist)
 - Fixed phantom "Chlorine Output Level", "Pump Speed" and pH/ORP Home Assistant entities appearing on systems without a chlorinator or variable-speed pump: chemistry and pump discovery is now published lazily on each entity's first valid value instead of unconditionally at MQTT connect, and pH/ORP setpoints report `null` until a real setpoint has been received
-### Deprecated
-### Security
 
 ## [1.5.1] - 2026-05-19
 ### Changed
