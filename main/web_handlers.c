@@ -259,10 +259,11 @@ static esp_err_t home_get_handler(httpd_req_t *req)
         "data.timers.forEach(t=>rows.push(['Timer '+t.num,t.start+' \u2013 '+t.stop+' ['+t.days+']']));}"
         "const mc=data.message_counts;"
         "if(mc){"
-        "const tot=mc.decoded+mc.unknown;"
+        "const errs=mc.errors||0;"
+        "const tot=mc.decoded+mc.unknown+errs;"
         "const pct=tot>0?(mc.decoded/tot*100).toFixed(1)+'%':'n/a';"
         "const mtr=document.createElement('tr');"
-        "mtr.innerHTML='<th>Messages</th><td>'+mc.decoded+' decoded, '+mc.unknown+' unknown ('+pct+')</td>';"
+        "mtr.innerHTML='<th>Messages</th><td>'+mc.decoded+' decoded, '+mc.unknown+' unknown, '+errs+' errors ('+pct+')</td>';"
         "document.getElementById('sys-body').appendChild(mtr);}"
         "const tb=document.getElementById('pool-body');"
         "rows.forEach(([k,v])=>{"
@@ -607,6 +608,16 @@ static esp_err_t status_get_handler(httpd_req_t *req)
     cJSON *msg_counts = cJSON_CreateObject();
     cJSON_AddNumberToObject(msg_counts, "decoded", state.messages_decoded_total);
     cJSON_AddNumberToObject(msg_counts, "unknown", state.messages_unknown_total);
+    cJSON_AddNumberToObject(msg_counts, "errors",  state.messages_error_total);
+    cJSON *err_detail = cJSON_CreateObject();
+    cJSON_AddNumberToObject(err_detail, "no_start_byte",   state.errors_no_start);
+    cJSON_AddNumberToObject(err_detail, "bad_control",     state.errors_bad_control);
+    cJSON_AddNumberToObject(err_detail, "no_end",          state.errors_no_end);
+    cJSON_AddNumberToObject(err_detail, "bad_framing",     state.errors_bad_framing);
+    cJSON_AddNumberToObject(err_detail, "length_mismatch", state.errors_length_mismatch);
+    cJSON_AddNumberToObject(err_detail, "header_checksum", state.errors_header_checksum);
+    cJSON_AddNumberToObject(err_detail, "data_checksum",   state.errors_data_checksum);
+    cJSON_AddItemToObject(msg_counts, "error_detail", err_detail);
     cJSON_AddItemToObject(root, "message_counts", msg_counts);
 
     // Devices observed on the bus
@@ -651,24 +662,29 @@ static esp_err_t status_get_handler(httpd_req_t *req)
     }
     cJSON_AddItemToObject(root, "devices", devices);
 
-    // Temperature setpoints (current readings now live per-device above).
+    // Temperature scale (per-heater setpoints live in the heaters[] array below;
+    // current readings live per-device above).
     cJSON *temperature = cJSON_CreateObject();
-    cJSON_AddNumberToObject(temperature, "pool_setpoint",   state.pool_setpoint);
-    cJSON_AddNumberToObject(temperature, "spa_setpoint",    state.spa_setpoint);
-    cJSON_AddNumberToObject(temperature, "pool_setpoint_f", state.pool_setpoint_f);
-    cJSON_AddNumberToObject(temperature, "spa_setpoint_f",  state.spa_setpoint_f);
     cJSON_AddStringToObject(temperature, "scale", state.temp_scale_fahrenheit ? "Fahrenheit" : "Celsius");
     cJSON_AddItemToObject(root, "temperature", temperature);
 
-    // Heaters (only include discovered/valid heaters)
+    // Heaters (include heaters that have on/off state and/or setpoints)
     cJSON *heaters_arr = cJSON_CreateArray();
     for (int i = 0; i < MAX_HEATERS; i++) {
-        if (!state.heaters[i].valid) {
+        if (!state.heaters[i].valid && !state.heaters[i].setpoint_valid) {
             continue;
         }
         cJSON *heater = cJSON_CreateObject();
         cJSON_AddNumberToObject(heater, "index", i);
-        cJSON_AddStringToObject(heater, "state", state.heaters[i].on ? "On" : "Off");
+        if (state.heaters[i].valid) {
+            cJSON_AddStringToObject(heater, "state", state.heaters[i].on ? "On" : "Off");
+        }
+        if (state.heaters[i].setpoint_valid) {
+            cJSON_AddNumberToObject(heater, "pool_setpoint",   state.heaters[i].pool_setpoint);
+            cJSON_AddNumberToObject(heater, "spa_setpoint",    state.heaters[i].spa_setpoint);
+            cJSON_AddNumberToObject(heater, "pool_setpoint_f", state.heaters[i].pool_setpoint_f);
+            cJSON_AddNumberToObject(heater, "spa_setpoint_f",  state.heaters[i].spa_setpoint_f);
+        }
         cJSON_AddItemToArray(heaters_arr, heater);
     }
     cJSON_AddItemToObject(root, "heaters", heaters_arr);

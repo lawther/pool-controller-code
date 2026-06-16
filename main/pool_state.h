@@ -56,6 +56,13 @@ typedef struct {
 typedef struct {
     bool on;
     bool valid;
+
+    // Temperature setpoints (per heater): 0xE7/0xE8 (Heater 1), 0xEA/0xEB (Heater 2)
+    uint8_t pool_setpoint;     // °C
+    uint8_t spa_setpoint;      // °C
+    uint8_t pool_setpoint_f;   // °F
+    uint8_t spa_setpoint_f;    // °F
+    bool setpoint_valid;       // true once a setpoint has been received
 } pool_heater_t;
 
 typedef struct {
@@ -109,11 +116,8 @@ typedef struct {
 } favourite_t;
 
 typedef struct {
-    // Temperature setpoints (per-source readings live on seen_device_t entries)
-    uint8_t pool_setpoint;
-    uint8_t spa_setpoint;
-    uint8_t pool_setpoint_f;  // Fahrenheit setpoint
-    uint8_t spa_setpoint_f;   // Fahrenheit setpoint
+    // Temperature setpoints now live per-heater on heaters[] (pool_heater_t);
+    // per-source temperature readings live on seen_device_t entries.
     bool temp_scale_fahrenheit;
 
     // Heaters (up to MAX_HEATERS)
@@ -166,6 +170,8 @@ typedef struct {
     uint16_t orp_reading;      // mV
     bool ph_valid;
     bool orp_valid;
+    bool ph_setpoint_valid;
+    bool orp_setpoint_valid;
     uint8_t chlor_mode;        // 0=Off, 1=Auto, 2=On (tentative — see PROTOCOL.md §32)
     bool chlor_mode_valid;
     uint8_t chlor_output_level;       // Chlorine output level 1–8 (from VX 11S v3, address 0x0081)
@@ -202,6 +208,21 @@ typedef struct {
     // Total decoded / unknown message counts across all sources
     uint32_t messages_decoded_total;
     uint32_t messages_unknown_total;
+
+    // Protocol-level error counts. Framing errors (no_start/bad_control/no_end)
+    // are counted in the bridge reassembly layer and the bytes never reach the
+    // decoder. Validation errors (length/header_checksum/data_checksum) are
+    // counted in decode_message; the frame is still dispatched but counts as
+    // an error instead of decoded/unknown. messages_error_total increments
+    // once per error event (a frame with multiple validation errors counts once).
+    uint32_t messages_error_total;
+    uint32_t errors_no_start;          // Bytes discarded: no START (0x02) in buffer
+    uint32_t errors_bad_control;       // START found but control bytes != 80 00
+    uint32_t errors_no_end;            // No checksum+END match before buffer filled (too long / corrupt)
+    uint32_t errors_bad_framing;       // Frame too short or missing START/END markers
+    uint32_t errors_length_mismatch;   // Length field (byte 8) != actual frame length
+    uint32_t errors_header_checksum;   // Header checksum (byte 9) mismatch
+    uint32_t errors_data_checksum;     // Data checksum mismatch
 
     // Timers (up to MAX_TIMERS)
     timer_state_t timers[MAX_TIMERS];

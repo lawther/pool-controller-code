@@ -19,42 +19,63 @@ static struct {
     bool lights[MAX_LIGHT_ZONES];
     bool valves[MAX_VALVE_SLOTS];
     bool heaters[MAX_HEATERS];
+    bool heater_setpoints[MAX_HEATERS];
     bool favourite;
     bool temp_sensors[MAX_SEEN_DEVICES][2];   // [dev_idx][sensor_index-1]
+    bool ph;
+    bool orp;
+    bool ph_setpoint;
+    bool orp_setpoint;
+    bool chlor_output_level;
+    bool pump;
 } s_discovery_published = {0};
 
 // ======================================================
 // Setpoint and Temperature Publishing
 // ======================================================
 
-void mqtt_publish_setpoints(const pool_state_t *current_state)
+void mqtt_publish_heater_setpoints(const pool_state_t *current_state, int index)
 {
-    if (s_last_published_state.pool_setpoint == current_state->pool_setpoint &&
-        s_last_published_state.spa_setpoint == current_state->spa_setpoint &&
+    if (index < 0 || index >= MAX_HEATERS) {
+        return;
+    }
+
+    const pool_heater_t *heater = &current_state->heaters[index];
+    const pool_heater_t *last = &s_last_published_state.heaters[index];
+
+    // Check if anything changed
+    if (last->pool_setpoint == heater->pool_setpoint &&
+        last->spa_setpoint == heater->spa_setpoint &&
         s_last_published_state.temp_scale_fahrenheit == current_state->temp_scale_fahrenheit) {
         return;  // No change, skip publish
+    }
+
+    // Publish discovery on first publish
+    if (!s_discovery_published.heater_setpoints[index]) {
+        mqtt_publish_heater_setpoint_discovery_single(index);
+        s_discovery_published.heater_setpoints[index] = true;
     }
 
     char device_id[32];
     mqtt_get_device_id(device_id, sizeof(device_id));
 
     char topic[128];
-    snprintf(topic, sizeof(topic), "pool/%s/setpoints/state", device_id);
+    snprintf(topic, sizeof(topic), "pool/%s/heater/%d/setpoints/state", device_id, index);
 
     char payload[256];
     snprintf(payload, sizeof(payload),
              "{\"pool_sp\":%d,\"spa_sp\":%d,\"scale\":\"%s\"}",
-             current_state->pool_setpoint, current_state->spa_setpoint,
+             heater->pool_setpoint, heater->spa_setpoint,
              current_state->temp_scale_fahrenheit ? "F" : "C");
 
     mqtt_publish(topic, payload, 0, true);
 
-    s_last_published_state.pool_setpoint = current_state->pool_setpoint;
-    s_last_published_state.spa_setpoint = current_state->spa_setpoint;
+    s_last_published_state.heaters[index].pool_setpoint = heater->pool_setpoint;
+    s_last_published_state.heaters[index].spa_setpoint = heater->spa_setpoint;
     s_last_published_state.temp_scale_fahrenheit = current_state->temp_scale_fahrenheit;
 
-    ESP_LOGI(TAG, "Published setpoints: pool=%d, spa=%d, scale=%s",
-             current_state->pool_setpoint, current_state->spa_setpoint,
+    ESP_LOGI(TAG, "Published heater %d setpoints: pool=%d, spa=%d, scale=%s",
+             index, heater->pool_setpoint, heater->spa_setpoint,
              current_state->temp_scale_fahrenheit ? "F" : "C");
 }
 
@@ -374,6 +395,8 @@ void mqtt_publish_chlorinator(const pool_state_t *current_state)
     // Check if anything changed
     if (s_last_published_state.ph_valid == current_state->ph_valid &&
         s_last_published_state.orp_valid == current_state->orp_valid &&
+        s_last_published_state.ph_setpoint_valid == current_state->ph_setpoint_valid &&
+        s_last_published_state.orp_setpoint_valid == current_state->orp_setpoint_valid &&
         s_last_published_state.ph_reading == current_state->ph_reading &&
         s_last_published_state.orp_reading == current_state->orp_reading &&
         s_last_published_state.ph_setpoint == current_state->ph_setpoint &&
@@ -381,6 +404,28 @@ void mqtt_publish_chlorinator(const pool_state_t *current_state)
         s_last_published_state.chlor_output_level_valid == current_state->chlor_output_level_valid &&
         s_last_published_state.chlor_output_level == current_state->chlor_output_level) {
         return;  // No change, skip publish
+    }
+
+    // Publish discovery lazily, per entity, on its first valid value
+    if (current_state->ph_valid && !s_discovery_published.ph) {
+        mqtt_publish_ph_discovery_single();
+        s_discovery_published.ph = true;
+    }
+    if (current_state->orp_valid && !s_discovery_published.orp) {
+        mqtt_publish_orp_discovery_single();
+        s_discovery_published.orp = true;
+    }
+    if (current_state->ph_setpoint_valid && !s_discovery_published.ph_setpoint) {
+        mqtt_publish_ph_setpoint_discovery_single();
+        s_discovery_published.ph_setpoint = true;
+    }
+    if (current_state->orp_setpoint_valid && !s_discovery_published.orp_setpoint) {
+        mqtt_publish_orp_setpoint_discovery_single();
+        s_discovery_published.orp_setpoint = true;
+    }
+    if (current_state->chlor_output_level_valid && !s_discovery_published.chlor_output_level) {
+        mqtt_publish_chlor_output_level_discovery_single();
+        s_discovery_published.chlor_output_level = true;
     }
 
     char device_id[32];
@@ -401,8 +446,12 @@ void mqtt_publish_chlorinator(const pool_state_t *current_state)
     }
 
     // pH setpoint
-    len += snprintf(payload + len, sizeof(payload) - len,
-                   ",\"ph_setpoint\":%.1f", current_state->ph_setpoint / 10.0);
+    if (current_state->ph_setpoint_valid) {
+        len += snprintf(payload + len, sizeof(payload) - len,
+                       ",\"ph_setpoint\":%.1f", current_state->ph_setpoint / 10.0);
+    } else {
+        len += snprintf(payload + len, sizeof(payload) - len, ",\"ph_setpoint\":null");
+    }
 
     // ORP reading
     if (current_state->orp_valid) {
@@ -413,8 +462,12 @@ void mqtt_publish_chlorinator(const pool_state_t *current_state)
     }
 
     // ORP setpoint
-    len += snprintf(payload + len, sizeof(payload) - len,
-                   ",\"orp_setpoint\":%d", current_state->orp_setpoint);
+    if (current_state->orp_setpoint_valid) {
+        len += snprintf(payload + len, sizeof(payload) - len,
+                       ",\"orp_setpoint\":%d", current_state->orp_setpoint);
+    } else {
+        len += snprintf(payload + len, sizeof(payload) - len, ",\"orp_setpoint\":null");
+    }
 
     // Salt chlorinator setpoint
     if (current_state->chlor_output_level_valid) {
@@ -433,6 +486,8 @@ void mqtt_publish_chlorinator(const pool_state_t *current_state)
     s_last_published_state.orp_setpoint = current_state->orp_setpoint;
     s_last_published_state.ph_valid = current_state->ph_valid;
     s_last_published_state.orp_valid = current_state->orp_valid;
+    s_last_published_state.ph_setpoint_valid = current_state->ph_setpoint_valid;
+    s_last_published_state.orp_setpoint_valid = current_state->orp_setpoint_valid;
     s_last_published_state.chlor_output_level = current_state->chlor_output_level;
     s_last_published_state.chlor_output_level_valid = current_state->chlor_output_level_valid;
 
@@ -455,6 +510,12 @@ void mqtt_publish_pump(const pool_state_t *current_state)
     if (s_last_published_state.pump_speed_valid == current_state->pump_speed_valid &&
         s_last_published_state.pump_speed == current_state->pump_speed) {
         return;  // No change, skip publish
+    }
+
+    // Publish discovery on first valid reading
+    if (current_state->pump_speed_valid && !s_discovery_published.pump) {
+        mqtt_publish_pump_discovery_single();
+        s_discovery_published.pump = true;
     }
 
     char device_id[32];

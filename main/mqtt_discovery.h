@@ -19,6 +19,10 @@ void mqtt_publish_valve_discovery_single(int valve_num, const char *valve_name);
 // Publish individual heater discovery (called when heater first publishes state)
 void mqtt_publish_heater_discovery_single(int index);
 
+// Publish a heater's pool + spa setpoint Number entities (called when the heater
+// first publishes setpoints).
+void mqtt_publish_heater_setpoint_discovery_single(int index);
+
 // Publish individual temperature-sensor discovery for a (source, sensor) pair.
 // Called the first time `mqtt_publish_temperature_reading` fires for each
 // (dev_idx, sensor_index). `single_sensor_source` selects the HA entity name
@@ -29,5 +33,14 @@ void mqtt_publish_temperature_sensor_discovery_single(
 
 // Publish favourite select discovery (called on connect and when names/enable flags change)
 void mqtt_publish_favourite_discovery_single(const pool_state_t *state);
+
+// Chemistry and pump sensor discovery, published lazily on each entity's
+// first valid value (see mqtt_publish_chlorinator / mqtt_publish_pump).
+void mqtt_publish_ph_discovery_single(void);
+void mqtt_publish_orp_discovery_single(void);
+void mqtt_publish_ph_setpoint_discovery_single(void);
+void mqtt_publish_orp_setpoint_discovery_single(void);
+void mqtt_publish_chlor_output_level_discovery_single(void);
+void mqtt_publish_pump_discovery_single(void);
 
 #endif // MQTT_DISCOVERY_H

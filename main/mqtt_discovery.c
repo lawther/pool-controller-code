@@ -170,23 +170,34 @@ void mqtt_publish_temperature_sensor_discovery_single(
 }
 
 // ======================================================
-// Pool Setpoint Number Discovery
+// Per-Heater Setpoint Number Discovery
 // ======================================================
 
-static void publish_pool_setpoint_discovery(const char *device_id, const char *mac_suffix)
+// Publish one Number entity for a heater's pool or spa setpoint.
+static void publish_heater_setpoint_number(const char *device_id, const char *mac_suffix,
+                                           int index, bool is_pool)
 {
+    const char *circuit = is_pool ? "pool" : "spa";
+    const char *value_key = is_pool ? "pool_sp" : "spa_sp";
+
     char avail_topic[128];
     char state_topic[128];
-    char command_topic[128];
+    char command_topic[160];
     snprintf(avail_topic, sizeof(avail_topic), "pool/%s/availability", device_id);
-    snprintf(state_topic, sizeof(state_topic), "pool/%s/setpoints/state", device_id);
-    snprintf(command_topic, sizeof(command_topic), "pool/%s/temperature/pool/set", device_id);
+    snprintf(state_topic, sizeof(state_topic), "pool/%s/heater/%d/setpoints/state", device_id, index);
+    snprintf(command_topic, sizeof(command_topic), "pool/%s/heater/%d/%s_setpoint/set", device_id, index, circuit);
 
-    char uid[64];
-    snprintf(uid, sizeof(uid), DISCOVERY_ID_PREFIX "_%s_pool_setpoint", mac_suffix);
+    char uid[80];
+    snprintf(uid, sizeof(uid), DISCOVERY_ID_PREFIX "_%s_heater_%d_%s_setpoint", mac_suffix, index, circuit);
+
+    char display_name[40];
+    snprintf(display_name, sizeof(display_name), "Heater %d %s Setpoint", index + 1, is_pool ? "Pool" : "Spa");
+
+    char value_template[48];
+    snprintf(value_template, sizeof(value_template), "{{ value_json.%s }}", value_key);
 
     cJSON *root = cJSON_CreateObject();
-    cJSON_AddStringToObject(root, "name", "Pool Setpoint");
+    cJSON_AddStringToObject(root, "name", display_name);
     cJSON_AddStringToObject(root, "device_class", "temperature");
     cJSON_AddStringToObject(root, "icon", "mdi:thermometer");
     cJSON_AddStringToObject(root, "state_topic", state_topic);
@@ -196,7 +207,7 @@ static void publish_pool_setpoint_discovery(const char *device_id, const char *m
     cJSON_AddNumberToObject(root, "max", TEMP_SETPOINT_MAX_C);
     cJSON_AddNumberToObject(root, "step", 1);
     cJSON_AddStringToObject(root, "mode", "box");
-    cJSON_AddStringToObject(root, "value_template", "{{ value_json.pool_sp }}");
+    cJSON_AddStringToObject(root, "value_template", value_template);
     cJSON_AddStringToObject(root, "unique_id", uid);
     cJSON_AddStringToObject(root, "object_id", uid);
     cJSON_AddStringToObject(root, "availability_topic", avail_topic);
@@ -204,59 +215,28 @@ static void publish_pool_setpoint_discovery(const char *device_id, const char *m
 
     char *json_str = cJSON_PrintUnformatted(root);
     if (!json_str) {
-        ESP_LOGE(TAG, "Failed to print pool setpoint discovery JSON");
+        ESP_LOGE(TAG, "Failed to print heater %d %s setpoint discovery JSON", index, circuit);
         cJSON_Delete(root);
         return;
     }
-    ESP_LOGI(TAG, "Publishing pool setpoint discovery: %s", json_str);
+    ESP_LOGI(TAG, "Publishing heater %d %s setpoint discovery: %s", index, circuit, json_str);
     publish_discovery("number", uid, json_str);
     cJSON_free(json_str);
     cJSON_Delete(root);
 }
 
-// ======================================================
-// Spa Setpoint Number Discovery
-// ======================================================
-
-static void publish_spa_setpoint_discovery(const char *device_id, const char *mac_suffix)
+void mqtt_publish_heater_setpoint_discovery_single(int index)
 {
-    char avail_topic[128];
-    char state_topic[128];
-    char command_topic[128];
-    snprintf(avail_topic, sizeof(avail_topic), "pool/%s/availability", device_id);
-    snprintf(state_topic, sizeof(state_topic), "pool/%s/setpoints/state", device_id);
-    snprintf(command_topic, sizeof(command_topic), "pool/%s/temperature/spa/set", device_id);
+    if (index < 0 || index >= MAX_HEATERS) return;
 
-    char uid[64];
-    snprintf(uid, sizeof(uid), DISCOVERY_ID_PREFIX "_%s_spa_setpoint", mac_suffix);
+    char device_id[32];
+    mqtt_get_device_id(device_id, sizeof(device_id));
 
-    cJSON *root = cJSON_CreateObject();
-    cJSON_AddStringToObject(root, "name", "Spa Setpoint");
-    cJSON_AddStringToObject(root, "device_class", "temperature");
-    cJSON_AddStringToObject(root, "icon", "mdi:thermometer");
-    cJSON_AddStringToObject(root, "state_topic", state_topic);
-    cJSON_AddStringToObject(root, "command_topic", command_topic);
-    cJSON_AddStringToObject(root, "unit_of_measurement", "°C");
-    cJSON_AddNumberToObject(root, "min", TEMP_SETPOINT_MIN_C);
-    cJSON_AddNumberToObject(root, "max", TEMP_SETPOINT_MAX_C);
-    cJSON_AddNumberToObject(root, "step", 1);
-    cJSON_AddStringToObject(root, "mode", "box");
-    cJSON_AddStringToObject(root, "value_template", "{{ value_json.spa_sp }}");
-    cJSON_AddStringToObject(root, "unique_id", uid);
-    cJSON_AddStringToObject(root, "object_id", uid);
-    cJSON_AddStringToObject(root, "availability_topic", avail_topic);
-    cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
+    char mac_suffix[DEVICE_MAC_SUFFIX_LEN];
+    device_get_mac_suffix(mac_suffix, sizeof(mac_suffix));
 
-    char *json_str = cJSON_PrintUnformatted(root);
-    if (!json_str) {
-        ESP_LOGE(TAG, "Failed to print spa setpoint discovery JSON");
-        cJSON_Delete(root);
-        return;
-    }
-    ESP_LOGI(TAG, "Publishing spa setpoint discovery: %s", json_str);
-    publish_discovery("number", uid, json_str);
-    cJSON_free(json_str);
-    cJSON_Delete(root);
+    publish_heater_setpoint_number(device_id, mac_suffix, index, true);   // Pool
+    publish_heater_setpoint_number(device_id, mac_suffix, index, false);  // Spa
 }
 
 // ======================================================
@@ -744,6 +724,25 @@ static void publish_pump_discovery(const char *device_id, const char *mac_suffix
 // Individual Discovery Functions (called when items first configured)
 // ======================================================
 
+// Fetch device_id/mac_suffix and invoke a no-arg discovery publisher.
+static void publish_single(void (*publish_fn)(const char *device_id, const char *mac_suffix))
+{
+    char device_id[32];
+    mqtt_get_device_id(device_id, sizeof(device_id));
+
+    char mac_suffix[DEVICE_MAC_SUFFIX_LEN];
+    device_get_mac_suffix(mac_suffix, sizeof(mac_suffix));
+
+    publish_fn(device_id, mac_suffix);
+}
+
+void mqtt_publish_ph_discovery_single(void)                { publish_single(publish_ph_discovery); }
+void mqtt_publish_orp_discovery_single(void)               { publish_single(publish_orp_discovery); }
+void mqtt_publish_ph_setpoint_discovery_single(void)       { publish_single(publish_ph_setpoint_discovery); }
+void mqtt_publish_orp_setpoint_discovery_single(void)      { publish_single(publish_orp_setpoint_discovery); }
+void mqtt_publish_chlor_output_level_discovery_single(void) { publish_single(publish_chlor_output_level_discovery); }
+void mqtt_publish_pump_discovery_single(void)              { publish_single(publish_pump_discovery); }
+
 void mqtt_publish_channel_discovery_single(int channel_num, const char *channel_name)
 {
     char device_id[32];
@@ -932,9 +931,9 @@ void mqtt_publish_discovery(void)
 
     ESP_LOGI(TAG, "Publishing Home Assistant discovery messages for device: %s", device_id);
 
-    // Setpoints
-    publish_pool_setpoint_discovery(device_id, mac_suffix);
-    publish_spa_setpoint_discovery(device_id, mac_suffix);
+    // Note: Per-heater setpoints are NOT published here.
+    // They are published individually on first setpoint reading per heater
+    // (see mqtt_publish_heater_setpoints in mqtt_publish.c).
 
     // Note: Per-source temperature sensors are NOT published here.
     // They are published individually on first CMD 0x16 reading from each
@@ -960,15 +959,11 @@ void mqtt_publish_discovery(void)
         publish_favourite_discovery(device_id, mac_suffix, &snapshot);
     }
 
-    // Chemistry
-    publish_ph_discovery(device_id, mac_suffix);
-    publish_orp_discovery(device_id, mac_suffix);
-    publish_ph_setpoint_discovery(device_id, mac_suffix);
-    publish_orp_setpoint_discovery(device_id, mac_suffix);
-    publish_chlor_output_level_discovery(device_id, mac_suffix);
-
-    // Pump
-    publish_pump_discovery(device_id, mac_suffix);
+    // Note: Chemistry (pH/ORP readings and setpoints, chlorine output level)
+    // and pump speed are NOT published here. Each entity is published
+    // individually on its first valid reading (see mqtt_publish_chlorinator
+    // and mqtt_publish_pump in mqtt_publish.c), so systems without a
+    // chlorinator or variable-speed pump never create the HA entities.
 
     ESP_LOGI(TAG, "Discovery messages published");
 }

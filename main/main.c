@@ -53,6 +53,20 @@ static bool decode_wrapper(const uint8_t *data, int len)
     return decode_message(data, len, &s_decoder_context);
 }
 
+static void frame_error_wrapper(tcp_bridge_frame_error_t error)
+{
+    if (xSemaphoreTake(s_pool_state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        return;
+    }
+    s_pool_state.messages_error_total++;
+    switch (error) {
+        case TCP_BRIDGE_FRAME_ERR_NO_START:    s_pool_state.errors_no_start++;    break;
+        case TCP_BRIDGE_FRAME_ERR_BAD_CONTROL: s_pool_state.errors_bad_control++; break;
+        case TCP_BRIDGE_FRAME_ERR_NO_END:      s_pool_state.errors_no_end++;      break;
+    }
+    xSemaphoreGive(s_pool_state_mutex);
+}
+
 // ======================================================
 // Logging Configuration
 // ======================================================
@@ -170,6 +184,7 @@ void app_main(void)
         .decode_message = decode_wrapper,
         .led_flash_rx = led_flash_rx,
         .led_flash_tx = led_flash_tx,
+        .on_frame_error = frame_error_wrapper,
     };
     esp_err_t bridge_err = tcp_bridge_start(&bridge_config);
     if (bridge_err == ESP_OK) {

@@ -142,10 +142,21 @@ void test_heater_0_off(void)
     TEST_ASSERT(memcmp(s_uart_buf, expected, sizeof(expected)) == 0, "heater/0/set OFF: correct bytes");
 }
 
-void test_heater_1_unsupported(void)
+void test_heater_1_on(void)
 {
     send_cmd("heater/1/set", "ON");
-    TEST_ASSERT(s_uart_calls == 0, "heater/1/set: no UART write (not yet supported)");
+
+    // Heater 2 on/off = register 0xE9. Checksum = (0xE9 + 0x00 + 0x01) & 0xFF = 0xEA
+    uint8_t expected[] = {
+        0x02, 0x00, 0xF0, 0xFF, 0xFF, 0x80, 0x00,
+        0x3A, 0x0F, 0xB9,
+        0xE9, 0x00, 0x01,
+        0xEA,
+        0x03
+    };
+    TEST_ASSERT(s_uart_calls == 1, "heater/1/set ON: exactly one UART write");
+    TEST_ASSERT(s_uart_len == sizeof(expected), "heater/1/set ON: correct length");
+    TEST_ASSERT(memcmp(s_uart_buf, expected, sizeof(expected)) == 0, "heater/1/set ON: correct bytes");
 }
 
 void test_heater_out_of_range(void)
@@ -256,7 +267,8 @@ void test_mode_invalid(void)
 
 void test_temperature_pool(void)
 {
-    send_cmd("temperature/pool/set", "30");
+    // Heater 1 pool setpoint uses the system pool setpoint command (CMD 0x19).
+    send_cmd("heater/0/pool_setpoint/set", "30");
 
     // target=0x01 (Pool), temp=30=0x1E, checksum=(0x01+0x1E+0x1E)&0xFF=0x3D
     uint8_t expected[] = {
@@ -266,14 +278,15 @@ void test_temperature_pool(void)
         0x3D,
         0x03
     };
-    TEST_ASSERT(s_uart_calls == 1, "temperature/pool/set 30: exactly one UART write");
-    TEST_ASSERT(s_uart_len == sizeof(expected), "temperature/pool/set 30: correct length");
-    TEST_ASSERT(memcmp(s_uart_buf, expected, sizeof(expected)) == 0, "temperature/pool/set 30: correct bytes");
+    TEST_ASSERT(s_uart_calls == 1, "heater/0/pool_setpoint/set 30: exactly one UART write");
+    TEST_ASSERT(s_uart_len == sizeof(expected), "heater/0/pool_setpoint/set 30: correct length");
+    TEST_ASSERT(memcmp(s_uart_buf, expected, sizeof(expected)) == 0, "heater/0/pool_setpoint/set 30: correct bytes");
 }
 
 void test_temperature_spa(void)
 {
-    send_cmd("temperature/spa/set", "37");
+    // Heater 1 spa setpoint uses the system spa setpoint command (CMD 0x19).
+    send_cmd("heater/0/spa_setpoint/set", "37");
 
     // target=0x02 (Spa), temp=37=0x25, checksum=(0x02+0x25+0x25)&0xFF=0x4C
     uint8_t expected[] = {
@@ -283,20 +296,55 @@ void test_temperature_spa(void)
         0x4C,
         0x03
     };
-    TEST_ASSERT(s_uart_calls == 1, "temperature/spa/set 37: exactly one UART write");
-    TEST_ASSERT(memcmp(s_uart_buf, expected, sizeof(expected)) == 0, "temperature/spa/set 37: correct bytes");
+    TEST_ASSERT(s_uart_calls == 1, "heater/0/spa_setpoint/set 37: exactly one UART write");
+    TEST_ASSERT(memcmp(s_uart_buf, expected, sizeof(expected)) == 0, "heater/0/spa_setpoint/set 37: correct bytes");
+}
+
+void test_heater2_pool_setpoint(void)
+{
+    // Heater 2 pool setpoint = gateway register write (CMD 0x3A) to 0xEA.
+    send_cmd("heater/1/pool_setpoint/set", "27");
+
+    // reg=0xEA, slot=0x00, temp=27=0x1B, checksum=(0xEA+0x00+0x1B)&0xFF=0x05
+    uint8_t expected[] = {
+        0x02, 0x00, 0xF0, 0xFF, 0xFF, 0x80, 0x00,
+        0x3A, 0x0F, 0xB9,
+        0xEA, 0x00, 0x1B,
+        0x05,
+        0x03
+    };
+    TEST_ASSERT(s_uart_calls == 1, "heater/1/pool_setpoint/set 27: exactly one UART write");
+    TEST_ASSERT(s_uart_len == sizeof(expected), "heater/1/pool_setpoint/set 27: correct length");
+    TEST_ASSERT(memcmp(s_uart_buf, expected, sizeof(expected)) == 0, "heater/1/pool_setpoint/set 27: correct bytes");
+}
+
+void test_heater2_spa_setpoint(void)
+{
+    // Heater 2 spa setpoint = gateway register write (CMD 0x3A) to 0xEB.
+    send_cmd("heater/1/spa_setpoint/set", "24");
+
+    // reg=0xEB, slot=0x00, temp=24=0x18, checksum=(0xEB+0x00+0x18)&0xFF=0x03
+    uint8_t expected[] = {
+        0x02, 0x00, 0xF0, 0xFF, 0xFF, 0x80, 0x00,
+        0x3A, 0x0F, 0xB9,
+        0xEB, 0x00, 0x18,
+        0x03,
+        0x03
+    };
+    TEST_ASSERT(s_uart_calls == 1, "heater/1/spa_setpoint/set 24: exactly one UART write");
+    TEST_ASSERT(memcmp(s_uart_buf, expected, sizeof(expected)) == 0, "heater/1/spa_setpoint/set 24: correct bytes");
 }
 
 void test_temperature_out_of_range(void)
 {
-    send_cmd("temperature/pool/set", "100");
-    TEST_ASSERT(s_uart_calls == 0, "temperature/pool/set 100: no UART write (out of range)");
+    send_cmd("heater/0/pool_setpoint/set", "100");
+    TEST_ASSERT(s_uart_calls == 0, "heater/0/pool_setpoint/set 100: no UART write (out of range)");
 }
 
 void test_temperature_invalid(void)
 {
-    send_cmd("temperature/pool/set", "warm");
-    TEST_ASSERT(s_uart_calls == 0, "temperature/pool/set 'warm': no UART write (non-numeric)");
+    send_cmd("heater/0/pool_setpoint/set", "warm");
+    TEST_ASSERT(s_uart_calls == 0, "heater/0/pool_setpoint/set 'warm': no UART write (non-numeric)");
 }
 
 // ======================================================
@@ -421,7 +469,7 @@ int main(void)
     printf("--- Heater Tests ---\n");
     test_heater_0_on();
     test_heater_0_off();
-    test_heater_1_unsupported();
+    test_heater_1_on();
     test_heater_out_of_range();
     test_heater_malformed_topic();
     test_heater_invalid_payload();
@@ -439,6 +487,8 @@ int main(void)
     printf("\n--- Temperature Tests ---\n");
     test_temperature_pool();
     test_temperature_spa();
+    test_heater2_pool_setpoint();
+    test_heater2_spa_setpoint();
     test_temperature_out_of_range();
     test_temperature_invalid();
 

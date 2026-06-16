@@ -306,6 +306,11 @@ Detailed status for all configured channels. Broadcast by the Touchscreen (`0x00
 - `0x00`: Off
 - `0x01`: Auto
 - `0x02`: On
+- `0x03`: On — Low Speed
+- `0x04`: On — Medium Speed
+- `0x05`: On — High Speed
+
+States `0x03`–`0x05` are used by channels driving a multi-speed pump (e.g. a Filter channel paired with the `0x00A0` Viron XT Variable Speed Pump) in place of the plain `0x02` On; simple on/off channels only use `0x00`–`0x02`. When a multi-speed channel enters one of these states, the Touchscreen unicasts the matching speed preset to the pump via [CMD `0x18`](#0x18--pump-speed-command-) (`0x03`→Low, `0x04`→Med, `0x05`→High) within ~130 ms of the channel status broadcast.
 
 ---
 
@@ -399,7 +404,7 @@ Command from the Internet Gateway (`0x00F0`) to cycle a channel through its avai
 - Sending this command always advances the state — there is no direct way to set a specific state.
 - The controller will respond with an updated [Channel Status message (0x0B)](#0x0b--channel-status-).
 - Channel index is 0-based and corresponds to the channel's position in the controller configuration.
-- ⚠️ Multi-speed pump channels are not yet documented — only the simple On/Off and Auto/On/Off state cycles above have been captured. Status is ⚠️ pending characterisation of how multi-speed channels respond to this command.
+- ⚠️ Multi-speed pump channels report extended states `0x03`–`0x05` (On at Low/Med/High — see [Channel States](#0x0b--channel-status-)), but how this command cycles through them has not been captured. Status is ⚠️ pending characterisation of how multi-speed channels respond to this command.
 
 ---
 
@@ -664,7 +669,7 @@ Handled by the unified `handle_temp_reading()` via the LEN `0x0D` path.
 
 ### 0x17 — Temperature Settings ✅
 
-Setpoint broadcast. CMD `0x17` is shared across two sources with different payload layouts: the Touchscreen (`0x0050`) emits spa/pool setpoints in both °C and °F, while the Genus Heater (`0x0070`) emits its Heater 1/Heater 2 setpoints in °C only.
+Setpoint broadcast. CMD `0x17` is shared across two sources with different payload layouts: the Touchscreen (`0x0050`) emits spa/pool setpoints in both °C and °F, while the heater devices (`0x0070`/`0x0072`/`0x0074`) emit their spa/pool setpoints in °C only.
 
 **Source variants:**
 
@@ -776,6 +781,7 @@ Inter-device unicast sent by the controller (Touchscreen `0x0050` or Viron Chlor
 **Notes:**
 
 - The Touchscreen sends this command to implement its timers
+- The speed value mirrors the driving channel's extended state in the [Channel Status (0x0B)](#0x0b--channel-status-) broadcast: channel states `0x03`/`0x04`/`0x05` (On at Low/Med/High) map to speed `0x00`/`0x01`/`0x02`, with the `0x18` unicast following the channel broadcast within ~130 ms.
 - The `0x0090` RolaChem chlorinator variant has not been observed using this command; the `0x18` traffic appears specific to the `0x0084` Viron / `0x00A0` Viron XT Pump two-module chlorinator topology.
 
 ---
@@ -1524,7 +1530,9 @@ Sent by the Internet Gateway (`0x00F0`) to write a single controller register. T
 |------------|--------|------------------------|-------------------------------------------------------------|
 | `0xC0`–`0xC7` | `0x01` | Light Zone state    | [Light Zone Control](#light-zone-control-register-0xc00xc7-slot-0x01) |
 | `0xE6`     | `0x00` | Heater 1 on/off        | [Heater Control](#heater-control-register-0xe6-slot-0x00)   |
+| `0xE9`     | `0x00` | Heater 2 on/off        | [Appendix A](#appendix-a-register-dispatch-table) Heater 2 trio note |
 | `0xEA`     | `0x00` | Heater 2 pool setpoint | [Appendix A](#appendix-a-register-dispatch-table) Heater 2 trio note |
+| `0xEB`     | `0x00` | Heater 2 spa setpoint  | [Appendix A](#appendix-a-register-dispatch-table) Heater 2 trio note |
 
 **Data Fields:**
 
@@ -1582,7 +1590,7 @@ Sets a light zone's state (Off/Auto/On).
 
 #### Heater Control (Register `0xE6`, Slot `0x00`) ✅
 
-Turns the (primary) heater on or off. Heater 1 only — see [Appendix A](#appendix-a-register-dispatch-table) for the tentative Heater 2 register set (`0xE9`/`0xEA`/`0xEB`).
+Turns Heater 1 on or off (register `0xE6`). Heater 2 uses the analogous register `0xE9` — see [Appendix A](#appendix-a-register-dispatch-table) for the full Heater 2 register set (`0xE9` state, `0xEA` pool setpoint, `0xEB` spa setpoint).
 
 **Example — Turn Heater On:**
 
@@ -1721,10 +1729,10 @@ The register ID and slot together determine the message meaning. The slot distin
 | `0xE6`         | `0x00` | Heater State (Heater 1)   | 1-byte (`0x00`=Off, `0x01`=On)                |
 | `0xE7`         | `0x00` | Pool Temperature Setpoint (Heater 1) | 1-byte °C value                    |
 | `0xE8`         | `0x00` | Spa Temperature Setpoint (Heater 1)  | 1-byte °C value                    |
-| `0xE9` ⚠️       | `0x00` | Heater 2 State (tentative)     | 1-byte (`0x00`=Off, `0x01`=On). See note below. |
+| `0xE9`         | `0x00` | Heater 2 State         | 1-byte (`0x00`=Off, `0x01`=On) — writable via gateway CMD `0x3A`. See note below. |
 | `0xE8`–`0xE9` ⚠️| `0x03` | Unknown               | Only `0x01` observed. Repeats ~every 8 minutes   |
 | `0xEA`         | `0x00` | Heater 2 Pool Setpoint | 1-byte °C value — writable via gateway CMD `0x3A`. See note below. |
-| `0xEB` ⚠️       | `0x00` | Heater 2 Spa Setpoint (tentative)  | 1-byte °C value. See note below.   |
+| `0xEB`         | `0x00` | Heater 2 Spa Setpoint  | 1-byte °C value — writable via gateway CMD `0x3A`. See note below.   |
 | `0xEC` ⚠️       | `0x00` | Unknown                | Only `0x01` observed. Repeats ~every 8 minutes |
 | `0xF0` ⚠️       | `0x01` | Unknown                | Only `0xFF` observed. Repeats ~every 8 minutes |
 | `0xF5`–`0xFA` ⚠️| `0x01` | Unknown                | Only `0x01` observed. Repeats ~every 8 minutes |
@@ -1734,10 +1742,9 @@ The register ID and slot together determine the message meaning. The slot distin
 - Register ranges can overlap (e.g., `0xD0`–`0xD7`) but are distinguished by the slot value
 - The same slot value (e.g., `0x02`) can represent different data formats depending on the register
 - Slot values appear to be context-dependent rather than globally defining a data type
-- **`0xEA` (Heater 2 Pool Setpoint) — confirmed ✅**: Slot `0x00` holds the Heater 1 trio at `0xE6` (state), `0xE7` (Pool setpoint), `0xE8` (Spa setpoint), and `0xEA` is the analogous pool setpoint for the second heater. Confirmed by UI-driven capture: changing the heat pump's set temperature in the UI sends a gateway register-write (CMD `0x3A` / second-byte `0xB9`) to `0xEA`/slot `0x00`, and the touchscreen immediately rebroadcasts the new value via CMD `0x38`. Observed writes set 21°C (`EA 00 15`, checksum `FF`), 22°C (`EA 00 16`, checksum `00`), and 27°C (`EA 00 1B`); the 27°C value matched the **H2** value carried in the heater's (`0x0070`) CMD `0x17` `[H1, H2]` broadcast (where H1=24°C also matched `0xE7`). The 1-byte value is the setpoint in °C. (On the test install the second heater is a heat pump; "Heater 2" is kept as the generic name since another install's second heater may be a different type.)
-- **`0xE9`/`0xEB` (rest of the Heater 2 trio) — tentative ⚠️**: By structural symmetry with the Heater 1 trio and the now-confirmed `0xEA`, `0xE9` is likely the Heater 2 state (`0x00`=Off, `0x01`=On) and `0xEB` the Heater 2 spa setpoint, but neither has been confirmed by a UI-driven write:
-  - **Mutually exclusive broadcast**: in captures observed so far the touchscreen broadcasts *either* the `E6/E7/E8` trio *or* the `E9/EA/EB` trio in slot `0x00`, but not both — consistent with a config-dependent enable (likely [0x26](#0x26--configuration-️) byte 10 bit 3 = heater count).
-  - **Caveats**: `0xEB` has been observed fixed at `0x0A` (10°C) across multiple installs — an unusual spa setpoint, but explainable as an unused default when the second heater isn't actually plumbed to spa. Single-bit toggle confirmation (changing spa setpoint in the UI and watching which register updates) has not yet been performed.
+- **`0xE9`/`0xEA`/`0xEB` (Heater 2 trio) — confirmed ✅**: Slot `0x00` holds the Heater 1 trio at `0xE6` (state), `0xE7` (Pool setpoint), `0xE8` (Spa setpoint), and `0xE9`/`0xEA`/`0xEB` are the analogous trio for the second heater: `0xE9` = state (`0x00`=Off, `0x01`=On), `0xEA` = Pool setpoint, `0xEB` = Spa setpoint (1-byte °C). All three are writable via the gateway register-write command (CMD `0x3A` / second-byte `0xB9`). `0xEA` was confirmed by UI capture — changing the setpoint in the UI sends a `0x3A` write to `0xEA`/slot `0x00` and the touchscreen rebroadcasts the new value via CMD `0x38` (observed 21°C `EA 00 15`, 22°C `EA 00 16`, 27°C `EA 00 1B`; the 27°C value matched the **H2** value in the heater's `0x0070` CMD `0x17` broadcast). `0xE9` and `0xEB` are confirmed as Heater 2 state and spa setpoint respectively. (On the test install the second heater is a heat pump; "Heater 2" is kept as the generic name since another install's second heater may be a different type.)
+- **Mutually exclusive broadcast**: in captures observed so far the touchscreen broadcasts *either* the `E6/E7/E8` trio *or* the `E9/EA/EB` trio in slot `0x00`, but not both — consistent with a config-dependent enable (likely [0x26](#0x26--configuration-️) byte 10 bit 3 = heater count).
+- **`0xEB` default**: when the second heater isn't plumbed to spa, `0xEB` reads `0x0A` (10°C) — an unused default at the minimum setpoint rather than a live value.
 
 ### Examples by Register Type
 

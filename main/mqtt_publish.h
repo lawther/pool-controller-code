@@ -5,8 +5,10 @@
 #include <stdbool.h>
 #include "pool_state.h"
 
-// Publish pool/spa setpoints and temperature scale to `pool/<id>/setpoints/state`.
-void mqtt_publish_setpoints(const pool_state_t *current_state);
+// Publish a heater's pool/spa setpoints and temperature scale to
+// `pool/<id>/heater/<index>/setpoints/state` (index 0-based). Triggers the
+// heater's setpoint discovery lazily on first publish.
+void mqtt_publish_heater_setpoints(const pool_state_t *current_state, int index);
 
 // Publish a single temperature reading from a device's sensor.
 // `dev_idx` indexes into `pool_state.seen_devices[]`; `sensor_index` is 1 or 2.
