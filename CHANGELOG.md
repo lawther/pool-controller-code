@@ -24,8 +24,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Security
 
+## [1.6.0] - 2026-06-16
+### Changed
+- Combined the HiNRG and ICI gas-heater status handlers (CMD 0x12) into a single handler matched by either device pattern
+### Fixed
+- Fixed HiNRG Gas Heater (0x0072) status messages being logged as unhandled: the CMD 0x12 match pattern used the wrong header checksum byte (0x15 instead of 0x14), so the heater's device-side status was never decoded
 
-## [1.6.0-rc1]
+## [1.6.0-rc1] - 2026-06-10
 ### Added
 - Global protocol-error counters alongside the decoded/unknown totals, broken down by failure type (no start byte, bad control bytes, no end found/buffer overflow, bad framing, length-field mismatch, header checksum, data checksum); exposed in the `/status` JSON (`message_counts.errors` and `message_counts.error_detail`) and the home page Messages row
 - Decode Heater 2 pool setpoint (register `0xEA`) in both the touchscreen register broadcast and gateway register-write paths, instead of logging it as an unknown register

@@ -91,7 +91,7 @@ static const char *MSG_TYPE_GENUS_HEATER_TEMP_SETTING = "02 00 70 FF FF 80 00 17
 
 // 72 AstralPool HiNRG Gas Heater
 // CMD 0x16 (temperature reading) is handled by the source-agnostic handler above.
-static const char *MSG_TYPE_HINRG_HEATER_STATUS =       "02 00 72 FF FF 80 00 12 10 15";
+static const char *MSG_TYPE_HINRG_HEATER_STATUS =       "02 00 72 FF FF 80 00 12 10 14";
 static const char *MSG_TYPE_HINRG_HEATER_TEMP_SETTING = "02 00 72 FF FF 80 00 17 0E 17";
 
 // 74 AstralPool ICI Gas Heater (Astral/Fluidra ICI 400B NG)
@@ -882,39 +882,22 @@ static bool handle_channel_count(
 }
 
 /**
- * Handler: HiNRG Gas Heater device status
- * Pattern: "02 00 72 FF FF 80 00 12 10 15"
+ * Handler: Gas heater device status (CMD 0x12)
+ * Patterns: HiNRG (0x0072) "02 00 72 FF FF 80 00 12 10 14"
+ *           ICI   (0x0074) "02 00 74 FF FF 80 00 12 10 16"
  *
- * Four-byte payload. All bytes are 0x00 when the heater is idle (modulation=0).
+ * Same four-byte payload shape from either gas heater; addr_info already names
+ * the source device. All bytes are 0x00 when the heater is idle (modulation=0).
  * Full byte meanings when actively heating are not yet decoded.
  */
-static bool handle_hinrg_heater_status(
+static bool handle_gas_heater_status(
     const uint8_t *data, int len,
     const uint8_t *payload, int payload_len,
     const char *addr_info,
     message_decoder_context_t *ctx)
 {
     if (payload_len < 4) return false;
-    ESP_LOGI(TAG, "%s ICI Gas Heater status - [%02X %02X %02X %02X]",
-             addr_info, payload[0], payload[1], payload[2], payload[3]);
-    return true;
-}
-
-/**
- * Handler: ICI Gas Heater device status
- * Pattern: "02 00 74 FF FF 80 00 12 10 16"
- *
- * Four-byte payload. All bytes are 0x00 when the heater is idle (modulation=0).
- * Full byte meanings when actively heating are not yet decoded.
- */
-static bool handle_ici_heater_status(
-    const uint8_t *data, int len,
-    const uint8_t *payload, int payload_len,
-    const char *addr_info,
-    message_decoder_context_t *ctx)
-{
-    if (payload_len < 4) return false;
-    ESP_LOGI(TAG, "%s ICI Gas Heater status - [%02X %02X %02X %02X]",
+    ESP_LOGI(TAG, "%s Gas heater status - [%02X %02X %02X %02X]",
              addr_info, payload[0], payload[1], payload[2], payload[3]);
     return true;
 }
@@ -3032,14 +3015,10 @@ static bool dispatch_message(
         return handle_heater_temp_setting(data, len, payload, payload_len, addr_info, ctx);
     }
 
-    // AstralPool HiNRG Gas Heater (0x0072) messages
-    if (match_pattern(data, len, MSG_TYPE_HINRG_HEATER_STATUS)) {
-        return handle_hinrg_heater_status(data, len, payload, payload_len, addr_info, ctx);
-    }
-
-    // ICI Gas Heater (0x0074) messages
-    if (match_pattern(data, len, MSG_TYPE_ICI_HEATER_STATUS)) {
-        return handle_ici_heater_status(data, len, payload, payload_len, addr_info, ctx);
+    // Gas heater device status (CMD 0x12) — HiNRG (0x0072) and ICI (0x0074)
+    if (match_pattern(data, len, MSG_TYPE_HINRG_HEATER_STATUS) ||
+        match_pattern(data, len, MSG_TYPE_ICI_HEATER_STATUS)) {
+        return handle_gas_heater_status(data, len, payload, payload_len, addr_info, ctx);
     }
 
     // Chlorinator status broadcast (§32) — both 0x0090 and 0x0084 variants
