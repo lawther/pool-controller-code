@@ -679,6 +679,20 @@ static esp_err_t status_get_handler(httpd_req_t *req)
         if (state.heaters[i].valid) {
             cJSON_AddStringToObject(heater, "state", state.heaters[i].on ? "On" : "Off");
         }
+        if (state.heaters[i].gas_heater_valid) {
+            const pool_heater_t *h = &state.heaters[i];
+            cJSON *gs = cJSON_CreateObject();
+            cJSON_AddStringToObject(gs, "status",
+                h->status < HEATER_STATUS_NAME_COUNT ? HEATER_STATUS_NAMES[h->status] : "unknown");
+            cJSON_AddBoolToObject(gs, "water_flow", h->water_flow_detected);
+            cJSON_AddStringToObject(gs, "burner",
+                h->burner_state < BURNER_STATE_NAME_COUNT ? BURNER_STATE_NAMES[h->burner_state] : "unknown");
+            cJSON_AddBoolToObject(gs, "locked_out", h->locked_out);
+            cJSON_AddBoolToObject(gs, "general_service_required", h->general_service_required);
+            cJSON_AddBoolToObject(gs, "ignition_service_required", h->ignition_service_required);
+            cJSON_AddBoolToObject(gs, "cooling_available", h->cooling_available);
+            cJSON_AddItemToObject(heater, "gas_status", gs);
+        }
         if (state.heaters[i].setpoint_valid) {
             cJSON_AddNumberToObject(heater, "pool_setpoint",   state.heaters[i].pool_setpoint);
             cJSON_AddNumberToObject(heater, "spa_setpoint",    state.heaters[i].spa_setpoint);

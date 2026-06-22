@@ -463,7 +463,7 @@ Data fields:
 
 ---
 
-#### ICI Gas Heater (`0x0074`) ✅
+#### Gas Heaters: HiNRG (`0x0072`) & ICI (`0x0074`) ✅
 
 Pattern: `02 00 74 FF FF 80 00 12 10 16`
 
@@ -471,9 +471,9 @@ Examples:
 
 ```
 02 00 74 FF FF 80 00 12 10 16 00 00 00 00 00 03   Idle / off
-02 00 74 FF FF 80 00 12 10 16 00 01 00 00 01 03   On and Lighting
+02 00 74 FF FF 80 00 12 10 16 00 01 00 00 01 03   Heater On, no water flow yet
 02 00 74 FF FF 80 00 12 10 16 00 03 00 00 03 03   At Setpoint (on but not heating)
-02 00 74 FF FF 80 00 12 10 16 00 07 00 00 07 03   (transitional?)
+02 00 74 FF FF 80 00 12 10 16 00 07 00 00 07 03   Igniting
 02 00 74 FF FF 80 00 12 10 16 00 0F 00 00 0F 03   Heater Lit and Running
                                  ^^ Status byte
 ```
@@ -486,13 +486,30 @@ Data fields:
 
 Observed status values (payload[1]):
 
-| Value  | Meaning |
-|--------|---------|
-| `0x00` | Idle / off |
-| `0x01` | On and Lighting (attempting ignition) |
-| `0x03` | At Setpoint — on but not heating |
-| `0x07` | Transitional? (observed briefly between `0x01` and `0x0F`) |
-| `0x0F` | Heater Lit and Running |
+| Value  | Bits 7–5 Diagnostics | Bit 4 <br> Locked Out | Bit 3 <br> Flame | Bit 2 <br> Gas Valve | Bit 1 <br> Pressure / Flow | Bit 0 <br> Heater On | Meaning |
+|--------|---------|-------|-------|-------|-------|-------|---------|
+| `0x00` | X       | 0     | 0     | 0     | 0     | 0     | System Idle (Heater Off, No Water Flow)|
+| `0x01` | X       | 0     | 0     | 0     | 0     | 1     | Heater On / No Flow (temporary state if heater is turned on while pump is off)|
+| `0x02` | X       | 0     | 0     | 0     | 1     | 0     | Heater Off / Water Flow (Normal state when heater is off and pump is running) |
+| `0x03` | X       | 0     | 0     | 0     | 1     | 1     | Setpoint Reached |
+| `0x07` | X       | 0     | 0     | 1     | 1     | 1     | Igniting |
+| `0x0F` | X       | 0     | 1     | 1     | 1     | 1     | Heating |
+| `0x12` | X       | 1     | 0     | 0     | 1     | 0     | Cooling Down (Heater Off, Pump Forced On)|
+| `0x13` | X       | 1     | 0     | 0     | 1     | 1     | Locked Out (Heater On, Pump Forced On) |
+
+Some notes:
+
+ - 'Heater On' is required for 'Gas Valve' to open.
+ - 'Pressure / Flow' is required for 'Gas Valve' to open.
+ - 'Gas Valve' is required for 'Flame'.
+ - 'Pressure / Flow' is required for 'Locked Out'.
+ - 'Locked Out' implies 'Gas Valve' is closed.
+
+Diagnostic Bits
+ - Bit 5: General Service Required
+ - Bit 6: Ignition Service Required
+ - Bit 7: Cooling Available (Heatpump installed?)
+It is unclear whether the diagnostic bits can be set at the same time as the functional status bits.
 
 Payload[1] is the only byte that varies; bytes 10, 12, and 13 are always `0x00`. The data checksum (byte 14) equals payload[1] since all other payload bytes are zero.
 

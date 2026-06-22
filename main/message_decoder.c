@@ -169,6 +169,18 @@ static const channel_type_entry_t CHANNEL_TYPE_TABLE[] = {
 
 #define CHANNEL_TYPE_TABLE_SIZE (sizeof(CHANNEL_TYPE_TABLE) / sizeof(CHANNEL_TYPE_TABLE[0]))
 
+// Gas Heater Status Field Bitmasks
+static const int GAS_HEATER_BITMASK_HEATER_ON =                 0x01;
+static const int GAS_HEATER_BITMASK_WATER_FLOW =                0x02;
+static const int GAS_HEATER_BITMASK_GAS_VALVE =                 0x04;
+static const int GAS_HEATER_BITMASK_BURNER_ALIGHT =             0x08;
+static const int GAS_HEATER_BITMASK_LOCKED_OUT =                0x10;
+static const int GAS_HEATER_BITMASK_GENERAL_SERVICE_REQUIRED =  0x20;
+static const int GAS_HEATER_BITMASK_IGNITION_SERVICE_REQUIRED = 0x40;
+static const int GAS_HEATER_BITMASK_COOLING_AVAILABLE =         0x80;
+// The lower 5 bits are for general heater functions
+static const int GAS_HEATER_BITMASK_FUNCTIONAL_STATUS =         0x1F;
+
 /**
  * Get channel type name from type code
  * @param type_code Channel type code (0x00-0x12, 0xFD, 0xFE)
@@ -265,6 +277,24 @@ const char *LIGHT_ZONE_NAME_TABLE[] = {
     "Waterfall 1",  // 0x03
     "Waterfall 2",  // 0x04
     "Waterfall 3",  // 0x05
+};
+
+// Gas heater status names (indexed by gas_heater_status_t)
+const char *HEATER_STATUS_NAMES[] = {
+    "Off",              // HEATER_OFF
+    "No Flow",          // HEATER_ON_NO_FLOW
+    "Igniting",         // HEATER_IGNITING
+    "Heating",          // HEATER_HEATING
+    "Setpoint Reached", // HEATER_SETPOINT_REACHED
+    "Cooldown",         // HEATER_COOLDOWN
+    "Locked Out",       // HEATER_LOCKED_OUT
+};
+
+// Gas heater burner state names (indexed by gas_heater_burner_state_t)
+const char *BURNER_STATE_NAMES[] = {
+    "Off",      // BURNER_OFF
+    "Igniting", // BURNER_IGNITING
+    "Alight",   // BURNER_ALIGHT
 };
 
 // Day of week names
@@ -897,8 +927,98 @@ static bool handle_gas_heater_status(
     message_decoder_context_t *ctx)
 {
     if (payload_len < 4) return false;
-    ESP_LOGI(TAG, "%s Gas heater status - [%02X %02X %02X %02X]",
-             addr_info, payload[0], payload[1], payload[2], payload[3]);
+
+
+    const uint8_t raw_status = payload[1];
+    const uint8_t functional_status = raw_status & GAS_HEATER_BITMASK_FUNCTIONAL_STATUS;
+    gas_heater_status_t heater_status;
+
+    switch (functional_status) {
+        case 0x00:
+            heater_status = HEATER_OFF;
+            break;
+        case 0x01:
+            heater_status = HEATER_ON_NO_FLOW;
+            break;
+        case 0x02:
+            heater_status = HEATER_OFF;
+            break;
+        case 0x03:
+            heater_status = HEATER_SETPOINT_REACHED;
+            break;
+        case 0x07:
+            heater_status = HEATER_IGNITING;
+            break;
+        case 0x0F:
+            heater_status = HEATER_HEATING;
+            break;
+        case 0x12:
+            heater_status = HEATER_COOLDOWN;
+            break;
+        case 0x13:
+            heater_status = HEATER_LOCKED_OUT;
+            break;
+        default:
+            ESP_LOGW(TAG, "Invalid gas heater status:%d", functional_status);
+            return false;
+    }
+
+    const bool heater_on = (raw_status & GAS_HEATER_BITMASK_HEATER_ON) != 0;
+    const bool water_flow_detected = (raw_status & GAS_HEATER_BITMASK_WATER_FLOW) != 0;
+    const bool gas_valve_open = (raw_status & GAS_HEATER_BITMASK_GAS_VALVE) != 0;
+    const bool burner_alight = (raw_status & GAS_HEATER_BITMASK_BURNER_ALIGHT) != 0;
+    const bool locked_out = (raw_status & GAS_HEATER_BITMASK_LOCKED_OUT) != 0;
+    const bool general_service_required = (raw_status & GAS_HEATER_BITMASK_GENERAL_SERVICE_REQUIRED) != 0;
+    const bool ignition_service_required = (raw_status & GAS_HEATER_BITMASK_IGNITION_SERVICE_REQUIRED) != 0;
+    const bool cooling_available = (raw_status & GAS_HEATER_BITMASK_COOLING_AVAILABLE) != 0;
+
+    gas_heater_burner_state_t burner_state;
+    if (!gas_valve_open && !burner_alight) {
+        burner_state = BURNER_OFF;
+    } else if (gas_valve_open && !burner_alight) {
+        burner_state = BURNER_IGNITING;
+    } else if (gas_valve_open && burner_alight) {
+        burner_state = BURNER_ALIGHT;
+    } else {
+        // This should never happen given the valid status filter above
+        ESP_LOGW(TAG, "Invalid gas burner state: gas_valve=%d, alight=%d", gas_valve_open, burner_alight);
+        return false;
+    }
+
+    ESP_LOGI(TAG, "%s Gas heater raw status - [%02X %02X %02X %02X], decoded status - \"%s\"",
+             addr_info, payload[0], payload[1], payload[2], payload[3], HEATER_STATUS_NAMES[heater_status]);
+    if (general_service_required || ignition_service_required) {
+        ESP_LOGI(TAG, "%s Gas heater service required - general %s, ignition %s",
+            addr_info, general_service_required ? "true" : "false", ignition_service_required ? "true" : "false");
+    }
+
+    // Update state and publish
+    pool_state_t snapshot;
+    if (!ctx->state_mutex || xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGW(TAG, "Failed to acquire mutex for heater");
+        return true;
+    }
+    pool_heater_t* const heater_state = &(ctx->pool_state->heaters[0]);
+    heater_state->valid = true;
+    heater_state->on = heater_on;
+
+    heater_state->gas_heater_valid = true;
+    heater_state->water_flow_detected = water_flow_detected;
+    heater_state->locked_out = locked_out;
+    heater_state->burner_state = burner_state;
+    heater_state->general_service_required = general_service_required;
+    heater_state->ignition_service_required = ignition_service_required;
+    heater_state->cooling_available = cooling_available;
+    heater_state->status = heater_status;
+
+    ctx->pool_state->last_update_ms = xTaskGetTickCount() * portTICK_PERIOD_MS;
+    snapshot = *ctx->pool_state;
+    xSemaphoreGive(ctx->state_mutex);
+
+    if (ctx->enable_mqtt) {
+        mqtt_publish_gas_heater(&snapshot, 0);
+    }
+
     return true;
 }
 
@@ -3008,7 +3128,7 @@ static bool dispatch_message(
         return handle_heater(data, len, payload, payload_len, addr_info, ctx);
     }
 
-    // Genus Heater (0x0070) messages
+    // Heater temperature setting messages
     if (match_pattern(data, len, MSG_TYPE_GENUS_HEATER_TEMP_SETTING) ||
         match_pattern(data, len, MSG_TYPE_HINRG_HEATER_TEMP_SETTING) || 
         match_pattern(data, len, MSG_TYPE_ICI_HEATER_TEMP_SETTING)) {

@@ -38,6 +38,7 @@ void mqtt_publish_mode(const pool_state_t *state) {}
 void mqtt_publish_heater_setpoints(const pool_state_t *state, int index) {}
 void mqtt_publish_temperature_reading(const pool_state_t *state, int dev_idx, uint8_t sensor_index) {}
 void mqtt_publish_heater(const pool_state_t *state, int index) {}
+void mqtt_publish_gas_heater(const pool_state_t *state, int index) {}
 void mqtt_publish_chlorinator(const pool_state_t *state) {}
 void mqtt_publish_pump(const pool_state_t *state) {}
 void mqtt_publish_light(const pool_state_t *state, uint8_t zone) {}
@@ -730,6 +731,174 @@ void test_decode_pump_activity(void)
                 "pump_speed_valid should remain unset after activity-only message");
 }
 
+// ======================================================
+// Gas Heater Status Tests (CMD 0x12)
+//
+// ICI frame:   02 00 74 FF FF 80 00 12 10 16 00 SS 00 00 SS 03
+// HiNRG frame: 02 00 72 FF FF 80 00 12 10 14 00 SS 00 00 SS 03
+// Data checksum = SS (payload[1] only; all other payload bytes are 0x00)
+// ======================================================
+
+static void build_ici_gas_heater_msg(uint8_t status_byte, uint8_t *buf)
+{
+    buf[0]  = 0x02; buf[1]  = 0x00; buf[2]  = 0x74;
+    buf[3]  = 0xFF; buf[4]  = 0xFF; buf[5]  = 0x80;
+    buf[6]  = 0x00; buf[7]  = 0x12; buf[8]  = 0x10;
+    buf[9]  = 0x16; // header checksum
+    buf[10] = 0x00; buf[11] = status_byte;
+    buf[12] = 0x00; buf[13] = 0x00;
+    buf[14] = status_byte; // data checksum = sum of payload bytes
+    buf[15] = 0x03;
+}
+
+void test_gas_heater_ici_off(void)
+{
+    init_test_context();
+    uint8_t msg[16];
+    build_ici_gas_heater_msg(0x00, msg);
+    bool decoded = decode_message(msg, sizeof(msg), &test_ctx);
+    const pool_heater_t *h = &test_pool_state.heaters[0];
+    TEST_ASSERT(decoded,                               "0x00: should decode");
+    TEST_ASSERT(h->gas_heater_valid,                   "0x00: gas_heater_valid");
+    TEST_ASSERT(h->status == HEATER_OFF,               "0x00: status=HEATER_OFF");
+    TEST_ASSERT(!h->on,                                "0x00: on=false");
+    TEST_ASSERT(!h->water_flow_detected,               "0x00: no water flow");
+    TEST_ASSERT(!h->locked_out,                        "0x00: not locked out");
+    TEST_ASSERT(h->burner_state == BURNER_OFF,         "0x00: burner off");
+}
+
+void test_gas_heater_ici_no_flow(void)
+{
+    init_test_context();
+    uint8_t msg[16];
+    build_ici_gas_heater_msg(0x01, msg);
+    bool decoded = decode_message(msg, sizeof(msg), &test_ctx);
+    const pool_heater_t *h = &test_pool_state.heaters[0];
+    TEST_ASSERT(decoded,                               "0x01: should decode");
+    TEST_ASSERT(h->gas_heater_valid,                   "0x01: gas_heater_valid");
+    TEST_ASSERT(h->status == HEATER_ON_NO_FLOW,        "0x01: status=HEATER_ON_NO_FLOW");
+    TEST_ASSERT(h->on,                                 "0x01: on=true");
+    TEST_ASSERT(!h->water_flow_detected,               "0x01: no water flow");
+    TEST_ASSERT(!h->locked_out,                        "0x01: not locked out");
+    TEST_ASSERT(h->burner_state == BURNER_OFF,         "0x01: burner off");
+}
+
+void test_gas_heater_ici_off_with_flow(void)
+{
+    init_test_context();
+    uint8_t msg[16];
+    build_ici_gas_heater_msg(0x02, msg);
+    bool decoded = decode_message(msg, sizeof(msg), &test_ctx);
+    const pool_heater_t *h = &test_pool_state.heaters[0];
+    TEST_ASSERT(decoded,                               "0x02: should decode");
+    TEST_ASSERT(h->gas_heater_valid,                   "0x02: gas_heater_valid");
+    TEST_ASSERT(h->status == HEATER_OFF,               "0x02: status=HEATER_OFF");
+    TEST_ASSERT(!h->on,                                "0x02: on=false");
+    TEST_ASSERT(h->water_flow_detected,                "0x02: water flow detected");
+    TEST_ASSERT(!h->locked_out,                        "0x02: not locked out");
+    TEST_ASSERT(h->burner_state == BURNER_OFF,         "0x02: burner off");
+}
+
+void test_gas_heater_ici_setpoint_reached(void)
+{
+    init_test_context();
+    uint8_t msg[16];
+    build_ici_gas_heater_msg(0x03, msg);
+    bool decoded = decode_message(msg, sizeof(msg), &test_ctx);
+    const pool_heater_t *h = &test_pool_state.heaters[0];
+    TEST_ASSERT(decoded,                               "0x03: should decode");
+    TEST_ASSERT(h->gas_heater_valid,                   "0x03: gas_heater_valid");
+    TEST_ASSERT(h->status == HEATER_SETPOINT_REACHED,  "0x03: status=HEATER_SETPOINT_REACHED");
+    TEST_ASSERT(h->on,                                 "0x03: on=true");
+    TEST_ASSERT(h->water_flow_detected,                "0x03: water flow detected");
+    TEST_ASSERT(!h->locked_out,                        "0x03: not locked out");
+    TEST_ASSERT(h->burner_state == BURNER_OFF,         "0x03: burner off");
+}
+
+void test_gas_heater_ici_igniting(void)
+{
+    init_test_context();
+    uint8_t msg[16];
+    build_ici_gas_heater_msg(0x07, msg);
+    bool decoded = decode_message(msg, sizeof(msg), &test_ctx);
+    const pool_heater_t *h = &test_pool_state.heaters[0];
+    TEST_ASSERT(decoded,                               "0x07: should decode");
+    TEST_ASSERT(h->gas_heater_valid,                   "0x07: gas_heater_valid");
+    TEST_ASSERT(h->status == HEATER_IGNITING,          "0x07: status=HEATER_IGNITING");
+    TEST_ASSERT(h->on,                                 "0x07: on=true");
+    TEST_ASSERT(h->water_flow_detected,                "0x07: water flow detected");
+    TEST_ASSERT(!h->locked_out,                        "0x07: not locked out");
+    TEST_ASSERT(h->burner_state == BURNER_IGNITING,    "0x07: burner igniting");
+}
+
+void test_gas_heater_ici_heating(void)
+{
+    init_test_context();
+    uint8_t msg[16];
+    build_ici_gas_heater_msg(0x0F, msg);
+    bool decoded = decode_message(msg, sizeof(msg), &test_ctx);
+    const pool_heater_t *h = &test_pool_state.heaters[0];
+    TEST_ASSERT(decoded,                               "0x0F: should decode");
+    TEST_ASSERT(h->gas_heater_valid,                   "0x0F: gas_heater_valid");
+    TEST_ASSERT(h->status == HEATER_HEATING,           "0x0F: status=HEATER_HEATING");
+    TEST_ASSERT(h->on,                                 "0x0F: on=true");
+    TEST_ASSERT(h->water_flow_detected,                "0x0F: water flow detected");
+    TEST_ASSERT(!h->locked_out,                        "0x0F: not locked out");
+    TEST_ASSERT(h->burner_state == BURNER_ALIGHT,      "0x0F: burner alight");
+}
+
+void test_gas_heater_ici_cooldown(void)
+{
+    init_test_context();
+    uint8_t msg[16];
+    build_ici_gas_heater_msg(0x12, msg);
+    bool decoded = decode_message(msg, sizeof(msg), &test_ctx);
+    const pool_heater_t *h = &test_pool_state.heaters[0];
+    TEST_ASSERT(decoded,                               "0x12: should decode");
+    TEST_ASSERT(h->gas_heater_valid,                   "0x12: gas_heater_valid");
+    TEST_ASSERT(h->status == HEATER_COOLDOWN,          "0x12: status=HEATER_COOLDOWN");
+    TEST_ASSERT(!h->on,                                "0x12: on=false");
+    TEST_ASSERT(h->water_flow_detected,                "0x12: water flow detected");
+    TEST_ASSERT(h->locked_out,                         "0x12: locked out");
+    TEST_ASSERT(h->burner_state == BURNER_OFF,         "0x12: burner off");
+}
+
+void test_gas_heater_ici_locked_out(void)
+{
+    init_test_context();
+    uint8_t msg[16];
+    build_ici_gas_heater_msg(0x13, msg);
+    bool decoded = decode_message(msg, sizeof(msg), &test_ctx);
+    const pool_heater_t *h = &test_pool_state.heaters[0];
+    TEST_ASSERT(decoded,                               "0x13: should decode");
+    TEST_ASSERT(h->gas_heater_valid,                   "0x13: gas_heater_valid");
+    TEST_ASSERT(h->status == HEATER_LOCKED_OUT,        "0x13: status=HEATER_LOCKED_OUT");
+    TEST_ASSERT(h->on,                                 "0x13: on=true");
+    TEST_ASSERT(h->water_flow_detected,                "0x13: water flow detected");
+    TEST_ASSERT(h->locked_out,                         "0x13: locked out");
+    TEST_ASSERT(h->burner_state == BURNER_OFF,         "0x13: burner off");
+}
+
+void test_gas_heater_hinrg_heating(void)
+{
+    // Confirms the HiNRG (0x0072) pattern also dispatches to the same handler
+    init_test_context();
+    uint8_t msg[] = {
+        0x02, 0x00, 0x72, 0xFF, 0xFF, 0x80, 0x00,
+        0x12, 0x10,  // cmd, length (16)
+        0x14,        // header checksum
+        0x00, 0x0F, 0x00, 0x00,  // payload: status=0x0F (heating)
+        0x0F,        // data checksum
+        0x03
+    };
+    bool decoded = decode_message(msg, sizeof(msg), &test_ctx);
+    const pool_heater_t *h = &test_pool_state.heaters[0];
+    TEST_ASSERT(decoded,                               "HiNRG 0x0F: should decode");
+    TEST_ASSERT(h->gas_heater_valid,                   "HiNRG 0x0F: gas_heater_valid");
+    TEST_ASSERT(h->status == HEATER_HEATING,           "HiNRG 0x0F: status=HEATER_HEATING");
+    TEST_ASSERT(h->burner_state == BURNER_ALIGHT,      "HiNRG 0x0F: burner alight");
+}
+
 /**
  * Run all tests
  */
@@ -774,6 +943,18 @@ int main(void)
     test_decode_pump_speed_1500();
     test_decode_pump_speed_zero();
     test_decode_pump_activity();
+
+    // Gas heater status tests (CMD 0x12)
+    printf("\n--- Gas Heater Status Tests ---\n");
+    test_gas_heater_ici_off();
+    test_gas_heater_ici_no_flow();
+    test_gas_heater_ici_off_with_flow();
+    test_gas_heater_ici_setpoint_reached();
+    test_gas_heater_ici_igniting();
+    test_gas_heater_ici_heating();
+    test_gas_heater_ici_cooldown();
+    test_gas_heater_ici_locked_out();
+    test_gas_heater_hinrg_heating();
 
     // Malformed message tests
     printf("\n--- Malformed Message Tests ---\n");

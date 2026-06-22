@@ -24,6 +24,14 @@ extern const char *LIGHTING_COLOR_NAMES[];
 #define LIGHT_ZONE_NAME_COUNT 6
 extern const char *LIGHT_ZONE_NAME_TABLE[];
 
+// Gas heater status names (indexed by gas_heater_status_t)
+#define HEATER_STATUS_NAME_COUNT 7
+extern const char *HEATER_STATUS_NAMES[];
+
+// Gas heater burner state names (indexed by gas_heater_burner_state_t)
+#define BURNER_STATE_NAME_COUNT 3
+extern const char *BURNER_STATE_NAMES[];
+
 // Struct definitions
 typedef struct {
     uint8_t id;
@@ -53,16 +61,45 @@ typedef struct {
     bool configured;    // true if this slot is occupied by a configured valve
 } valve_state_t;
 
+typedef enum {
+    BURNER_OFF,
+    BURNER_IGNITING,
+    BURNER_ALIGHT,
+} gas_heater_burner_state_t;
+
+typedef enum {
+    HEATER_OFF,
+    HEATER_ON_NO_FLOW,
+    HEATER_IGNITING,
+    HEATER_HEATING,
+    HEATER_SETPOINT_REACHED,
+    HEATER_COOLDOWN,
+    HEATER_LOCKED_OUT,
+} gas_heater_status_t;
+
 typedef struct {
-    bool on;
     bool valid;
 
+    bool on;
+    
     // Temperature setpoints (per heater): 0xE7/0xE8 (Heater 1), 0xEA/0xEB (Heater 2)
     uint8_t pool_setpoint;     // °C
     uint8_t spa_setpoint;      // °C
     uint8_t pool_setpoint_f;   // °F
     uint8_t spa_setpoint_f;    // °F
     bool setpoint_valid;       // true once a setpoint has been received
+
+    // These fields are only valid for gas heaters. 
+    // Some may be valid for other types, this is not yet experimentally verified.
+    bool gas_heater_valid;
+    gas_heater_burner_state_t burner_state;
+    bool water_flow_detected;
+    bool locked_out;
+    bool general_service_required;
+    bool ignition_service_required;
+    bool cooling_available;
+    gas_heater_status_t status;
+    // End gas heater fields
 } pool_heater_t;
 
 typedef struct {
