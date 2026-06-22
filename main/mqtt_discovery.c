@@ -294,6 +294,172 @@ void mqtt_publish_heater_discovery_single(int index)
 }
 
 // ======================================================
+// Gas Heater Detail Discovery
+// ======================================================
+
+static void publish_gas_heater_detail_discovery(const char *device_id, const char *mac_suffix, int index)
+{
+    char avail_topic[128];
+    char state_topic[128];
+    snprintf(avail_topic, sizeof(avail_topic), "pool/%s/availability", device_id);
+    snprintf(state_topic, sizeof(state_topic), "pool/%s/heater/%d/gas_status/state", device_id, index);
+
+    char display_name[48];
+    char uid[72];
+
+    // Status sensor — the gas_heater_status_t string (off/heating/igniting/…)
+    snprintf(display_name, sizeof(display_name), "Heater %d Status", index + 1);
+    snprintf(uid, sizeof(uid), DISCOVERY_ID_PREFIX "_%s_heater_%d_gas_status", mac_suffix, index);
+    {
+        cJSON *root = cJSON_CreateObject();
+        cJSON_AddStringToObject(root, "name", display_name);
+        cJSON_AddStringToObject(root, "device_class", "enum");
+        cJSON_AddStringToObject(root, "icon", "mdi:thermometer-lines");
+        cJSON_AddStringToObject(root, "state_topic", state_topic);
+        cJSON_AddStringToObject(root, "value_template", "{{ value_json.status }}");
+        cJSON *status_opts = cJSON_CreateArray();
+        for (int i = 0; i < HEATER_STATUS_NAME_COUNT; i++) {
+            cJSON_AddItemToArray(status_opts, cJSON_CreateString(HEATER_STATUS_NAMES[i]));
+        }
+        cJSON_AddItemToObject(root, "options", status_opts);
+        cJSON_AddStringToObject(root, "unique_id", uid);
+        cJSON_AddStringToObject(root, "object_id", uid);
+        cJSON_AddStringToObject(root, "availability_topic", avail_topic);
+        cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
+        char *json_str = cJSON_PrintUnformatted(root);
+        if (json_str) { publish_discovery("sensor", uid, json_str); cJSON_free(json_str); }
+        cJSON_Delete(root);
+    }
+
+    // Water flow binary sensor
+    snprintf(display_name, sizeof(display_name), "Heater %d Water Flow", index + 1);
+    snprintf(uid, sizeof(uid), DISCOVERY_ID_PREFIX "_%s_heater_%d_water_flow", mac_suffix, index);
+    {
+        cJSON *root = cJSON_CreateObject();
+        cJSON_AddStringToObject(root, "name", display_name);
+        cJSON_AddStringToObject(root, "device_class", "running");
+        cJSON_AddStringToObject(root, "state_topic", state_topic);
+        cJSON_AddStringToObject(root, "value_template", "{{ 'ON' if value_json.water_flow else 'OFF' }}");
+        cJSON_AddStringToObject(root, "unique_id", uid);
+        cJSON_AddStringToObject(root, "object_id", uid);
+        cJSON_AddStringToObject(root, "availability_topic", avail_topic);
+        cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
+        char *json_str = cJSON_PrintUnformatted(root);
+        if (json_str) { publish_discovery("binary_sensor", uid, json_str); cJSON_free(json_str); }
+        cJSON_Delete(root);
+    }
+
+    // Locked out binary sensor
+    snprintf(display_name, sizeof(display_name), "Heater %d Locked Out", index + 1);
+    snprintf(uid, sizeof(uid), DISCOVERY_ID_PREFIX "_%s_heater_%d_locked_out", mac_suffix, index);
+    {
+        cJSON *root = cJSON_CreateObject();
+        cJSON_AddStringToObject(root, "name", display_name);
+        cJSON_AddStringToObject(root, "state_topic", state_topic);
+        cJSON_AddStringToObject(root, "value_template", "{{ 'ON' if value_json.locked_out else 'OFF' }}");
+        cJSON_AddStringToObject(root, "unique_id", uid);
+        cJSON_AddStringToObject(root, "object_id", uid);
+        cJSON_AddStringToObject(root, "availability_topic", avail_topic);
+        cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
+        char *json_str = cJSON_PrintUnformatted(root);
+        if (json_str) { publish_discovery("binary_sensor", uid, json_str); cJSON_free(json_str); }
+        cJSON_Delete(root);
+    }
+
+    // Burner state sensor (off/igniting/alight)
+    snprintf(display_name, sizeof(display_name), "Heater %d Burner", index + 1);
+    snprintf(uid, sizeof(uid), DISCOVERY_ID_PREFIX "_%s_heater_%d_burner", mac_suffix, index);
+    {
+        cJSON *root = cJSON_CreateObject();
+        cJSON_AddStringToObject(root, "name", display_name);
+        cJSON_AddStringToObject(root, "device_class", "enum");
+        cJSON_AddStringToObject(root, "icon", "mdi:fire");
+        cJSON_AddStringToObject(root, "state_topic", state_topic);
+        cJSON_AddStringToObject(root, "value_template", "{{ value_json.burner }}");
+        cJSON *burner_opts = cJSON_CreateArray();
+        for (int i = 0; i < BURNER_STATE_NAME_COUNT; i++) {
+            cJSON_AddItemToArray(burner_opts, cJSON_CreateString(BURNER_STATE_NAMES[i]));
+        }
+        cJSON_AddItemToObject(root, "options", burner_opts);
+        cJSON_AddStringToObject(root, "unique_id", uid);
+        cJSON_AddStringToObject(root, "object_id", uid);
+        cJSON_AddStringToObject(root, "availability_topic", avail_topic);
+        cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
+        char *json_str = cJSON_PrintUnformatted(root);
+        if (json_str) { publish_discovery("sensor", uid, json_str); cJSON_free(json_str); }
+        cJSON_Delete(root);
+    }
+
+    // General service required binary sensor
+    snprintf(display_name, sizeof(display_name), "Heater %d General Service Required", index + 1);
+    snprintf(uid, sizeof(uid), DISCOVERY_ID_PREFIX "_%s_heater_%d_general_service", mac_suffix, index);
+    {
+        cJSON *root = cJSON_CreateObject();
+        cJSON_AddStringToObject(root, "name", display_name);
+        cJSON_AddStringToObject(root, "device_class", "problem");
+        cJSON_AddStringToObject(root, "icon", "mdi:wrench-alert");
+        cJSON_AddStringToObject(root, "state_topic", state_topic);
+        cJSON_AddStringToObject(root, "value_template", "{{ 'ON' if value_json.general_service_required else 'OFF' }}");
+        cJSON_AddStringToObject(root, "unique_id", uid);
+        cJSON_AddStringToObject(root, "object_id", uid);
+        cJSON_AddStringToObject(root, "availability_topic", avail_topic);
+        cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
+        char *json_str = cJSON_PrintUnformatted(root);
+        if (json_str) { publish_discovery("binary_sensor", uid, json_str); cJSON_free(json_str); }
+        cJSON_Delete(root);
+    }
+
+    // Ignition service required binary sensor
+    snprintf(display_name, sizeof(display_name), "Heater %d Ignition Service Required", index + 1);
+    snprintf(uid, sizeof(uid), DISCOVERY_ID_PREFIX "_%s_heater_%d_ignition_service", mac_suffix, index);
+    {
+        cJSON *root = cJSON_CreateObject();
+        cJSON_AddStringToObject(root, "name", display_name);
+        cJSON_AddStringToObject(root, "device_class", "problem");
+        cJSON_AddStringToObject(root, "icon", "mdi:fire-alert");
+        cJSON_AddStringToObject(root, "state_topic", state_topic);
+        cJSON_AddStringToObject(root, "value_template", "{{ 'ON' if value_json.ignition_service_required else 'OFF' }}");
+        cJSON_AddStringToObject(root, "unique_id", uid);
+        cJSON_AddStringToObject(root, "object_id", uid);
+        cJSON_AddStringToObject(root, "availability_topic", avail_topic);
+        cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
+        char *json_str = cJSON_PrintUnformatted(root);
+        if (json_str) { publish_discovery("binary_sensor", uid, json_str); cJSON_free(json_str); }
+        cJSON_Delete(root);
+    }
+
+    // Cooling available binary sensor
+    snprintf(display_name, sizeof(display_name), "Heater %d Cooling Available", index + 1);
+    snprintf(uid, sizeof(uid), DISCOVERY_ID_PREFIX "_%s_heater_%d_cooling_available", mac_suffix, index);
+    {
+        cJSON *root = cJSON_CreateObject();
+        cJSON_AddStringToObject(root, "name", display_name);
+        cJSON_AddStringToObject(root, "icon", "mdi:snowflake");
+        cJSON_AddStringToObject(root, "state_topic", state_topic);
+        cJSON_AddStringToObject(root, "value_template", "{{ 'ON' if value_json.cooling_available else 'OFF' }}");
+        cJSON_AddStringToObject(root, "unique_id", uid);
+        cJSON_AddStringToObject(root, "object_id", uid);
+        cJSON_AddStringToObject(root, "availability_topic", avail_topic);
+        cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
+        char *json_str = cJSON_PrintUnformatted(root);
+        if (json_str) { publish_discovery("binary_sensor", uid, json_str); cJSON_free(json_str); }
+        cJSON_Delete(root);
+    }
+}
+
+void mqtt_publish_gas_heater_discovery_single(int index)
+{
+    char device_id[32];
+    mqtt_get_device_id(device_id, sizeof(device_id));
+
+    char mac_suffix[DEVICE_MAC_SUFFIX_LEN];
+    device_get_mac_suffix(mac_suffix, sizeof(mac_suffix));
+
+    ESP_LOGI(TAG, "Publishing gas heater detail discovery for heater %d", index);
+    publish_gas_heater_detail_discovery(device_id, mac_suffix, index);
+}
+
+// ======================================================
 // Mode Select Discovery
 // ======================================================
 

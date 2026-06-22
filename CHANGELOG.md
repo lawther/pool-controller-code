@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Note about CMD 0x05 observed with payload 0x00. Added to PROTOCOL.md and new sample trace.
 - Note about CMD 0x12 observed with payload 0x01 0x00. Added to PROTOCOL.md and new sample trace.
 - Parsing for CMD 0x12 updated so `0x01 0x00` no longer reported as unexpected.
-
+- Full decoding of CMD 0x12 status byte for Gas Heaters (HiNRG `0x0072` and ICI (`0x0074`))
 ### Removed
 ### Fixed
 ### Deprecated

@@ -19,6 +19,10 @@ void mqtt_publish_valve_discovery_single(int valve_num, const char *valve_name);
 // Publish individual heater discovery (called when heater first publishes state)
 void mqtt_publish_heater_discovery_single(int index);
 
+// Publish gas heater detail discovery: status sensor, water_flow/locked_out binary
+// sensors, and burner sensor — all reading from pool/<id>/heater/<n>/gas_status/state.
+void mqtt_publish_gas_heater_discovery_single(int index);
+
 // Publish a heater's pool + spa setpoint Number entities (called when the heater
 // first publishes setpoints).
 void mqtt_publish_heater_setpoint_discovery_single(int index);

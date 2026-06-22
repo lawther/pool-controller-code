@@ -19,6 +19,10 @@ void mqtt_publish_temperature_reading(const pool_state_t *current_state, int dev
 // Publish heater state from pool state (index 0-based)
 void mqtt_publish_heater(const pool_state_t *current_state, int index);
 
+// Publish gas heater detailed status (status, water_flow, locked_out, burner) as JSON
+// to pool/<id>/heater/<index>/gas_status/state. Called only when gas_heater_valid is set.
+void mqtt_publish_gas_heater(const pool_state_t *current_state, int index);
+
 // Publish mode (Pool/Spa) from pool state
 void mqtt_publish_mode(const pool_state_t *current_state);
 

@@ -1,0 +1,9 @@
+# Trace from lawther
+
+I (07:49:14.367) MSG_DECODER: RX MSG: 02 00 74 FF FF 80 00 12 10 16 00 00 00 00 00 03 
+I (07:49:14.369) MSG_DECODER: [ICI Gas Heater -> Broadcast] Gas heater raw status - [00 00 00 00], decoded status - "Off"
+02 00 74 FF FF 80 00 12 10 16 00 00 00 00 00 03 
+
+I (07:54:46.285) MSG_DECODER: RX MSG: 02 00 74 FF FF 80 00 12 10 16 00 02 00 00 02 03 
+I (07:54:46.287) MSG_DECODER: [ICI Gas Heater -> Broadcast] Gas heater raw status - [00 02 00 00], decoded status - "Off"
+02 00 74 FF FF 80 00 12 10 16 00 02 00 00 02 03 

@@ -19,6 +19,7 @@ static struct {
     bool lights[MAX_LIGHT_ZONES];
     bool valves[MAX_VALVE_SLOTS];
     bool heaters[MAX_HEATERS];
+    bool gas_heaters[MAX_HEATERS];
     bool heater_setpoints[MAX_HEATERS];
     bool favourite;
     bool temp_sensors[MAX_SEEN_DEVICES][2];   // [dev_idx][sensor_index-1]
@@ -173,6 +174,69 @@ void mqtt_publish_heater(const pool_state_t *current_state, int index)
     s_last_published_state.heaters[index].valid = true;
 
     ESP_LOGI(TAG, "Published heater %d: %s", index, payload);
+}
+
+void mqtt_publish_gas_heater(const pool_state_t *current_state, int index)
+{
+    if (index < 0 || index >= MAX_HEATERS) {
+        ESP_LOGE(TAG, "mqtt_publish_gas_heater: index %d out of range", index);
+        return;
+    }
+
+    const pool_heater_t *heater = &current_state->heaters[index];
+
+    if (!heater->gas_heater_valid) {
+        ESP_LOGE(TAG, "mqtt_publish_gas_heater: called with gas_heater_valid=false for index %d", index);
+        return;
+    }
+
+    // status is the single source of truth — all derived fields follow from it
+    const pool_heater_t *last = &s_last_published_state.heaters[index];
+    if (last->gas_heater_valid &&
+        last->status == heater->status &&
+        last->general_service_required == heater->general_service_required &&
+        last->ignition_service_required == heater->ignition_service_required &&
+        last->cooling_available == heater->cooling_available) {
+        return;
+    }
+
+    if (!s_discovery_published.gas_heaters[index]) {
+        mqtt_publish_gas_heater_discovery_single(index);
+        s_discovery_published.gas_heaters[index] = true;
+    }
+
+    char device_id[32];
+    mqtt_get_device_id(device_id, sizeof(device_id));
+
+    char topic[128];
+    snprintf(topic, sizeof(topic), "pool/%s/heater/%d/gas_status/state", device_id, index);
+
+    const char *status_name = (heater->status < HEATER_STATUS_NAME_COUNT)
+                               ? HEATER_STATUS_NAMES[heater->status] : "unknown";
+    const char *burner_name = (heater->burner_state < BURNER_STATE_NAME_COUNT)
+                               ? BURNER_STATE_NAMES[heater->burner_state] : "unknown";
+
+    char payload[256];
+    snprintf(payload, sizeof(payload),
+             "{\"status\":\"%s\",\"water_flow\":%s,\"locked_out\":%s,\"burner\":\"%s\","
+             "\"general_service_required\":%s,\"ignition_service_required\":%s,\"cooling_available\":%s}",
+             status_name,
+             heater->water_flow_detected ? "true" : "false",
+             heater->locked_out ? "true" : "false",
+             burner_name,
+             heater->general_service_required ? "true" : "false",
+             heater->ignition_service_required ? "true" : "false",
+             heater->cooling_available ? "true" : "false");
+
+    mqtt_publish(topic, payload, 0, true);
+
+    s_last_published_state.heaters[index].gas_heater_valid = true;
+    s_last_published_state.heaters[index].status = heater->status;
+    s_last_published_state.heaters[index].general_service_required = heater->general_service_required;
+    s_last_published_state.heaters[index].ignition_service_required = heater->ignition_service_required;
+    s_last_published_state.heaters[index].cooling_available = heater->cooling_available;
+
+    ESP_LOGI(TAG, "Published gas heater %d: %s", index, payload);
 }
 
 // ======================================================
