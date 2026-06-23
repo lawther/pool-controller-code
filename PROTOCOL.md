@@ -534,7 +534,7 @@ Data fields:
 - Byte 10: Unknown — always `0x00` in observed captures; suspected status/warning flags (see [CMD 0x1D slot 0x00 notes](#0x1d--chlorinator-setpoint-))
 - Byte 11: Data checksum (equals byte 10)
 
-No handler in code — documented only.
+Handler: `handle_vx11s_status` — logs status flags, no state update (meaning unknown).
 
 ---
 
