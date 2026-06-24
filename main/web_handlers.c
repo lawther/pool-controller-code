@@ -4,6 +4,7 @@
 #include "pool_state.h"
 #include "mqtt_poolclient.h"
 #include "message_decoder.h"
+#include "unknown_buffer.h"
 #include "device_serial.h"
 #include "esp_wifi.h"
 #include "esp_log.h"
@@ -19,6 +20,9 @@
 #include <time.h>
 
 static const char *TAG = "WEB_HANDLERS";
+
+#define _STR(x)  #x
+#define STR(x)   _STR(x)
 
 // Forward declaration - defined in main.c
 const char* get_gateway_comms_status_text(uint16_t code);
@@ -97,6 +101,7 @@ char *get_page_nav(const char page) {
         "<li><a href='/wifi'" "%s" ">WiFi Config</a></li>"
         "<li><a href='/mqtt_config'" "%s" ">MQTT Config</a></li>"
         "<li><a href='/status_view'" "%s" ">Status</a></li>"
+        "<li><a href='/unknown_msgs_view'" "%s" ">Unknown Messages</a></li>"
         "<li><a href='/update'" "%s" ">Firmware Update</a></li>"
         "</ul></nav>"
         "<footer><small>%s</small></footer>"
@@ -109,6 +114,7 @@ char *get_page_nav(const char page) {
         page == 'w' ? cur : none,
         page == 'm' ? cur : none,
         page == 's' ? cur : none,
+        page == 'x' ? cur : none,
         page == 'u' ? cur : none,
         app_desc->version);
     if (n < 0) return NULL;
@@ -121,6 +127,7 @@ char *get_page_nav(const char page) {
         page == 'w' ? cur : none,
         page == 'm' ? cur : none,
         page == 's' ? cur : none,
+        page == 'x' ? cur : none,
         page == 'u' ? cur : none,
         app_desc->version);
     return nav;
@@ -904,6 +911,19 @@ static esp_err_t status_get_handler(httpd_req_t *req)
     }
     cJSON_AddItemToObject(root, "timers", timers);
 
+    // Memory
+    char free_heap_str[24], min_free_heap_str[24];
+    uint32_t free_heap     = esp_get_free_heap_size();
+    uint32_t min_free_heap = esp_get_minimum_free_heap_size();
+    snprintf(free_heap_str,     sizeof(free_heap_str),     "%lu.%lu KB",
+             (unsigned long)(free_heap / 1024),     (unsigned long)((free_heap % 1024) * 10 / 1024));
+    snprintf(min_free_heap_str, sizeof(min_free_heap_str), "%lu.%lu KB",
+             (unsigned long)(min_free_heap / 1024), (unsigned long)((min_free_heap % 1024) * 10 / 1024));
+    cJSON *memory = cJSON_CreateObject();
+    cJSON_AddStringToObject(memory, "free_heap",     free_heap_str);
+    cJSON_AddStringToObject(memory, "min_free_heap", min_free_heap_str);
+    cJSON_AddItemToObject(root, "memory", memory);
+
     // Timestamps
     uint64_t current_tick_ms = (uint64_t)xTaskGetTickCount() * portTICK_PERIOD_MS;
     cJSON_AddNumberToObject(root, "last_update_ms", (double)state.last_update_ms);
@@ -1540,6 +1560,252 @@ static esp_err_t test_decode_post_handler(httpd_req_t *req)
 }
 
 // ======================================================
+// Unknown Messages Handlers
+// ======================================================
+
+static esp_err_t unknown_msgs_json_handler(httpd_req_t *req)
+{
+    locked_unknown_buffer_t locked = unknown_buffer_lock_for_read();
+    const int count = locked.count;
+    const unknown_entry_t *snap = locked.entries;
+    if (snap == NULL) {
+        httpd_resp_send_err(
+            req, HTTPD_500_INTERNAL_SERVER_ERROR, "Couldn't acquire unknown buffer lock, try again"
+        );
+        return ESP_FAIL;
+    }
+
+    cJSON *root = cJSON_CreateObject();
+    if (!root) {
+        unknown_buffer_unlock_after_read();
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "OOM");
+        return ESP_FAIL;
+    }
+    cJSON_AddNumberToObject(root, "count", count);
+    cJSON *arr = cJSON_CreateArray();
+    if (!arr) {
+        unknown_buffer_unlock_after_read();
+        cJSON_Delete(root);
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "OOM");
+        return ESP_FAIL;
+    }
+
+    char hex_buf[UNKNOWN_BUFFER_MAX_RAW_BYTES * 3 + 1];
+    for (int i = 0; i < count; i++) {
+        const unknown_entry_t *e = &snap[i];
+        cJSON *obj = cJSON_CreateObject();
+        if (!obj) continue;
+
+        // Decode address/command fields from the raw frame
+        // Frame layout: [START=0][SRC=1-2][DST=3-4][CTRL=5-6][CMD=7][LEN=8][HDR_CHK=9][DATA=10...]
+        char addr_str[8];
+        char name_buf[16];
+        uint8_t src_hi = (e->raw_len > 2) ? e->raw[1] : 0;
+        uint8_t src_lo = (e->raw_len > 2) ? e->raw[2] : 0;
+        uint8_t dst_hi = (e->raw_len > 4) ? e->raw[3] : 0;
+        uint8_t dst_lo = (e->raw_len > 4) ? e->raw[4] : 0;
+        uint8_t cmd    = (e->raw_len > 7) ? e->raw[7] : 0;
+
+        snprintf(addr_str, sizeof(addr_str), "0x%02X%02X", src_hi, src_lo);
+        cJSON_AddStringToObject(obj, "src", addr_str);
+        cJSON_AddStringToObject(obj, "src_name",
+            get_device_name(src_hi, src_lo, name_buf, sizeof(name_buf)));
+
+        snprintf(addr_str, sizeof(addr_str), "0x%02X%02X", dst_hi, dst_lo);
+        cJSON_AddStringToObject(obj, "dst", addr_str);
+        cJSON_AddStringToObject(obj, "dst_name",
+            get_device_name(dst_hi, dst_lo, name_buf, sizeof(name_buf)));
+
+        char cmd_str[7];
+        snprintf(cmd_str, sizeof(cmd_str), "0x%02X", cmd);
+        cJSON_AddStringToObject(obj, "cmd", cmd_str);
+
+        // Payload bytes (raw[10] to raw[raw_len-3]) as space-separated hex
+        // Cap at what was actually stored — raw[] only holds the first UNKNOWN_BUFFER_MAX_RAW_BYTES bytes.
+        int payload_start = 10;
+        int stored_len    = ((int)e->raw_len < UNKNOWN_BUFFER_MAX_RAW_BYTES) ? (int)e->raw_len : UNKNOWN_BUFFER_MAX_RAW_BYTES;
+        int payload_end   = ((int)e->raw_len - 2 < stored_len) ? (int)e->raw_len - 2 : stored_len;
+        int payload_len   = (payload_end > payload_start) ? (payload_end - payload_start) : 0;
+        if (payload_len > 0) {
+            int pos = 0;
+            for (int j = 0; j < payload_len; j++) {
+                pos += snprintf(hex_buf + pos, sizeof(hex_buf) - pos, "%02X ", e->raw[payload_start + j]);
+            }
+            if (pos > 0) hex_buf[pos - 1] = '\0';
+            cJSON_AddStringToObject(obj, "payload", hex_buf);
+        } else {
+            cJSON_AddStringToObject(obj, "payload", "");
+        }
+
+        // Raw frame bytes (capped at UNKNOWN_BUFFER_MAX_RAW_BYTES) as space-separated hex
+        {
+            int pos = 0;
+            for (int j = 0; j < stored_len; j++) {
+                pos += snprintf(hex_buf + pos, sizeof(hex_buf) - pos, "%02X ", e->raw[j]);
+            }
+            if (pos > 0) hex_buf[pos - 1] = '\0';
+            cJSON_AddStringToObject(obj, "raw", hex_buf);
+        }
+
+        cJSON_AddBoolToObject(obj,   "is_error",   e->is_error);
+        cJSON_AddNumberToObject(obj, "raw_len",    (double)e->raw_len);
+        cJSON_AddNumberToObject(obj, "hits",       (double)e->hit_count);
+        cJSON_AddNumberToObject(obj, "first_seen", (double)e->first_seen);
+        cJSON_AddNumberToObject(obj, "last_seen",  (double)e->last_seen);
+
+        cJSON_AddItemToArray(arr, obj);
+    }
+
+    unknown_buffer_unlock_after_read();
+    cJSON_AddItemToObject(root, "entries", arr);
+
+    char *json = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    if (!json) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "JSON error");
+        return ESP_FAIL;
+    }
+
+    httpd_resp_set_type(req, "application/json; charset=UTF-8");
+    httpd_resp_send(req, json, HTTPD_RESP_USE_STRLEN);
+    free(json);
+    return ESP_OK;
+}
+
+static esp_err_t unknown_msgs_clear_handler(httpd_req_t *req)
+{
+    char buf[32];
+    int remaining = req->content_len;
+    while (remaining > 0) {
+        int ret = httpd_req_recv(req, buf, remaining < (int)sizeof(buf) ? remaining : (int)sizeof(buf));
+        if (ret <= 0) break;
+        remaining -= ret;
+    }
+
+    unknown_buffer_clear();
+
+    httpd_resp_set_type(req, "application/json; charset=UTF-8");
+    httpd_resp_send(req, "{\"ok\":true}", HTTPD_RESP_USE_STRLEN);
+    return ESP_OK;
+}
+
+static esp_err_t unknown_msgs_view_handler(httpd_req_t *req)
+{
+    const char *page_content =
+        "<h1>Unknown Bus Messages</h1>"
+        "<p class='text-lighter'>Unrecognized and error frames captured from the bus "
+        "(max " STR(UNKNOWN_BUFFER_CAPACITY) " stored). Sorted by most recently seen.</p>"
+        "<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem'>"
+        "<span id='unk-count' class='text-lighter'></span>"
+        "<div style='display:flex;gap:0.5rem'>"
+        "<a href='/unknown_msgs' class='outline button'>Raw JSON</a>"
+        "<button id='clear-btn' class='outline' data-variant='danger'>Clear Buffer</button>"
+        "</div>"
+        "</div>"
+        "<div id='unk-error' role='alert' data-variant='danger' hidden></div>"
+        "<p id='unk-empty' hidden class='text-lighter'>No unknown messages recorded yet.</p>"
+        "<div id='unk-table' hidden style='overflow-x:auto'>"
+        "<table><thead><tr>"
+        "<th>Source</th><th>Destination</th><th style='width:5em'>CMD</th><th>Payload</th><th>Raw Frame</th>"
+        "<th style='width:4em'>Hits</th><th>First Seen</th><th>Last Seen</th>"
+        "</tr></thead><tbody id='unk-tbody'></tbody></table>"
+        "</div>"
+        "<script>"
+        "function fmtTime(ts){"
+        "if(!ts||ts<=0)return'Unknown';"
+        "const d=new Date(ts*1000);"
+        "const tz=Intl.DateTimeFormat().resolvedOptions().timeZone;"
+        "return d.toLocaleString('en-GB',{"
+        "day:'2-digit',month:'2-digit',year:'numeric',"
+        "hour:'2-digit',minute:'2-digit',second:'2-digit',"
+        "hour12:false,timeZone:tz,timeZoneName:'short'});}"
+        "function mkEl(tag,txt){"
+        "const el=document.createElement(tag);"
+        "if(txt!==undefined)el.textContent=txt;"
+        "return el;}"
+        "function addCode(td,txt){"
+        "const c=document.createElement('code');c.textContent=txt;td.appendChild(c);}"
+        "function addrTd(addr,name,isErr){"
+        "const td=mkEl('td');"
+        "if(isErr){const b=mkEl('small','error');b.style.cssText='background:#e55;color:#fff;border-radius:3px;padding:0 3px;margin-right:4px;font-size:.75em';td.appendChild(b);}"
+        "addCode(td,addr);"
+        "if(name){td.appendChild(document.createElement('br'));td.appendChild(mkEl('small',name));}"
+        "return td;}"
+        "function load(){"
+        "fetch('/unknown_msgs').then(r=>r.json()).then(data=>{"
+        "const count=data.count||0;"
+        "document.getElementById('unk-count').textContent="
+        "count+' unique raw frame'+(count!==1?'s':'');"
+        "const empty=document.getElementById('unk-empty');"
+        "const tbl=document.getElementById('unk-table');"
+        "const tbody=document.getElementById('unk-tbody');"
+        "tbody.innerHTML='';"
+        "if(count===0){"
+        "empty.removeAttribute('hidden');tbl.setAttribute('hidden','');}"
+        "else{"
+        "empty.setAttribute('hidden','');"
+        "const entries=[...(data.entries||[])];"
+        "entries.sort((a,b)=>b.last_seen-a.last_seen);"
+        "entries.forEach(e=>{"
+        "const tr=document.createElement('tr');"
+        "if(e.is_error)tr.style.background='var(--danger-faint,#fff0f0)';"
+        "tr.appendChild(addrTd(e.src,e.src_name,e.is_error));"
+        "tr.appendChild(addrTd(e.dst,e.dst_name));"
+        "const cmdTd=mkEl('td');addCode(cmdTd,e.cmd);tr.appendChild(cmdTd);"
+        "const payTd=mkEl('td');"
+        "const pc=document.createElement('code');"
+        "pc.textContent=e.payload||'(empty)';"
+        "pc.style.padding='0';"
+        "payTd.appendChild(pc);tr.appendChild(payTd);"
+        "const rawTd=mkEl('td');"
+        "const rc=document.createElement('code');"
+        "rc.textContent=e.raw||'(empty)';"
+        "rc.style.wordBreak='break-all';"
+        "rc.style.padding='0';"
+        "rawTd.appendChild(rc);"
+        "if(e.raw_len>" STR(UNKNOWN_BUFFER_MAX_RAW_BYTES) "){"
+        "const trunc=document.createElement('small');"
+        "trunc.textContent=' (first " STR(UNKNOWN_BUFFER_MAX_RAW_BYTES) " bytes of '+e.raw_len+')';"
+        "trunc.style.color='var(--muted-foreground,#555)';"
+        "rawTd.appendChild(trunc);}"
+        "tr.appendChild(rawTd);"
+        "tr.appendChild(mkEl('td',String(e.hits)));"
+        "tr.appendChild(mkEl('td',fmtTime(e.first_seen)));"
+        "tr.appendChild(mkEl('td',fmtTime(e.last_seen)));"
+        "tbody.appendChild(tr);});"
+        "tbl.removeAttribute('hidden');}}"
+        ").catch(err=>{"
+        "const errEl=document.getElementById('unk-error');"
+        "errEl.textContent='Error loading data: '+err;"
+        "errEl.removeAttribute('hidden');});}"
+        "load();"
+        "document.getElementById('clear-btn').addEventListener('click',function(){"
+        "if(!confirm('Clear all unknown message records?'))return;"
+        "fetch('/unknown_msgs/clear',{method:'POST'}).then(()=>load()).catch(err=>{"
+        "const errEl=document.getElementById('unk-error');"
+        "errEl.textContent='Clear failed: '+err;"
+        "errEl.removeAttribute('hidden');});});"
+        "</script>";
+
+    char page_title[] = "Unknown Bus Messages";
+    char *header = get_page_header(page_title);
+    char *nav    = get_page_nav('x');
+    char *footer = get_page_footer();
+
+    httpd_resp_set_type(req, "text/html; charset=UTF-8");
+    httpd_resp_send_chunk(req, header,       HTTPD_RESP_USE_STRLEN);
+    httpd_resp_send_chunk(req, nav,          HTTPD_RESP_USE_STRLEN);
+    httpd_resp_send_chunk(req, page_content, HTTPD_RESP_USE_STRLEN);
+    httpd_resp_send_chunk(req, footer,       HTTPD_RESP_USE_STRLEN);
+    httpd_resp_send_chunk(req, NULL, 0);
+
+    free(footer);
+    free(nav);
+    free(header);
+    return ESP_OK;
+}
+
+// ======================================================
 // URI Handlers
 // ======================================================
 
@@ -1607,6 +1873,24 @@ static const httpd_uri_t test_decode_uri = {
     .uri = "/api/test_decode",
     .method = HTTP_POST,
     .handler = test_decode_post_handler
+};
+
+static const httpd_uri_t unknown_msgs_json_uri = {
+    .uri = "/unknown_msgs",
+    .method = HTTP_GET,
+    .handler = unknown_msgs_json_handler
+};
+
+static const httpd_uri_t unknown_msgs_clear_uri = {
+    .uri = "/unknown_msgs/clear",
+    .method = HTTP_POST,
+    .handler = unknown_msgs_clear_handler
+};
+
+static const httpd_uri_t unknown_msgs_view_uri = {
+    .uri = "/unknown_msgs_view",
+    .method = HTTP_GET,
+    .handler = unknown_msgs_view_handler
 };
 
 
@@ -1771,6 +2055,9 @@ esp_err_t web_handlers_register(httpd_handle_t server)
     httpd_register_uri_handler(server, &update_get_uri);
     httpd_register_uri_handler(server, &update_post_uri);
     httpd_register_uri_handler(server, &test_decode_uri);
+    httpd_register_uri_handler(server, &unknown_msgs_json_uri);
+    httpd_register_uri_handler(server, &unknown_msgs_clear_uri);
+    httpd_register_uri_handler(server, &unknown_msgs_view_uri);
     httpd_register_uri_handler(server, &static_files_uri);   // /static/* wildcard
     httpd_register_uri_handler(server, &favicon_redirect_uri); // /favicon.ico -> /static/favicon.ico
     httpd_register_uri_handler(server, &robots_txt_uri);
