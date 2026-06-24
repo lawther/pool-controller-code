@@ -266,12 +266,24 @@ static esp_err_t home_get_handler(httpd_req_t *req)
         "data.timers.forEach(t=>rows.push(['Timer '+t.num,t.start+' \u2013 '+t.stop+' ['+t.days+']']));}"
         "const mc=data.message_counts;"
         "if(mc){"
-        "const errs=mc.errors||0;"
-        "const tot=mc.decoded+mc.unknown+errs;"
+        "const tot=mc.decoded+mc.unknown;"
         "const pct=tot>0?(mc.decoded/tot*100).toFixed(1)+'%':'n/a';"
         "const mtr=document.createElement('tr');"
-        "mtr.innerHTML='<th>Messages</th><td>'+mc.decoded+' decoded, '+mc.unknown+' unknown, '+errs+' errors ('+pct+')</td>';"
+        "mtr.innerHTML='<th>Messages</th><td>'+mc.decoded+' decoded, '+mc.unknown+' unknown ('+pct+')</td>';"
         "document.getElementById('sys-body').appendChild(mtr);}"
+        "const rs=data.resyncs;"
+        "if(rs){"
+        "const parts=[];"
+        "if(rs.no_start)parts.push(rs.no_start+' no-start');"
+        "if(rs.header_checksum)parts.push(rs.header_checksum+' header-checksum');"
+        "if(rs.bad_control)parts.push(rs.bad_control+' bad-control');"
+        "if(rs.bad_length)parts.push(rs.bad_length+' bad-length');"
+        "if(rs.bad_end)parts.push(rs.bad_end+' bad-end');"
+        "if(rs.data_checksum)parts.push(rs.data_checksum+' data-checksum');"
+        "if(rs.buffer_overflow)parts.push(rs.buffer_overflow+' overflow');"
+        "const rtr=document.createElement('tr');"
+        "rtr.innerHTML='<th>Resyncs</th><td>'+(rs.total||0)+(parts.length?' ('+parts.join(', ')+')':'')+'</td>';"
+        "document.getElementById('sys-body').appendChild(rtr);}"
         "const tb=document.getElementById('pool-body');"
         "rows.forEach(([k,v])=>{"
         "const tr=document.createElement('tr');"
@@ -615,17 +627,19 @@ static esp_err_t status_get_handler(httpd_req_t *req)
     cJSON *msg_counts = cJSON_CreateObject();
     cJSON_AddNumberToObject(msg_counts, "decoded", state.messages_decoded_total);
     cJSON_AddNumberToObject(msg_counts, "unknown", state.messages_unknown_total);
-    cJSON_AddNumberToObject(msg_counts, "errors",  state.messages_error_total);
-    cJSON *err_detail = cJSON_CreateObject();
-    cJSON_AddNumberToObject(err_detail, "no_start_byte",   state.errors_no_start);
-    cJSON_AddNumberToObject(err_detail, "bad_control",     state.errors_bad_control);
-    cJSON_AddNumberToObject(err_detail, "no_end",          state.errors_no_end);
-    cJSON_AddNumberToObject(err_detail, "bad_framing",     state.errors_bad_framing);
-    cJSON_AddNumberToObject(err_detail, "length_mismatch", state.errors_length_mismatch);
-    cJSON_AddNumberToObject(err_detail, "header_checksum", state.errors_header_checksum);
-    cJSON_AddNumberToObject(err_detail, "data_checksum",   state.errors_data_checksum);
-    cJSON_AddItemToObject(msg_counts, "error_detail", err_detail);
     cJSON_AddItemToObject(root, "message_counts", msg_counts);
+
+    // Frame resync counters (bridge reassembly layer; see pool_state.h)
+    cJSON *resyncs = cJSON_CreateObject();
+    cJSON_AddNumberToObject(resyncs, "total",           state.resyncs_total);
+    cJSON_AddNumberToObject(resyncs, "no_start",        state.resyncs_no_start);
+    cJSON_AddNumberToObject(resyncs, "header_checksum", state.resyncs_bad_header_checksum);
+    cJSON_AddNumberToObject(resyncs, "bad_control",     state.resyncs_bad_control);
+    cJSON_AddNumberToObject(resyncs, "bad_length",      state.resyncs_bad_length);
+    cJSON_AddNumberToObject(resyncs, "bad_end",         state.resyncs_bad_end);
+    cJSON_AddNumberToObject(resyncs, "data_checksum",   state.resyncs_bad_data_checksum);
+    cJSON_AddNumberToObject(resyncs, "buffer_overflow", state.resyncs_buffer_overflow);
+    cJSON_AddItemToObject(root, "resyncs", resyncs);
 
     // Devices observed on the bus
     cJSON *devices = cJSON_CreateArray();
@@ -1648,6 +1662,7 @@ static esp_err_t unknown_msgs_json_handler(httpd_req_t *req)
         }
 
         cJSON_AddBoolToObject(obj,   "is_error",   e->is_error);
+        cJSON_AddStringToObject(obj, "reason",     unknown_reason_str(e->reason));
         cJSON_AddNumberToObject(obj, "raw_len",    (double)e->raw_len);
         cJSON_AddNumberToObject(obj, "hits",       (double)e->hit_count);
         cJSON_AddNumberToObject(obj, "first_seen", (double)e->first_seen);
@@ -1725,9 +1740,9 @@ static esp_err_t unknown_msgs_view_handler(httpd_req_t *req)
         "return el;}"
         "function addCode(td,txt){"
         "const c=document.createElement('code');c.textContent=txt;td.appendChild(c);}"
-        "function addrTd(addr,name,isErr){"
+        "function addrTd(addr,name,errLabel){"
         "const td=mkEl('td');"
-        "if(isErr){const b=mkEl('small','error');b.style.cssText='background:#e55;color:#fff;border-radius:3px;padding:0 3px;margin-right:4px;font-size:.75em';td.appendChild(b);}"
+        "if(errLabel){const b=mkEl('small',errLabel);b.style.cssText='background:#e55;color:#fff;border-radius:3px;padding:0 4px;margin-right:4px;font-size:.75em';td.appendChild(b);}"
         "addCode(td,addr);"
         "if(name){td.appendChild(document.createElement('br'));td.appendChild(mkEl('small',name));}"
         "return td;}"
@@ -1749,7 +1764,7 @@ static esp_err_t unknown_msgs_view_handler(httpd_req_t *req)
         "entries.forEach(e=>{"
         "const tr=document.createElement('tr');"
         "if(e.is_error)tr.style.background='var(--danger-faint,#fff0f0)';"
-        "tr.appendChild(addrTd(e.src,e.src_name,e.is_error));"
+        "tr.appendChild(addrTd(e.src,e.src_name,e.is_error?e.reason:null));"
         "tr.appendChild(addrTd(e.dst,e.dst_name));"
         "const cmdTd=mkEl('td');addCode(cmdTd,e.cmd);tr.appendChild(cmdTd);"
         "const payTd=mkEl('td');"

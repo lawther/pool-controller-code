@@ -24,16 +24,25 @@ typedef bool (*tcp_bridge_decode_fn)(const uint8_t *data, int len);
 // Called when RX or TX LED should flash
 typedef void (*tcp_bridge_led_flash_fn)(void);
 
-// Framing errors detected by the reassembly layer (data is discarded)
+// Resync events emitted by the reassembly layer. Each value maps 1:1 to a
+// framing_result_t failure so the breakdown survives to the status page.
+// NO_START and BUFFER_OVERFLOW discard a run of bytes; the BAD_* variants step
+// the window forward by a single byte and retry.
 typedef enum {
-    TCP_BRIDGE_FRAME_ERR_NO_START,     // No START byte (0x02) in buffer, all bytes discarded
-    TCP_BRIDGE_FRAME_ERR_BAD_CONTROL,  // START found but control bytes != 80 00, resync by one byte
-    TCP_BRIDGE_FRAME_ERR_NO_END,       // Buffer filled without a checksum+END match (too long / corrupt)
-} tcp_bridge_frame_error_t;
+    TCP_BRIDGE_RESYNC_NO_START,            // No START byte (0x02) in buffer, all bytes discarded
+    TCP_BRIDGE_RESYNC_BAD_HEADER_CHECKSUM, // Header checksum (byte 9) mismatch
+    TCP_BRIDGE_RESYNC_BAD_CONTROL,         // Control bytes (5-6) != 80 00
+    TCP_BRIDGE_RESYNC_BAD_LENGTH,          // Length field (byte 8) out of range
+    TCP_BRIDGE_RESYNC_BAD_END,             // End byte != 0x03 at declared length
+    TCP_BRIDGE_RESYNC_BAD_DATA_CHECKSUM,   // Data checksum mismatch
+    TCP_BRIDGE_RESYNC_BUFFER_OVERFLOW,     // Buffer filled without a complete frame (too long / corrupt)
+} tcp_bridge_resync_type_t;
 
-// Called when the reassembly layer discards data due to a framing error.
-// data/len are the raw bytes being discarded (may be NULL/0 for overflow cases).
-typedef void (*tcp_bridge_frame_error_fn)(tcp_bridge_frame_error_t error, const uint8_t *data, int len);
+// Called when the reassembly layer resyncs (discards data) after a framing failure.
+// data/len are the bytes that triggered the resync, passed for every result type
+// (NO_START, BUFFER_OVERFLOW, and all BAD_* steps), so the caller can capture the
+// lost frame for diagnostics.
+typedef void (*tcp_bridge_resync_fn)(tcp_bridge_resync_type_t type, const uint8_t *data, int len);
 
 /**
  * Configuration structure for TCP bridge
@@ -45,7 +54,7 @@ typedef struct {
     tcp_bridge_decode_fn decode_message;     // Message decoder callback
     tcp_bridge_led_flash_fn led_flash_rx;    // RX LED callback (can be NULL)
     tcp_bridge_led_flash_fn led_flash_tx;    // TX LED callback (can be NULL)
-    tcp_bridge_frame_error_fn on_frame_error; // Framing error callback (can be NULL)
+    tcp_bridge_resync_fn on_resync;          // Framing resync callback (can be NULL)
 } tcp_bridge_config_t;
 
 /**

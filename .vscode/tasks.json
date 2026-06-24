@@ -65,6 +65,32 @@
                 "close": false
             },
             "problemMatcher": []
+        },
+        {
+            "label": "Framing: run",
+            "type": "shell",
+            "command": "gcc -I. -I.. -o run_framing test_framing.c log_capture.c && ./run_framing; ec=$?; rm -f ./run_framing; exit $ec",
+            "options": { "cwd": "${workspaceFolder}/test" },
+            "group": "test",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "close": false
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Framing: bless goldens",
+            "type": "shell",
+            "command": "gcc -I. -I.. -o run_framing test_framing.c log_capture.c && ./run_framing --bless; ec=$?; rm -f ./run_framing; exit $ec",
+            "options": { "cwd": "${workspaceFolder}/test" },
+            "group": "test",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "close": false
+            },
+            "problemMatcher": []
         }
     ],
     "inputs": [

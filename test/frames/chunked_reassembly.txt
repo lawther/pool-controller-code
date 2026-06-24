@@ -1,0 +1,27 @@
+# Chunked-input cases for the sliding-window parser. A '|' splits the line into
+# separate framing_add_bytes() calls, drained after each - mirroring bytes
+# arriving across multiple UART reads. These exercise reassembly and resync
+# across read boundaries (issue #46 gaps 1 & 2), which the whole-line captures
+# in observed_error_frames.txt / synthetic_errors.txt never hit.
+#
+# Known good frame: 02 00 A0 FF FF 80 00 3B 0E 69 04 65 69 03
+#   (Viron XT Pump, CMD 0x3B, payload 04 65)
+
+# split mid-header, body completes in a later read
+02 00 A0 FF FF 80 00 3B 0E | 69 04 65 69 03
+
+# split exactly after the header checksum (byte 9), before length/body
+02 00 A0 FF FF 80 00 3B 0E 69 | 04 65 69 03
+
+# split one byte short of the declared length (waiting on the end byte)
+02 00 A0 FF FF 80 00 3B 0E 69 04 65 69 | 03
+
+# maximal fragmentation - one byte per read for a clean frame
+02 | 00 | A0 | FF | FF | 80 | 00 | 3B | 0E | 69 | 04 | 65 | 69 | 03
+
+# self-stutter prefix, resync straddles read boundaries, then good frame
+02 00 A0 02 00 | A0 FF FF | 80 00 3B 0E 69 | 04 65 69 03
+
+# bad data checksum (6A should be 69); checksum byte arrives split from
+# the end byte, parser resyncs and recovers the trailing good frame
+02 00 A0 FF FF 80 00 3B 0E 69 04 65 6A | 03 02 00 A0 FF FF 80 00 3B 0E 69 04 65 69 03

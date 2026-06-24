@@ -1,4 +1,5 @@
 #include "tcp_bridge.h"
+#include "framing.h"
 #include "config.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
@@ -14,6 +15,15 @@
 
 static const char *TAG = "TCP_BRIDGE";
 
+// The buffer-overflow recovery path below re-adds the just-read chunk into a
+// freshly reset framing buffer and ignores the return value, which is only
+// safe because a single UART read can never itself exceed the framing
+// buffer's capacity. Guard the assumption so a future config change can't
+// silently break it.
+_Static_assert(TCP_UART_BUFFER_SIZE <= BUS_MESSAGE_MAX_SIZE,
+               "TCP_UART_BUFFER_SIZE must not exceed BUS_MESSAGE_MAX_SIZE, or the "
+               "post-overflow re-add of a UART chunk in the bridge task can fail");
+
 // Loopback tracking for TX echo detection
 static uint8_t s_last_tx_msg[BUS_MESSAGE_MAX_SIZE];
 static int s_last_tx_len = 0;
@@ -26,8 +36,7 @@ static tcp_bridge_config_t s_config = {0};
 static TaskHandle_t s_bridge_task_handle = NULL;
 
 // Message reassembly buffer
-static uint8_t s_msg_buffer[BUS_MESSAGE_MAX_SIZE];
-static int s_msg_buffer_len = 0;
+static framing_buffer_t s_framing_buffer;
 
 // Global client socket for log forwarding
 static int s_log_client_sock = -1;
@@ -100,153 +109,6 @@ static void tcp_bridge_set_log_client(int sock)
     }
 }
 
-/**
- * Extract and process one complete message from the reassembly buffer.
- * Uses message structure validation and checksum to detect message boundaries.
- * Returns true if a message was found and processed.
- */
-static bool extract_and_process_message(int client_sock)
-{
-    // Need at least minimum message: START + SRC + DST + CTRL + CMD(3) + CHK + END = 12 bytes
-    if (s_msg_buffer_len < 12) {
-        return false;
-    }
-
-    // Find start byte (0x02)
-    int start_idx = -1;
-    for (int i = 0; i < s_msg_buffer_len; i++) {
-        if (s_msg_buffer[i] == 0x02) {
-            start_idx = i;
-            break;
-        }
-    }
-
-    // No start byte found - discard everything
-    if (start_idx == -1) {
-        if (s_msg_buffer_len > 0) {
-            char hex_str[100];
-            int hex_pos = 0;
-            int dump_len = MIN(s_msg_buffer_len, 32);
-            for (int i = 0; i < dump_len && hex_pos < (int)sizeof(hex_str) - 3; i++) {
-                hex_pos += snprintf(&hex_str[hex_pos], sizeof(hex_str) - hex_pos, "%02X ", s_msg_buffer[i]);
-            }
-            hex_str[hex_pos] = '\0';
-            ESP_LOGW(TAG, "No start byte in buffer, discarding %d bytes: %s%s",
-                     s_msg_buffer_len, hex_str, s_msg_buffer_len > 32 ? "..." : "");
-            if (s_config.on_frame_error) s_config.on_frame_error(TCP_BRIDGE_FRAME_ERR_NO_START, s_msg_buffer, s_msg_buffer_len);
-        }
-        s_msg_buffer_len = 0;
-        return false;
-    }
-
-    // Discard bytes before start
-    if (start_idx > 0) {
-        memmove(s_msg_buffer, &s_msg_buffer[start_idx], s_msg_buffer_len - start_idx);
-        s_msg_buffer_len -= start_idx;
-    }
-
-    // Check we have enough for header validation
-    if (s_msg_buffer_len < 10) {
-        return false;  // Wait for more data
-    }
-
-    // Validate control bytes (positions 5-6 should be 0x80 0x00)
-    if (s_msg_buffer[5] != 0x80 || s_msg_buffer[6] != 0x00) {
-        char hex_str[100];
-        int hex_pos = 0;
-        int dump_len = MIN(s_msg_buffer_len, 32);
-        for (int i = 0; i < dump_len && hex_pos < (int)sizeof(hex_str) - 3; i++) {
-            hex_pos += snprintf(&hex_str[hex_pos], sizeof(hex_str) - hex_pos, "%02X ", s_msg_buffer[i]);
-        }
-        hex_str[hex_pos] = '\0';
-        ESP_LOGW(TAG, "Invalid control bytes: %02X %02X (expected 80 00), data: %s%s, discarding start byte",
-                 s_msg_buffer[5], s_msg_buffer[6], hex_str, s_msg_buffer_len > 32 ? "..." : "");
-        if (s_config.on_frame_error) s_config.on_frame_error(TCP_BRIDGE_FRAME_ERR_BAD_CONTROL, s_msg_buffer, s_msg_buffer_len);
-        // Discard this start byte and look for next
-        memmove(s_msg_buffer, &s_msg_buffer[1], s_msg_buffer_len - 1);
-        s_msg_buffer_len--;
-        return false;
-    }
-
-    // Now scan for message end using checksum validation
-    // Data starts at index 10, checksum algorithm: sum(bytes 10..N-3) & 0xFF
-    for (int pos = 10; pos < s_msg_buffer_len - 2; pos++) {  // Need at least 2 more bytes (checksum + END)
-        // Calculate checksum from byte 10 to current position (inclusive)
-        uint32_t sum = 0;
-        for (int i = 10; i <= pos; i++) {
-            sum += s_msg_buffer[i];
-        }
-        uint8_t calculated_checksum = sum & 0xFF;
-
-        // Check if next byte matches checksum AND byte after that is END marker (0x03)
-        // This prevents false positives from accidental checksum matches in payload
-        if (s_msg_buffer[pos + 1] == calculated_checksum && s_msg_buffer[pos + 2] == 0x03) {
-            // Found complete message!
-            int msg_len = pos + 3;  // Include checksum and end byte
-
-            // Format as hex string — reserve 3 bytes at end for \r\n\0
-            char hexLine[3 * BUS_MESSAGE_MAX_SIZE + 3];
-            int hex_pos = 0;
-            for (int i = 0; i < msg_len; i++) {
-                if (hex_pos < (int)(sizeof(hexLine) - 3)) {
-                    hex_pos += snprintf(&hexLine[hex_pos], sizeof(hexLine) - hex_pos,
-                                      "%02X ", s_msg_buffer[i]);
-                }
-            }
-            hexLine[hex_pos] = '\0';
-
-            // Check for loopback
-            bool is_loopback = false;
-            if (s_last_tx_len > 0 && msg_len == s_last_tx_len) {
-                TickType_t time_since_tx = xTaskGetTickCount() - s_last_tx_time;
-                if (time_since_tx < pdMS_TO_TICKS(LOOPBACK_DETECTION_MS)) {
-                    if (memcmp(s_msg_buffer, s_last_tx_msg, msg_len) == 0) {
-                        is_loopback = true;
-                        ESP_LOGI(TAG, "RX LOOPBACK (our TX echoed): %s", hexLine);
-                        s_last_tx_len = 0;
-                    }
-                }
-            }
-
-            if (!is_loopback) {
-                s_config.decode_message(s_msg_buffer, msg_len);
-            }
-
-            // Send to TCP client if connected
-            if (client_sock >= 0) {
-                hexLine[hex_pos]     = '\r';
-                hexLine[hex_pos + 1] = '\n';
-                send_to_client(client_sock, hexLine, hex_pos + 2);
-            }
-
-            // Remove processed message from buffer
-            int remaining = s_msg_buffer_len - msg_len;
-            if (remaining > 0) {
-                memmove(s_msg_buffer, &s_msg_buffer[msg_len], remaining);
-            }
-            s_msg_buffer_len = remaining;
-
-            return true;  // Message processed
-        }
-    }
-
-    // No complete message yet - check for buffer overflow
-    if (s_msg_buffer_len >= BUS_MESSAGE_MAX_SIZE - 10) {
-        char hex_str[100];
-        int hex_pos = 0;
-        int dump_len = 32;  // Show first 32 bytes
-        for (int i = 0; i < dump_len && hex_pos < (int)sizeof(hex_str) - 3; i++) {
-            hex_pos += snprintf(&hex_str[hex_pos], sizeof(hex_str) - hex_pos, "%02X ", s_msg_buffer[i]);
-        }
-        hex_str[hex_pos] = '\0';
-        ESP_LOGW(TAG, "Buffer nearly full (%d bytes) without complete message, first 32 bytes: %s..., clearing",
-                 s_msg_buffer_len, hex_str);
-        if (s_config.on_frame_error) s_config.on_frame_error(TCP_BRIDGE_FRAME_ERR_NO_END, s_msg_buffer, s_msg_buffer_len);
-        s_msg_buffer_len = 0;
-    }
-
-    return false;  // Wait for more data
-}
 
 /**
  * TCP server task implementation
@@ -341,19 +203,78 @@ static void tcp_bridge_task(void *pvParameters)
             }
 
             // Append to reassembly buffer
-            if (s_msg_buffer_len + len <= BUS_MESSAGE_MAX_SIZE) {
-                memcpy(&s_msg_buffer[s_msg_buffer_len], uart_buf, len);
-                s_msg_buffer_len += len;
-            } else {
+            if (!framing_add_bytes(&s_framing_buffer, uart_buf, len)) {
                 ESP_LOGW(TAG, "Reassembly buffer overflow (%d + %d > %d), clearing",
-                         s_msg_buffer_len, len, BUS_MESSAGE_MAX_SIZE);
-                if (s_config.on_frame_error) s_config.on_frame_error(TCP_BRIDGE_FRAME_ERR_NO_END, s_msg_buffer, s_msg_buffer_len);
-                s_msg_buffer_len = 0;
+                         s_framing_buffer.len, len, BUS_MESSAGE_MAX_SIZE);
+                // Hand the unparseable buffer contents to the resync callback
+                // (for unknown_buffer capture) before discarding them.
+                if (s_config.on_resync) {
+                    s_config.on_resync(TCP_BRIDGE_RESYNC_BUFFER_OVERFLOW,
+                                       s_framing_buffer.buffer, s_framing_buffer.len);
+                }
+                framing_init(&s_framing_buffer);
+                framing_add_bytes(&s_framing_buffer, uart_buf, len);
             }
 
             // Extract and process all complete messages
-            while (extract_and_process_message(client_sock)) {
-                // Keep extracting until no more complete messages
+            uint8_t frame[BUS_MESSAGE_MAX_SIZE];
+            int frame_len;
+            framing_result_t result;
+            while ((result = framing_process_next(&s_framing_buffer, frame, &frame_len)) != FRAMING_NEED_MORE_DATA) {
+                if (result == FRAMING_FRAME_READY) {
+                    char hexLine[3 * BUS_MESSAGE_MAX_SIZE + 3];
+                    int hex_pos = 0;
+                    for (int i = 0; i < frame_len; i++) {
+                        if (hex_pos < (int)(sizeof(hexLine) - 3)) {
+                            hex_pos += snprintf(&hexLine[hex_pos], sizeof(hexLine) - hex_pos, "%02X ", frame[i]);
+                        }
+                    }
+                    hexLine[hex_pos] = '\0';
+
+                    bool is_loopback = false;
+                    if (s_last_tx_len > 0 && frame_len == s_last_tx_len) {
+                        TickType_t time_since_tx = xTaskGetTickCount() - s_last_tx_time;
+                        if (time_since_tx < pdMS_TO_TICKS(LOOPBACK_DETECTION_MS)) {
+                            if (memcmp(frame, s_last_tx_msg, frame_len) == 0) {
+                                is_loopback = true;
+                                ESP_LOGI(TAG, "RX LOOPBACK (our TX echoed): %s", hexLine);
+                                s_last_tx_len = 0;
+                            }
+                        }
+                    }
+
+                    if (!is_loopback) {
+                        s_config.decode_message(frame, frame_len);
+                    }
+
+                    if (client_sock >= 0) {
+                        hexLine[hex_pos]     = '\r';
+                        hexLine[hex_pos + 1] = '\n';
+                        send_to_client(client_sock, hexLine, hex_pos + 2);
+                    }
+                } else if (s_config.on_resync) {
+                    // Map each framing failure to its own resync category so the
+                    // status page can show a per-type breakdown. The framing layer
+                    // hands back the bytes that triggered every resync (frame/
+                    // frame_len), so all types are capturable in the unknown buffer.
+                    switch (result) {
+                        case FRAMING_NO_START_BYTE:
+                            s_config.on_resync(TCP_BRIDGE_RESYNC_NO_START, frame, frame_len); break;
+                        case FRAMING_BAD_HEADER_CHECKSUM:
+                            s_config.on_resync(TCP_BRIDGE_RESYNC_BAD_HEADER_CHECKSUM, frame, frame_len); break;
+                        case FRAMING_BAD_CONTROL_BYTES:
+                            s_config.on_resync(TCP_BRIDGE_RESYNC_BAD_CONTROL, frame, frame_len); break;
+                        case FRAMING_BAD_LENGTH:
+                            s_config.on_resync(TCP_BRIDGE_RESYNC_BAD_LENGTH, frame, frame_len); break;
+                        case FRAMING_BAD_END_BYTE:
+                            s_config.on_resync(TCP_BRIDGE_RESYNC_BAD_END, frame, frame_len); break;
+                        case FRAMING_BAD_DATA_CHECKSUM:
+                            s_config.on_resync(TCP_BRIDGE_RESYNC_BAD_DATA_CHECKSUM, frame, frame_len); break;
+                        default:
+                            // FRAMING_NEED_MORE_DATA / FRAMING_FRAME_READY handled above
+                            break;
+                    }
+                }
             }
         }
 
@@ -495,6 +416,9 @@ esp_err_t tcp_bridge_start(const tcp_bridge_config_t *config)
 
     // Copy configuration
     memcpy(&s_config, config, sizeof(tcp_bridge_config_t));
+
+    // Initialize framing buffer
+    framing_init(&s_framing_buffer);
 
     // Create stop semaphore and reset flag
     s_stop_requested = false;

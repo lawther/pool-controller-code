@@ -1,0 +1,232 @@
+--- Case 1 ---
+Resync:  header_checksum
+Discard: Discarding 7 byte(s) before next start byte: 00 A0 FF FF 80 00 3B
+Decoded: Src=00A0 (Viron XT Pump), Dst=FFFF (Broadcast), Cmd=0x3B, Payload=0465
+Decoded: Src=0050 (Touch Screen), Dst=FFFF (Broadcast), Cmd=0x0A, Payload=0307
+Decoded: Src=0050 (Touch Screen), Dst=FFFF (Broadcast), Cmd=0x12, Payload=0100
+Decoded: Src=0050 (Touch Screen), Dst=FFFF (Broadcast), Cmd=0x05, Payload=00
+
+--- Case 2 ---
+Resync:  bad_end
+Discard: Discarding 10 byte(s) before next start byte: 00 A0 FF FF 80 00 3B 0E 69 04
+Decoded: Src=00A0 (Viron XT Pump), Dst=FFFF (Broadcast), Cmd=0x3B, Payload=0465
+Decoded: Src=0074 (ICI Gas Heater), Dst=FFFF (Broadcast), Cmd=0x12, Payload=00020000
+Decoded: Src=0050 (Touch Screen), Dst=FFFF (Broadcast), Cmd=0x0A, Payload=0307
+
+--- Case 3 ---
+Resync:  header_checksum
+Discard: Discarding 2 byte(s) before next start byte: 00 A0
+Decoded: Src=00A0 (Viron XT Pump), Dst=FFFF (Broadcast), Cmd=0x3B, Payload=0465
+
+--- Case 4 ---
+Resync:  bad_end
+Discard: Discarding 9 byte(s) before next start byte: 00 A0 FF FF 80 00 3B 0E 69
+Resync:  bad_end
+Discard: Discarding 9 byte(s) before next start byte: 00 A0 FF FF 80 00 3B 0E 69
+Resync:  header_checksum
+Discard: Discarding 5 byte(s) before next start byte: 00 A0 FF FF 80
+Decoded: Src=0074 (ICI Gas Heater), Dst=FFFF (Broadcast), Cmd=0x12, Payload=00020000
+Resync:  bad_end
+Discard: Discarding 9 byte(s) before next start byte: 00 A0 FF FF 80 00 3B 0E 69
+
+--- Case 5 ---
+Resync:  bad_end
+Discard: Discarding 12 byte(s) before next start byte: 00 A0 FF FF 80 00 3B 0E 69 05 F5 FA
+Decoded: Src=00A0 (Viron XT Pump), Dst=FFFF (Broadcast), Cmd=0x3B, Payload=05F5
+Decoded: Src=0050 (Touch Screen), Dst=FFFF (Broadcast), Cmd=0x0A, Payload=0307
+Decoded: Src=0050 (Touch Screen), Dst=FFFF (Broadcast), Cmd=0x12, Payload=0100
+
+--- Case 6 ---
+Resync:  header_checksum
+Discard: Discarding 8 byte(s) before next start byte: 00 A0 FF FF 80 00 3B 0E
+Decoded: Src=00A0 (Viron XT Pump), Dst=FFFF (Broadcast), Cmd=0x3B, Payload=05F5
+Decoded: Src=0050 (Touch Screen), Dst=FFFF (Broadcast), Cmd=0x0A, Payload=0307
+Decoded: Src=0050 (Touch Screen), Dst=FFFF (Broadcast), Cmd=0x12, Payload=0100
+Decoded: Src=0050 (Touch Screen), Dst=FFFF (Broadcast), Cmd=0x05, Payload=00
+
+--- Case 7 ---
+Resync:  header_checksum
+Discard: Discarding 2 byte(s) before next start byte: 00 A0
+Decoded: Src=00A0 (Viron XT Pump), Dst=FFFF (Broadcast), Cmd=0x3B, Payload=05F5
+
+--- Case 8 ---
+Resync:  bad_end
+Discard: Discarding 9 byte(s) before next start byte: 00 A0 FF FF 80 00 3B 0E 69
+Decoded: Src=00A0 (Viron XT Pump), Dst=FFFF (Broadcast), Cmd=0x3B, Payload=05F5
+Decoded: Src=0050 (Touch Screen), Dst=FFFF (Broadcast), Cmd=0x0A, Payload=0307
+Decoded: Src=0050 (Touch Screen), Dst=FFFF (Broadcast), Cmd=0x12, Payload=0100
+
+--- Case 9 ---
+Resync:  bad_end
+Discard: Discarding 11 byte(s) before next start byte: 00 A0 FF FF 80 00 3B 0E 69 05 F5
+Decoded: Src=00A0 (Viron XT Pump), Dst=FFFF (Broadcast), Cmd=0x3B, Payload=05F5
+Decoded: Src=0050 (Touch Screen), Dst=FFFF (Broadcast), Cmd=0x0A, Payload=0307
+Decoded: Src=0050 (Touch Screen), Dst=FFFF (Broadcast), Cmd=0x12, Payload=0100
+
+--- Case 10 ---
+Resync:  header_checksum
+Discard: Discarding 5 byte(s) before next start byte: 00 A0 FF FF 80
+Decoded: Src=00A0 (Viron XT Pump), Dst=FFFF (Broadcast), Cmd=0x3B, Payload=05F5
+
+--- Case 11 ---
+Resync:  header_checksum
+Discard: Discarding 3 byte(s) before next start byte: 00 A0 FF
+Decoded: Src=00A0 (Viron XT Pump), Dst=FFFF (Broadcast), Cmd=0x3B, Payload=05F5
+
+--- Case 12 ---
+Resync:  header_checksum
+Discard: Discarding 7 byte(s) before next start byte: 00 A0 FF FF 80 00 3B
+Decoded: Src=00A0 (Viron XT Pump), Dst=FFFF (Broadcast), Cmd=0x3B, Payload=05F5
+Decoded: Src=0050 (Touch Screen), Dst=FFFF (Broadcast), Cmd=0x0A, Payload=0307
+Decoded: Src=0050 (Touch Screen), Dst=FFFF (Broadcast), Cmd=0x12, Payload=0100
+Decoded: Src=0050 (Touch Screen), Dst=FFFF (Broadcast), Cmd=0x05, Payload=00
+
+--- Case 13 ---
+Resync:  bad_end
+Discard: Discarding 12 byte(s) before next start byte: 00 A0 FF FF 80 00 3B 0E 69 04 65 69
+Decoded: Src=0050 (Touch Screen), Dst=FFFF (Broadcast), Cmd=0x0A, Payload=0307
+Decoded: Src=0050 (Touch Screen), Dst=FFFF (Broadcast), Cmd=0x12, Payload=0100
+Decoded: Src=00A0 (Viron XT Pump), Dst=FFFF (Broadcast), Cmd=0x3B, Payload=0465
+
+--- Case 14 ---
+Resync:  header_checksum
+Discard: Discarding 2 byte(s) before next start byte: 00 A0
+Decoded: Src=0050 (Touch Screen), Dst=FFFF (Broadcast), Cmd=0x12, Payload=0100
+
+--- Case 15 ---
+Resync:  bad_end
+Discard: Discarding 11 byte(s) before next start byte: 00 A0 FF FF 80 00 3B 0E 69 04 65
+Decoded: Src=0050 (Touch Screen), Dst=FFFF (Broadcast), Cmd=0x14, Payload=01
+Resync:  header_checksum
+Discard: Discarding 3 byte(s) before next start byte: 00 A0 FF
+Decoded: Src=0050 (Touch Screen), Dst=006F (Internal Channels), Cmd=0x0D, Payload=01
+Decoded: Src=00A0 (Viron XT Pump), Dst=FFFF (Broadcast), Cmd=0x3B, Payload=0465
+
+--- Case 16 ---
+Resync:  bad_end
+Discard: Discarding 11 byte(s) before next start byte: 00 A0 FF FF 80 00 3B 0E 69 04 65
+Decoded: Src=0050 (Touch Screen), Dst=006F (Internal Channels), Cmd=0x0D, Payload=01
+Decoded: Src=0050 (Touch Screen), Dst=FFFF (Broadcast), Cmd=0x0B, Payload=08010101020000120000120000120000090000000000000000
+
+--- Case 17 ---
+Resync:  bad_end
+Discard: Discarding 11 byte(s) before next start byte: 00 A0 FF FF 80 00 3B 0E 69 04 65
+Decoded: Src=00A0 (Viron XT Pump), Dst=FFFF (Broadcast), Cmd=0x3B, Payload=0465
+Decoded: Src=0050 (Touch Screen), Dst=FFFF (Broadcast), Cmd=0x38, Payload=C00100
+Decoded: Src=0050 (Touch Screen), Dst=FFFF (Broadcast), Cmd=0x38, Payload=C10100
+
+--- Case 18 ---
+Resync:  header_checksum
+Discard: Discarding 2 byte(s) before next start byte: 00 A0
+Decoded: Src=0050 (Touch Screen), Dst=FFFF (Broadcast), Cmd=0x38, Payload=C20100
+
+--- Case 19 ---
+Resync:  header_checksum
+Discard: Discarding 5 byte(s) before next start byte: 00 A0 FF FF 80
+
+--- Case 20 ---
+Resync:  bad_end
+Discard: Discarding 10 byte(s) before next start byte: 00 A0 FF FF 80 00 3B 0E 69 04
+Decoded: Src=0050 (Touch Screen), Dst=FFFF (Broadcast), Cmd=0x38, Payload=C30100
+Decoded: Src=0050 (Touch Screen), Dst=FFFF (Broadcast), Cmd=0x38, Payload=D00105
+Decoded: Src=00A0 (Viron XT Pump), Dst=FFFF (Broadcast), Cmd=0x3B, Payload=0465
+
+--- Case 21 ---
+Resync:  bad_end
+Discard: Discarding 9 byte(s) before next start byte: 00 A0 FF FF 80 00 3B 0E 69
+Decoded: Src=00A0 (Viron XT Pump), Dst=FFFF (Broadcast), Cmd=0x3B, Payload=0465
+Decoded: Src=0050 (Touch Screen), Dst=FFFF (Broadcast), Cmd=0x38, Payload=D00105
+Decoded: Src=0050 (Touch Screen), Dst=FFFF (Broadcast), Cmd=0x38, Payload=D10105
+
+--- Case 22 ---
+Resync:  bad_end
+Discard: Discarding 12 byte(s) before next start byte: 00 A0 FF FF 80 00 3B 0E 69 04 65 69
+Decoded: Src=00A0 (Viron XT Pump), Dst=FFFF (Broadcast), Cmd=0x3B, Payload=0465
+Decoded: Src=0050 (Touch Screen), Dst=FFFF (Broadcast), Cmd=0x38, Payload=D20105
+Decoded: Src=0050 (Touch Screen), Dst=FFFF (Broadcast), Cmd=0x38, Payload=D30105
+
+--- Case 23 ---
+Resync:  bad_end
+Discard: Discarding 12 byte(s) before next start byte: 00 A0 FF FF 80 00 3B 0E 69 04 65 69
+Decoded: Src=0050 (Touch Screen), Dst=FFFF (Broadcast), Cmd=0x38, Payload=E20100
+
+--- Case 24 ---
+Resync:  header_checksum
+Discard: Discarding 7 byte(s) before next start byte: 00 A0 FF FF 80 00 3B
+Decoded: Src=00A0 (Viron XT Pump), Dst=FFFF (Broadcast), Cmd=0x3B, Payload=0465
+Decoded: Src=0074 (ICI Gas Heater), Dst=FFFF (Broadcast), Cmd=0x12, Payload=00020000
+Decoded: Src=0074 (ICI Gas Heater), Dst=FFFF (Broadcast), Cmd=0x16, Payload=0D
+
+--- Case 25 ---
+Resync:  bad_end
+Discard: Discarding 9 byte(s) before next start byte: 00 A0 FF FF 80 00 3B 0E 69
+Decoded: Src=00A0 (Viron XT Pump), Dst=FFFF (Broadcast), Cmd=0x3B, Payload=0465
+Decoded: Src=0062 (Connect 8/10), Dst=FFFF (Broadcast), Cmd=0x0A, Payload=0205
+Decoded: Src=0062 (Connect 8/10), Dst=FFFF (Broadcast), Cmd=0x16, Payload=0000
+
+--- Case 26 ---
+Resync:  bad_end
+Discard: Discarding 11 byte(s) before next start byte: 00 A0 FF FF 80 00 3B 0E 69 04 65
+Resync:  bad_end
+Discard: Discarding 11 byte(s) before next start byte: 00 A0 FF FF 80 00 3B 0E 69 04 65
+Resync:  bad_end
+Discard: Discarding 9 byte(s) before next start byte: 00 A0 FF FF 80 00 3B 0E 69
+Decoded: Src=00A0 (Viron XT Pump), Dst=FFFF (Broadcast), Cmd=0x3B, Payload=0465
+Decoded: Src=0062 (Connect 8/10), Dst=FFFF (Broadcast), Cmd=0x0A, Payload=0205
+
+--- Case 27 ---
+Resync:  header_checksum
+Discard: Discarding 4 byte(s) before next start byte: 00 A0 FF FF
+Decoded: Src=00A0 (Viron XT Pump), Dst=FFFF (Broadcast), Cmd=0x3B, Payload=0465
+
+--- Case 28 ---
+Resync:  header_checksum
+Discard: Discarding 3 byte(s) before next start byte: 00 00 FF
+Decoded: Src=00A0 (Viron XT Pump), Dst=FFFF (Broadcast), Cmd=0x3B, Payload=0465
+
+--- Case 29 ---
+Resync:  header_checksum
+Decoded: Src=0062 (Connect 8/10), Dst=FFFF (Broadcast), Cmd=0x16, Payload=0000
+
+--- Case 30 ---
+Resync:  header_checksum
+Discard: Discarding 1 byte(s) before next start byte: 20
+Decoded: Src=00A0 (Viron XT Pump), Dst=FFFF (Broadcast), Cmd=0x3B, Payload=0465
+
+--- Case 31 ---
+Resync:  header_checksum
+Discard: Discarding 1 byte(s) before next start byte: 20
+Decoded: Src=0062 (Connect 8/10), Dst=0050 (Touch Screen), Cmd=0x2B, Payload=0200
+
+--- Case 32 ---
+Resync:  header_checksum
+Discard: Discarding 3 byte(s) before next start byte: 00 00 FF
+
+--- Case 33 ---
+Resync:  bad_end
+Discard: Discarding 9 byte(s) before next start byte: 00 A0 FF FF 80 00 3B 0E 69
+Decoded: Src=0062 (Connect 8/10), Dst=0050 (Touch Screen), Cmd=0x2B, Payload=0200
+Decoded: Src=00A0 (Viron XT Pump), Dst=FFFF (Broadcast), Cmd=0x3B, Payload=0465
+Decoded: Src=0074 (ICI Gas Heater), Dst=FFFF (Broadcast), Cmd=0x12, Payload=00020000
+
+--- Case 34 ---
+Resync:  bad_end
+Discard: Discarding 9 byte(s) before next start byte: 00 A0 FF FF 80 00 3B 0E 69
+Resync:  bad_end
+Discard: Discarding 12 byte(s) before next start byte: 00 A0 FF FF 80 00 3B 0E 69 04 65 69
+Decoded: Src=00A0 (Viron XT Pump), Dst=FFFF (Broadcast), Cmd=0x3B, Payload=0465
+Decoded: Src=0050 (Touch Screen), Dst=FFFF (Broadcast), Cmd=0x38, Payload=F001FF
+
+--- Case 35 ---
+Resync:  header_checksum
+Discard: Discarding 2 byte(s) before next start byte: 00 A0
+Resync:  header_checksum
+Discard: Discarding 4 byte(s) before next start byte: 00 A0 FF FF
+Decoded: Src=00A0 (Viron XT Pump), Dst=FFFF (Broadcast), Cmd=0x3B, Payload=0465
+
+--- Case 36 ---
+Resync:  header_checksum
+Discard: Discarding 4 byte(s) before next start byte: 00 A0 FF FF
+Decoded: Src=00A0 (Viron XT Pump), Dst=FFFF (Broadcast), Cmd=0x3B, Payload=0465
+Decoded: Src=0050 (Touch Screen), Dst=FFFF (Broadcast), Cmd=0x38, Payload=7C0246696C7465722050756D7000
+

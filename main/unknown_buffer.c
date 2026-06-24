@@ -22,12 +22,12 @@ void unknown_buffer_init(void)
 // Otherwise, a new record is created, evicting the least frequently used record if the
 // buffer is full.
 //
-// Note on matching: A match is defined as the same error status, the same length, and
+// Note on matching: A match is defined as the same reason, the same length, and
 // the same first `UNKNOWN_BUFFER_MAX_RAW_BYTES` bytes. As we cap stored bytes to
 // `UNKNOWN_BUFFER_MAX_RAW_BYTES`, this means we can't distinguish between two different
 // frames that only differ in the bytes after `UNKNOWN_BUFFER_MAX_RAW_BYTES`. This is a
 // known limitation of this implementation.
-void unknown_buffer_record(const uint8_t *data, int len, bool is_error)
+void unknown_buffer_record(const uint8_t *data, int len, unknown_reason_t reason)
 {
     if (!s_mutex || !data || len <= 0) return;
 
@@ -38,7 +38,7 @@ void unknown_buffer_record(const uint8_t *data, int len, bool is_error)
     if (xSemaphoreTake(s_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) return;
 
     for (int i = 0; i < s_count; i++) {
-        if (s_entries[i].is_error == is_error &&
+        if (s_entries[i].reason == reason &&
             s_entries[i].raw_len == (uint16_t)len &&
             memcmp(s_entries[i].raw, data, (size_t)store_len) == 0) {
             s_entries[i].hit_count++;
@@ -69,9 +69,27 @@ void unknown_buffer_record(const uint8_t *data, int len, bool is_error)
     e->hit_count  = 1;
     e->first_seen = now;
     e->last_seen  = now;
-    e->is_error   = is_error;
+    e->reason     = reason;
+    e->is_error   = (reason != UNKNOWN_REASON_UNHANDLED);
 
     xSemaphoreGive(s_mutex);
+}
+
+const char *unknown_reason_str(unknown_reason_t reason)
+{
+    switch (reason) {
+        case UNKNOWN_REASON_UNHANDLED:       return "unhandled";
+        case UNKNOWN_REASON_NO_START:        return "no start";
+        case UNKNOWN_REASON_BUFFER_OVERFLOW: return "overflow";
+        case UNKNOWN_REASON_BAD_FRAMING:     return "bad framing";
+        case UNKNOWN_REASON_HEADER_CHECKSUM: return "header checksum";
+        case UNKNOWN_REASON_DATA_CHECKSUM:   return "data checksum";
+        case UNKNOWN_REASON_BAD_CONTROL:     return "bad control";
+        case UNKNOWN_REASON_BAD_LENGTH:      return "bad length";
+        case UNKNOWN_REASON_BAD_END:         return "bad end";
+        case UNKNOWN_REASON_UNEXPECTED:      return "unexpected";
+        default:                             return "error";
+    }
 }
 
 void unknown_buffer_clear(void)
