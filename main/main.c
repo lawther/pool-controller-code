@@ -19,6 +19,7 @@
 #include "tcp_bridge.h"
 #include "message_decoder.h"
 #include "register_requester.h"
+#include "unknown_buffer.h"
 
 // ==================== APPLICATION =====================
 // All configuration values are in config.h
@@ -53,7 +54,7 @@ static bool decode_wrapper(const uint8_t *data, int len)
     return decode_message(data, len, &s_decoder_context);
 }
 
-static void frame_error_wrapper(tcp_bridge_frame_error_t error)
+static void frame_error_wrapper(tcp_bridge_frame_error_t error, const uint8_t *data, int len)
 {
     if (xSemaphoreTake(s_pool_state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
         return;
@@ -65,6 +66,9 @@ static void frame_error_wrapper(tcp_bridge_frame_error_t error)
         case TCP_BRIDGE_FRAME_ERR_NO_END:      s_pool_state.errors_no_end++;      break;
     }
     xSemaphoreGive(s_pool_state_mutex);
+    if (data && len > 0) {
+        unknown_buffer_record(data, len, true);
+    }
 }
 
 // ======================================================
@@ -146,6 +150,7 @@ void app_main(void)
     s_decoder_context.state_mutex = s_pool_state_mutex;
 
     // Initialize hardware
+    unknown_buffer_init();
     bus_init();
     ESP_ERROR_CHECK(led_init());
     led_set_startup();

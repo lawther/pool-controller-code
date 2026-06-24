@@ -133,7 +133,7 @@ static bool extract_and_process_message(int client_sock)
             hex_str[hex_pos] = '\0';
             ESP_LOGW(TAG, "No start byte in buffer, discarding %d bytes: %s%s",
                      s_msg_buffer_len, hex_str, s_msg_buffer_len > 32 ? "..." : "");
-            if (s_config.on_frame_error) s_config.on_frame_error(TCP_BRIDGE_FRAME_ERR_NO_START);
+            if (s_config.on_frame_error) s_config.on_frame_error(TCP_BRIDGE_FRAME_ERR_NO_START, s_msg_buffer, s_msg_buffer_len);
         }
         s_msg_buffer_len = 0;
         return false;
@@ -161,7 +161,7 @@ static bool extract_and_process_message(int client_sock)
         hex_str[hex_pos] = '\0';
         ESP_LOGW(TAG, "Invalid control bytes: %02X %02X (expected 80 00), data: %s%s, discarding start byte",
                  s_msg_buffer[5], s_msg_buffer[6], hex_str, s_msg_buffer_len > 32 ? "..." : "");
-        if (s_config.on_frame_error) s_config.on_frame_error(TCP_BRIDGE_FRAME_ERR_BAD_CONTROL);
+        if (s_config.on_frame_error) s_config.on_frame_error(TCP_BRIDGE_FRAME_ERR_BAD_CONTROL, s_msg_buffer, s_msg_buffer_len);
         // Discard this start byte and look for next
         memmove(s_msg_buffer, &s_msg_buffer[1], s_msg_buffer_len - 1);
         s_msg_buffer_len--;
@@ -241,7 +241,7 @@ static bool extract_and_process_message(int client_sock)
         hex_str[hex_pos] = '\0';
         ESP_LOGW(TAG, "Buffer nearly full (%d bytes) without complete message, first 32 bytes: %s..., clearing",
                  s_msg_buffer_len, hex_str);
-        if (s_config.on_frame_error) s_config.on_frame_error(TCP_BRIDGE_FRAME_ERR_NO_END);
+        if (s_config.on_frame_error) s_config.on_frame_error(TCP_BRIDGE_FRAME_ERR_NO_END, s_msg_buffer, s_msg_buffer_len);
         s_msg_buffer_len = 0;
     }
 
@@ -347,7 +347,7 @@ static void tcp_bridge_task(void *pvParameters)
             } else {
                 ESP_LOGW(TAG, "Reassembly buffer overflow (%d + %d > %d), clearing",
                          s_msg_buffer_len, len, BUS_MESSAGE_MAX_SIZE);
-                if (s_config.on_frame_error) s_config.on_frame_error(TCP_BRIDGE_FRAME_ERR_NO_END);
+                if (s_config.on_frame_error) s_config.on_frame_error(TCP_BRIDGE_FRAME_ERR_NO_END, s_msg_buffer, s_msg_buffer_len);
                 s_msg_buffer_len = 0;
             }
 

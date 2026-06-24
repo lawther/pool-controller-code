@@ -2,6 +2,7 @@
 #include "config.h"
 #include "mqtt_publish.h"
 #include "register_requester.h"
+#include "unknown_buffer.h"
 #include "esp_log.h"
 #include <stdlib.h>
 #include <string.h>
@@ -2883,6 +2884,7 @@ bool decode_message(const uint8_t *data, int len, message_decoder_context_t *ctx
             ctx->pool_state->messages_error_total++;
             xSemaphoreGive(ctx->state_mutex);
         }
+        unknown_buffer_record(data, len, true);
         return false;
     }
 
@@ -2950,6 +2952,8 @@ bool decode_message(const uint8_t *data, int len, message_decoder_context_t *ctx
 
     // Increment global and per-device counters. A frame with any validation
     // error counts as an error only, so decoded + unknown + errors = total.
+    bool record_frame = false;
+    bool record_is_error = false;
     if (ctx->state_mutex) {
         if (xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) == pdTRUE) {
             if (length_error || header_chk_error || data_chk_error) {
@@ -2957,9 +2961,14 @@ bool decode_message(const uint8_t *data, int len, message_decoder_context_t *ctx
                 if (length_error)     ctx->pool_state->errors_length_mismatch++;
                 if (header_chk_error) ctx->pool_state->errors_header_checksum++;
                 if (data_chk_error)   ctx->pool_state->errors_data_checksum++;
+                record_frame = true;
+                record_is_error = true;
             } else {
                 if (decoded) ctx->pool_state->messages_decoded_total++;
-                else         ctx->pool_state->messages_unknown_total++;
+                else {
+                    ctx->pool_state->messages_unknown_total++;
+                    record_frame = true;
+                }
 
                 // Per-device counters (skip broadcast)
                 if (!(src_hi == 0xFF && src_lo == 0xFF)) {
@@ -2973,6 +2982,7 @@ bool decode_message(const uint8_t *data, int len, message_decoder_context_t *ctx
             xSemaphoreGive(ctx->state_mutex);
         }
     }
+    if (record_frame) unknown_buffer_record(data, len, record_is_error);
 
     return decoded;
 }

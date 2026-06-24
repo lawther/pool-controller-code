@@ -13,6 +13,7 @@ idf_component_register(
         "tcp_bridge.c"
         "message_decoder.c"
         "register_requester.c"
+        "unknown_buffer.c"
         "dns_server.c"
     INCLUDE_DIRS
          "."

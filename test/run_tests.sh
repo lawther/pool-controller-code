@@ -7,7 +7,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-SHARED="log_capture.c"
+SHARED=(log_capture.c unknown_buffer_stub.c)
 PASS=0
 FAIL=0
 ERRORS=()
@@ -47,7 +47,7 @@ for test_src in test_*.c; do
     echo "  Compiling: $test_src"
     echo "========================================"
 
-    if gcc -I. -I.. -o "$binary" "$test_src" "$main_src" "$SHARED" 2>&1; then
+    if gcc -I. -I.. -o "$binary" "$test_src" "$main_src" "${SHARED[@]}" 2>&1; then
         if "$binary"; then
             PASS=$((PASS + 1))
         else
@@ -67,7 +67,7 @@ if [ -f test_replay.c ]; then
     echo "  Compiling: test_replay.c"
     echo "========================================"
 
-    if gcc -I. -I.. -o ./run_replay test_replay.c ../main/message_decoder.c "$SHARED" 2>&1; then
+    if gcc -I. -I.. -o ./run_replay test_replay.c ../main/message_decoder.c "${SHARED[@]}" 2>&1; then
         if ./run_replay; then
             PASS=$((PASS + 1))
         else

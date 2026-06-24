@@ -31,8 +31,9 @@ typedef enum {
     TCP_BRIDGE_FRAME_ERR_NO_END,       // Buffer filled without a checksum+END match (too long / corrupt)
 } tcp_bridge_frame_error_t;
 
-// Called when the reassembly layer discards data due to a framing error
-typedef void (*tcp_bridge_frame_error_fn)(tcp_bridge_frame_error_t error);
+// Called when the reassembly layer discards data due to a framing error.
+// data/len are the raw bytes being discarded (may be NULL/0 for overflow cases).
+typedef void (*tcp_bridge_frame_error_fn)(tcp_bridge_frame_error_t error, const uint8_t *data, int len);
 
 /**
  * Configuration structure for TCP bridge
