@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 ### Deprecated
 ### Security
+- Fixed a DOM-based XSS on the home page: channel/zone/valve names read from the bus were injected into the pool status table via `innerHTML`. They are now set with `textContent` so bus-derived strings can never be parsed as HTML/script.
 
 ## [1.6.0] - 2026-06-16
 ### Changed
