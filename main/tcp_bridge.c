@@ -53,16 +53,37 @@ static SemaphoreHandle_t s_stopped_sem = NULL;
  * Send data to the TCP client under the client mutex.
  * All sends to client_sock must go through this to prevent interleaving
  * with the log vprintf callback, which can fire from any task at any time.
+ *
+ * The client socket is non-blocking, so a stalled or dead peer can never wedge
+ * the bridge task. Returns true if the client should be kept, false if it
+ * should be dropped:
+ *   - full send            -> keep
+ *   - buffer full (EAGAIN) -> message dropped, keep. The hex stream is a
+ *                             best-effort debug feed; a truly dead peer is
+ *                             reaped by TCP keepalive / the recv path.
+ *   - partial write        -> drop, since the hex stream is now desynced and a
+ *                             clean reconnect is the safe recovery.
+ *   - other send error     -> drop.
+ * Mutex contention is never the client's fault, so it keeps the client.
  */
-static void send_to_client(int sock, const void *data, int len)
+static bool send_to_client(int sock, const void *data, int len)
 {
     if (sock < 0 || len <= 0) {
-        return;
+        return true;
     }
+    bool keep = true;
     if (s_log_mutex && xSemaphoreTake(s_log_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) == pdTRUE) {
-        send(sock, data, len, 0);
+        int sent = send(sock, data, len, MSG_DONTWAIT);
+        if (sent < 0) {
+            if (errno != EAGAIN && errno != EWOULDBLOCK) {
+                keep = false;
+            }
+        } else if (sent < len) {
+            keep = false;
+        }
         xSemaphoreGive(s_log_mutex);
     }
+    return keep;
 }
 
 /**
@@ -107,6 +128,21 @@ static void tcp_bridge_set_log_client(int sock)
         s_log_client_sock = sock;
         xSemaphoreGive(s_log_mutex);
     }
+}
+
+/**
+ * Tear down the current TCP client: disable log forwarding, close the socket,
+ * and reset the per-client line buffer. Safe to call with no client connected.
+ */
+static void tcp_bridge_close_client(int *client_sock, int *line_pos)
+{
+    tcp_bridge_set_log_client(-1);  // Disable log forwarding before closing the fd
+    if (*client_sock >= 0) {
+        shutdown(*client_sock, SHUT_RDWR);
+        close(*client_sock);
+    }
+    *client_sock = -1;
+    *line_pos = 0;
 }
 
 
@@ -179,18 +215,40 @@ static void tcp_bridge_task(void *pvParameters)
                 inet_ntoa_r(client_addr.sin_addr, addr_str, sizeof(addr_str) - 1);
                 ESP_LOGI(TAG, "Client connected from %s", addr_str);
 
-                const char *hello =
-                    "Connected to pool control bus bridge.\r\n"
-                    "UART bytes will be shown here in hex.\r\n"
-                    "Decoded messages will also be shown.\r\n"
-                    "Send hex strings (e.g., '02 00 50 FF FF 03') to transmit to the bus.\r\n\r\n";
-                send_to_client(client_sock, hello, strlen(hello));
+                // Make the client socket non-blocking so a stalled or dead peer
+                // can never wedge the bridge task — which is also the only task
+                // reading the UART. A full send buffer now returns immediately
+                // instead of blocking the task indefinitely.
+                int cflags = fcntl(client_sock, F_GETFL, 0);
+                fcntl(client_sock, F_SETFL, cflags | O_NONBLOCK);
+
+                // Enable TCP keepalive so a silently dead peer (one that never
+                // sends FIN/RST) is detected and the single client slot freed,
+                // without relying on the peer to send us anything.
+                int ka_enable = 1;
+                int ka_idle   = TCP_KEEPALIVE_IDLE_SEC;
+                int ka_intvl  = TCP_KEEPALIVE_INTERVAL_SEC;
+                int ka_count  = TCP_KEEPALIVE_COUNT;
+                setsockopt(client_sock, SOL_SOCKET,  SO_KEEPALIVE, &ka_enable, sizeof(ka_enable));
+                setsockopt(client_sock, IPPROTO_TCP, TCP_KEEPIDLE,  &ka_idle,  sizeof(ka_idle));
+                setsockopt(client_sock, IPPROTO_TCP, TCP_KEEPINTVL, &ka_intvl, sizeof(ka_intvl));
+                setsockopt(client_sock, IPPROTO_TCP, TCP_KEEPCNT,   &ka_count, sizeof(ka_count));
 
                 // Enable log forwarding for this client
                 tcp_bridge_set_log_client(client_sock);
 
                 // Reset line buffer for new client
                 line_pos = 0;
+
+                const char *hello =
+                    "Connected to pool control bus bridge.\r\n"
+                    "UART bytes will be shown here in hex.\r\n"
+                    "Decoded messages will also be shown.\r\n"
+                    "Send hex strings (e.g., '02 00 50 FF FF 03') to transmit to the bus.\r\n\r\n";
+                if (!send_to_client(client_sock, hello, strlen(hello))) {
+                    ESP_LOGI(TAG, "Client dropped during greeting");
+                    tcp_bridge_close_client(&client_sock, &line_pos);
+                }
             }
         }
 
@@ -250,7 +308,10 @@ static void tcp_bridge_task(void *pvParameters)
                     if (client_sock >= 0) {
                         hexLine[hex_pos]     = '\r';
                         hexLine[hex_pos + 1] = '\n';
-                        send_to_client(client_sock, hexLine, hex_pos + 2);
+                        if (!send_to_client(client_sock, hexLine, hex_pos + 2)) {
+                            // Decoding above already ran; just drop the client.
+                            tcp_bridge_close_client(&client_sock, &line_pos);
+                        }
                     }
                 } else if (s_config.on_resync) {
                     // Map each framing failure to its own resync category so the
@@ -290,7 +351,10 @@ static void tcp_bridge_task(void *pvParameters)
                     char c = tcp_buf[i];
 
                     // Echo the character back to the client
-                    send_to_client(client_sock, &c, 1);
+                    if (!send_to_client(client_sock, &c, 1)) {
+                        tcp_bridge_close_client(&client_sock, &line_pos);
+                        break;
+                    }
 
                     if (c == '\n' || c == '\r') {
                         // End of line - process the accumulated command
@@ -321,9 +385,10 @@ static void tcp_bridge_task(void *pvParameters)
 
                             // Parse and send the hex string
                             int sent = s_config.uart_write(line_buf);
+                            bool client_kept = true;
                             if (sent > 0) {
                                 const char *ok_msg = "OK - sent\r\n";
-                                send_to_client(client_sock, ok_msg, strlen(ok_msg));
+                                client_kept = send_to_client(client_sock, ok_msg, strlen(ok_msg));
 
                                 // Decode the sent message (will be logged via custom vprintf)
                                 if (s_config.decode_message && s_last_tx_len > 0) {
@@ -336,11 +401,16 @@ static void tcp_bridge_task(void *pvParameters)
                                 }
                             } else {
                                 const char *err_msg = "ERROR - invalid hex string\r\n";
-                                send_to_client(client_sock, err_msg, strlen(err_msg));
+                                client_kept = send_to_client(client_sock, err_msg, strlen(err_msg));
                                 s_last_tx_len = 0;  // Clear on error
                             }
 
                             line_pos = 0;  // Reset for next line
+
+                            if (!client_kept) {
+                                tcp_bridge_close_client(&client_sock, &line_pos);
+                                break;
+                            }
                         }
                     } else if (c == 0x08 || c == 0x7F) {
                         // Backspace or delete - remove last character
@@ -354,26 +424,22 @@ static void tcp_bridge_task(void *pvParameters)
                         } else {
                             // Buffer full - reset
                             const char *overflow_msg = "\r\nERROR - line too long\r\n";
-                            send_to_client(client_sock, overflow_msg, strlen(overflow_msg));
+                            bool kept = send_to_client(client_sock, overflow_msg, strlen(overflow_msg));
                             line_pos = 0;
+                            if (!kept) {
+                                tcp_bridge_close_client(&client_sock, &line_pos);
+                                break;
+                            }
                         }
                     }
                 }
             } else if (r == 0) {
                 ESP_LOGI(TAG, "Client disconnected");
-                tcp_bridge_set_log_client(-1);  // Disable log forwarding
-                shutdown(client_sock, SHUT_RDWR);
-                close(client_sock);
-                client_sock = -1;
-                line_pos = 0;  // Reset line buffer
+                tcp_bridge_close_client(&client_sock, &line_pos);
             } else {
                 if (errno != EAGAIN && errno != EWOULDBLOCK) {
                     ESP_LOGW(TAG, "Client recv error: errno %d", errno);
-                    tcp_bridge_set_log_client(-1);  // Disable log forwarding
-                    shutdown(client_sock, SHUT_RDWR);
-                    close(client_sock);
-                    client_sock = -1;
-                    line_pos = 0;  // Reset line buffer
+                    tcp_bridge_close_client(&client_sock, &line_pos);
                 }
             }
         }

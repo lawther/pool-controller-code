@@ -101,6 +101,13 @@
 #define TCP_TASK_STACK_SIZE            8192    // TCP bridge task stack size
 #define TCP_TASK_PRIORITY              5       // TCP bridge task priority
 
+// TCP keepalive — reap a silently dead client (one that never sends FIN/RST)
+// so the single client slot is freed. Worst-case detection time is roughly
+// IDLE + INTERVAL * COUNT seconds.
+#define TCP_KEEPALIVE_IDLE_SEC         30      // Idle seconds before the first keepalive probe
+#define TCP_KEEPALIVE_INTERVAL_SEC     5       // Seconds between probes
+#define TCP_KEEPALIVE_COUNT            3       // Failed probes before dropping the connection
+
 // ======================================================
 // Buffer Sizes
 // ======================================================

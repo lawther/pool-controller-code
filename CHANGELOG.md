@@ -31,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Frame parser and decoder now also accept "discovery" packets (control bytes `0x00 0x00`): a shorter 11-byte frame shape with no payload and no data-checksum byte, alongside the existing `0x80 0x00` data packets
 ### Removed
 ### Fixed
+- TCP bridge no longer hangs when a connected client stalls or dies silently. The client socket is now non-blocking with a keep/drop policy on every send (full send keeps the client; a full send buffer drops the message but keeps the connection; a partial write or hard error drops the client), so a stuck peer can never wedge the bridge task — which is also the only task reading the UART, meaning such a wedge previously froze the whole device with no logs and no recovery. Added TCP keepalive (idle 30s, interval 5s, count 3) so a silently dead peer is detected and the single client slot freed.
 ### Deprecated
 ### Security
 
