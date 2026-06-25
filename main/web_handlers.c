@@ -639,6 +639,7 @@ static esp_err_t status_get_handler(httpd_req_t *req)
     cJSON_AddNumberToObject(resyncs, "bad_end",         state.resyncs_bad_end);
     cJSON_AddNumberToObject(resyncs, "data_checksum",   state.resyncs_bad_data_checksum);
     cJSON_AddNumberToObject(resyncs, "buffer_overflow", state.resyncs_buffer_overflow);
+    cJSON_AddNumberToObject(resyncs, "unexpected",      state.resyncs_unexpected);
     cJSON_AddItemToObject(root, "resyncs", resyncs);
 
     // Devices observed on the bus

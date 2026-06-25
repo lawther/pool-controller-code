@@ -259,6 +259,7 @@ typedef struct {
     uint32_t resyncs_bad_end;             // End byte != 0x03 at declared length
     uint32_t resyncs_bad_data_checksum;   // Data checksum mismatch
     uint32_t resyncs_buffer_overflow;     // Buffer filled without a complete frame
+    uint32_t resyncs_unexpected;          // Resync for unexpected reason - this should be investigated
 
     // Timers (up to MAX_TIMERS)
     timer_state_t timers[MAX_TIMERS];
