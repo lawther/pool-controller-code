@@ -35,6 +35,7 @@ Requires ESP-IDF v5.5+ with environment sourced (`. $IDF_PATH/export.sh`).
 - **mqtt_commands.c/.h**: MQTT command subscription and handling
 - **web_handlers.c/.h**: HTTP server endpoints (status, provisioning, MQTT config)
 - **led_helper.c/.h**: WS2812 LED control for status indication
+- **heap_monitor.c/.h**: Low-priority task that periodically logs heap stats (free, min-free watermark, largest block) for leak/fragmentation diagnostics
 
 ### Key Components
 
@@ -84,5 +85,6 @@ main.c
   │     ├─> mqtt_discovery (Home Assistant integration)
   │     └─> mqtt_commands (handle MQTT commands)
   ├─> web_handlers (HTTP API)
-  └─> led_helper (status LED)
+  ├─> led_helper (status LED)
+  └─> heap_monitor (periodic heap-stats logging)
 ```

@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - Saving of unknown bus messages, added web UI to view them
+- Periodic heap-stats logging (free, minimum-free watermark, largest free block) every 5 minutes via a new low-priority `heap_monitor` task, so a slow memory leak or growing fragmentation is visible as a trend in the console/TCP log history before it can exhaust the heap. The home page System table now also shows a Memory row (free / min-free), using the `memory` fields already present in the `/status` JSON.
 ### Changed
 - Note about CMD 0x05 observed with payload 0x00. Added to PROTOCOL.md and new sample trace.
 - Note about CMD 0x12 observed with payload 0x01 0x00. Added to PROTOCOL.md and new sample trace.

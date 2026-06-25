@@ -16,6 +16,7 @@ idf_component_register(
         "register_requester.c"
         "unknown_buffer.c"
         "dns_server.c"
+        "heap_monitor.c"
     INCLUDE_DIRS
          "."
     EMBED_TXTFILES
