@@ -1,0 +1,28 @@
+--- Case 1 ---
+Resync:  no_start
+
+--- Case 2 ---
+Resync:  header_checksum
+Discard: Discarding 2 byte(s) before next start byte: 00 A0
+Decoded: Src=00A0 (Viron XT Pump), Dst=FFFF (Broadcast), Cmd=0x3B, Payload=0465
+
+--- Case 3 ---
+Resync:  bad_control
+Discard: Discarding 9 byte(s) before next start byte: 00 50 FF FF 12 34 16 0E BA
+Decoded: Src=00A0 (Viron XT Pump), Dst=FFFF (Broadcast), Cmd=0x3B, Payload=0465
+
+--- Case 4 ---
+Resync:  bad_length
+Discard: Discarding 9 byte(s) before next start byte: 00 50 FF FF 80 00 16 05 EB
+Decoded: Src=00A0 (Viron XT Pump), Dst=FFFF (Broadcast), Cmd=0x3B, Payload=0465
+
+--- Case 5 ---
+Resync:  bad_end
+Discard: Discarding 12 byte(s) before next start byte: 00 A0 FF FF 80 00 3B 0E 69 05 F5 FA
+Decoded: Src=00A0 (Viron XT Pump), Dst=FFFF (Broadcast), Cmd=0x3B, Payload=0465
+
+--- Case 6 ---
+Resync:  data_checksum
+Discard: Discarding 13 byte(s) before next start byte: 00 A0 FF FF 80 00 3B 0E 69 04 65 6A 03
+Decoded: Src=00A0 (Viron XT Pump), Dst=FFFF (Broadcast), Cmd=0x3B, Payload=0465
+

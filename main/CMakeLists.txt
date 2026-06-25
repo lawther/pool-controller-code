@@ -11,6 +11,7 @@ idf_component_register(
         "mqtt_commands.c"
         "web_handlers.c"
         "tcp_bridge.c"
+        "framing.c"
         "message_decoder.c"
         "register_requester.c"
         "unknown_buffer.c"

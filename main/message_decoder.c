@@ -2906,12 +2906,7 @@ bool decode_message(const uint8_t *data, int len, message_decoder_context_t *ctx
 
     // Minimum valid message: 10-byte header + data checksum + end byte
     if (len < 12 || data[0] != 0x02 || data[len - 1] != 0x03) {
-        if (ctx->state_mutex && xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) == pdTRUE) {
-            ctx->pool_state->errors_bad_framing++;
-            ctx->pool_state->messages_error_total++;
-            xSemaphoreGive(ctx->state_mutex);
-        }
-        unknown_buffer_record(data, len, true);
+        unknown_buffer_record(data, len, UNKNOWN_REASON_BAD_FRAMING);
         return false;
     }
 
@@ -2926,31 +2921,6 @@ bool decode_message(const uint8_t *data, int len, message_decoder_context_t *ctx
     full_msg[msg_pos] = '\0';
     ESP_LOGI(TAG, "RX MSG: %s", full_msg);
     free(full_msg);
-
-    // Validate length field: byte[8] = total message length including START and END
-    bool length_error = (data[8] != len);
-    if (length_error) {
-        ESP_LOGW(TAG, "Length field mismatch: byte[8]=0x%02X (%d), actual=%d",
-                 data[8], data[8], len);
-    }
-
-    // Validate header checksum: byte[9] = sum(bytes 0-8) & 0xFF
-    uint8_t expected_hchk = 0;
-    for (int i = 0; i < 9; i++) expected_hchk += data[i];
-    bool header_chk_error = (expected_hchk != data[9]);
-    if (header_chk_error) {
-        ESP_LOGW(TAG, "Header checksum FAILED: expected 0x%02X, got 0x%02X",
-                 expected_hchk, data[9]);
-    }
-
-    // Validate data checksum
-    bool data_chk_error = !verify_message_checksum(data, len);
-    if (data_chk_error) {
-        uint32_t sum = 0;
-        for (int i = 10; i < len - 2; i++) sum += data[i];
-        ESP_LOGW(TAG, "Data checksum FAILED: expected 0x%02X, got 0x%02X",
-                 (uint8_t)(sum & 0xFF), data[len - 2]);
-    }
 
     // Extract data payload section (bytes 10 to len-3)
     // Message format: [START=0][SRC=1-2][DST=3-4][CTRL=5-6][CMD=7][LEN=8][HDR_CHK=9][DATA=10...][DATA_CHK=len-2][END=len-1]
@@ -2977,39 +2947,28 @@ bool decode_message(const uint8_t *data, int len, message_decoder_context_t *ctx
 
     bool decoded = dispatch_message(data, len, payload, payload_len, addr_info, ctx);
 
-    // Increment global and per-device counters. A frame with any validation
-    // error counts as an error only, so decoded + unknown + errors = total.
+    // Increment global and per-device counters.
     bool record_frame = false;
-    bool record_is_error = false;
     if (ctx->state_mutex) {
         if (xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) == pdTRUE) {
-            if (length_error || header_chk_error || data_chk_error) {
-                ctx->pool_state->messages_error_total++;
-                if (length_error)     ctx->pool_state->errors_length_mismatch++;
-                if (header_chk_error) ctx->pool_state->errors_header_checksum++;
-                if (data_chk_error)   ctx->pool_state->errors_data_checksum++;
+            if (decoded) ctx->pool_state->messages_decoded_total++;
+            else {
+                ctx->pool_state->messages_unknown_total++;
                 record_frame = true;
-                record_is_error = true;
-            } else {
-                if (decoded) ctx->pool_state->messages_decoded_total++;
-                else {
-                    ctx->pool_state->messages_unknown_total++;
-                    record_frame = true;
-                }
+            }
 
-                // Per-device counters (skip broadcast)
-                if (!(src_hi == 0xFF && src_lo == 0xFF)) {
-                    int idx = find_or_insert_seen_device_locked(ctx->pool_state, src_hi, src_lo);
-                    if (idx >= 0) {
-                        if (decoded) ctx->pool_state->seen_devices[idx].decoded_count++;
-                        else         ctx->pool_state->seen_devices[idx].unknown_count++;
-                    }
+            // Per-device counters (skip broadcast)
+            if (!(src_hi == 0xFF && src_lo == 0xFF)) {
+                int idx = find_or_insert_seen_device_locked(ctx->pool_state, src_hi, src_lo);
+                if (idx >= 0) {
+                    if (decoded) ctx->pool_state->seen_devices[idx].decoded_count++;
+                    else         ctx->pool_state->seen_devices[idx].unknown_count++;
                 }
             }
             xSemaphoreGive(ctx->state_mutex);
         }
     }
-    if (record_frame) unknown_buffer_record(data, len, record_is_error);
+    if (record_frame) unknown_buffer_record(data, len, UNKNOWN_REASON_UNHANDLED);
 
     return decoded;
 }

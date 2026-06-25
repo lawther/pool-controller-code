@@ -24,6 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Note about CMD 0x12 observed with payload 0x01 0x00. Added to PROTOCOL.md and new sample trace.
 - Parsing for CMD 0x12 updated so `0x01 0x00` no longer reported as unexpected.
 - Full decoding of CMD 0x12 status byte for Gas Heaters (HiNRG `0x0072` and ICI (`0x0074`))
+- Rewrote frame level parser to use a sliding window for better resync on errors
+- Track frame resync events per failure type (no-start, header/data checksum, control, length, end-byte, overflow) and show the breakdown on the status page, separate from message-level decode errors
+- Unknown Messages page now tags each captured frame with its specific reason (no start, overflow, header/data checksum, length, bad framing) instead of a generic "error" chip
+- **Breaking (HTTP):** `/status` JSON's `message_counts.errors` (per-type protocol error counters) and `message_counts.error_detail` (introduced in 1.6.0-rc1) are removed, replaced by the new per-type `resyncs` object (`total`, `no_start`, `header_checksum`, `bad_control`, `bad_length`, `bad_end`, `data_checksum`, `buffer_overflow`) emitted by the sliding-window frame parser. Any external consumer reading the old fields needs to switch to `resyncs`.
 ### Removed
 ### Fixed
 ### Deprecated

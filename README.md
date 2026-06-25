@@ -244,6 +244,8 @@ From VS Code inside the devcontainer: **Cmd+Shift+P → "Tasks: Run Task"** list
 - **Replay: all samples** — just the replay step.
 - **Replay: bless all samples** — rewrite expected output in every sample using the current decoder's output. Use after intentional decoder/logging changes, then review `git diff test/samples/` before committing.
 - **Replay: single file** / **Replay: bless single file** — same but prompted for a single path.
+- **Framing: run** — exercise the sliding-window frame parser against the goldens in `test/frames/`.
+- **Framing: bless goldens** — regenerate `test/frames/*_output.txt` from the current parser. Use after intentional framing changes, then review `git diff test/frames/` before committing.
 
 ### Adding a regression sample
 
@@ -251,6 +253,19 @@ From VS Code inside the devcontainer: **Cmd+Shift+P → "Tasks: Run Task"** list
 2. Drop the file into `test/samples/`.
 3. Run **Replay: bless single file** against it — this normalises the expected output to the current decoder.
 4. Review with `git diff`, then commit. The file is now a regression test.
+
+### Frame parser (sliding window) tests
+
+The frame parser is tested separately from the decoder: each line of `test/frames/observed_error_frames.txt` (real bus captures) and `test/frames/synthetic_errors.txt` (synthetic, one per failure mode) is fed to the parser, and the ordered stream of resync events (`Resync:  <type>`) and decoded frames is diffed against the matching `--- Case N ---` block in the `*_output.txt` golden. On a mismatch the failure prints the source location as `path:line`.
+
+The goldens are blessable from the CLI, mirroring replay:
+
+```bash
+cd test
+gcc -I. -I.. -o run_framing test_framing.c log_capture.c && ./run_framing --bless; rm -f run_framing
+```
+
+After blessing, review `git diff test/frames/` — the diff is the exact record of how parser behaviour changed.
 
 ### Improving "Unhandled" message logging
 

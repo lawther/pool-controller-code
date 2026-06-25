@@ -1,0 +1,28 @@
+# Synthetic single-failure-mode frames for the sliding-window parser.
+#
+# Unlike observed_error_frames.txt (real bus captures, each case here isolates
+# exactly one framing_result_t failure. Frames are hand-built with a valid header
+# checksum so the parser reaches the intended check, then — except no_start —
+# followed by a known-good frame to prove the parser resyncs and recovers.
+#
+# Known good frame: 02 00 A0 FF FF 80 00 3B 0E 69 04 65 69 03
+#   (Viron XT Pump, CMD 0x3B, payload 04 65)
+
+# no_start: 12 bytes with no START (0x02) anywhere -> whole buffer discarded
+FF FF FF FF FF FF FF FF FF FF FF FF
+
+# header_checksum: stuttered pump prefix so the next 0x02 lands where byte 9
+# (header checksum) is read; sum(bytes 0-8) != byte 9
+02 00 A0 02 00 A0 FF FF 80 00 3B 0E 69 04 65 69 03
+
+# bad_control: valid header checksum (0xBA) but control bytes (5-6) = 12 34
+02 00 50 FF FF 12 34 16 0E BA 02 00 A0 FF FF 80 00 3B 0E 69 04 65 69 03
+
+# bad_length: valid header checksum (0xEB) but length field (byte 8) = 0x05 (< 12)
+02 00 50 FF FF 80 00 16 05 EB 02 00 A0 FF FF 80 00 3B 0E 69 04 65 69 03
+
+# bad_end: valid header, length 0x0E, but byte 13 is the next frame's 0x02, not 0x03
+02 00 A0 FF FF 80 00 3B 0E 69 05 F5 FA 02 00 A0 FF FF 80 00 3B 0E 69 04 65 69 03
+
+# data_checksum: valid header and correct end byte, but data checksum = 0x6A (should be 0x69)
+02 00 A0 FF FF 80 00 3B 0E 69 04 65 6A 03 02 00 A0 FF FF 80 00 3B 0E 69 04 65 69 03

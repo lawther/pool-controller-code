@@ -246,20 +246,19 @@ typedef struct {
     uint32_t messages_decoded_total;
     uint32_t messages_unknown_total;
 
-    // Protocol-level error counts. Framing errors (no_start/bad_control/no_end)
-    // are counted in the bridge reassembly layer and the bytes never reach the
-    // decoder. Validation errors (length/header_checksum/data_checksum) are
-    // counted in decode_message; the frame is still dispatched but counts as
-    // an error instead of decoded/unknown. messages_error_total increments
-    // once per error event (a frame with multiple validation errors counts once).
-    uint32_t messages_error_total;
-    uint32_t errors_no_start;          // Bytes discarded: no START (0x02) in buffer
-    uint32_t errors_bad_control;       // START found but control bytes != 80 00
-    uint32_t errors_no_end;            // No checksum+END match before buffer filled (too long / corrupt)
-    uint32_t errors_bad_framing;       // Frame too short or missing START/END markers
-    uint32_t errors_length_mismatch;   // Length field (byte 8) != actual frame length
-    uint32_t errors_header_checksum;   // Header checksum (byte 9) mismatch
-    uint32_t errors_data_checksum;     // Data checksum mismatch
+    // Frame resync events counted in the bridge reassembly layer. These are
+    // byte-level recovery events, not messages: the discarded bytes never reach
+    // the decoder, so they are tracked separately from messages_* above. A clean
+    // stutter typically costs one resync; sustained noise costs one per byte
+    // stepped. resyncs_total is the sum of the per-type counters below.
+    uint32_t resyncs_total;
+    uint32_t resyncs_no_start;            // No START (0x02) in buffer; run discarded
+    uint32_t resyncs_bad_header_checksum; // Header checksum (byte 9) mismatch
+    uint32_t resyncs_bad_control;         // Control bytes (5-6) != 80 00
+    uint32_t resyncs_bad_length;          // Length field (byte 8) out of range
+    uint32_t resyncs_bad_end;             // End byte != 0x03 at declared length
+    uint32_t resyncs_bad_data_checksum;   // Data checksum mismatch
+    uint32_t resyncs_buffer_overflow;     // Buffer filled without a complete frame
 
     // Timers (up to MAX_TIMERS)
     timer_state_t timers[MAX_TIMERS];

@@ -1,0 +1,22 @@
+--- Case 1 ---
+Decoded: Src=00A0 (Viron XT Pump), Dst=FFFF (Broadcast), Cmd=0x3B, Payload=0465
+
+--- Case 2 ---
+Decoded: Src=00A0 (Viron XT Pump), Dst=FFFF (Broadcast), Cmd=0x3B, Payload=0465
+
+--- Case 3 ---
+Decoded: Src=00A0 (Viron XT Pump), Dst=FFFF (Broadcast), Cmd=0x3B, Payload=0465
+
+--- Case 4 ---
+Decoded: Src=00A0 (Viron XT Pump), Dst=FFFF (Broadcast), Cmd=0x3B, Payload=0465
+
+--- Case 5 ---
+Resync:  header_checksum
+Discard: Discarding 2 byte(s) before next start byte: 00 A0
+Decoded: Src=00A0 (Viron XT Pump), Dst=FFFF (Broadcast), Cmd=0x3B, Payload=0465
+
+--- Case 6 ---
+Resync:  data_checksum
+Discard: Discarding 13 byte(s) before next start byte: 00 A0 FF FF 80 00 3B 0E 69 04 65 6A 03
+Decoded: Src=00A0 (Viron XT Pump), Dst=FFFF (Broadcast), Cmd=0x3B, Payload=0465
+

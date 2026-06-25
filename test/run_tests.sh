@@ -30,7 +30,7 @@ is_skipped() {
 }
 
 for test_src in test_*.c; do
-    if [ "$test_src" = "test_replay.c" ]; then
+    if [ "$test_src" = "test_replay.c" ] || [ "$test_src" = "test_framing.c" ]; then
         continue
     fi
     if is_skipped "$test_src"; then
@@ -60,6 +60,26 @@ for test_src in test_*.c; do
         ERRORS+=("$test_src (compile error)")
     fi
 done
+
+# Run framing tests.
+if [ -f test_framing.c ]; then
+    echo "========================================"
+    echo "  Compiling: test_framing.c"
+    echo "========================================"
+
+    if gcc -I. -I.. -o ./run_framing test_framing.c "${SHARED[@]}" 2>&1; then
+        if ./run_framing; then
+            PASS=$((PASS + 1))
+        else
+            FAIL=$((FAIL + 1))
+            ERRORS+=("test_framing.c (framing failures)")
+        fi
+        rm -f ./run_framing
+    else
+        FAIL=$((FAIL + 1))
+        ERRORS+=("test_framing.c (compile error)")
+    fi
+fi
 
 # Replay sample logs through the real decoder.
 if [ -f test_replay.c ]; then
