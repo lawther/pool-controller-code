@@ -2,3 +2,7 @@
 I (23:22:12.177) MSG_DECODER: RX MSG: 02 00 81 FF FF 80 00 12 0D 20 00 00 03 
 I (23:22:12.179) MSG_DECODER: [VX 11S v3 Salt Chlorinator -> Broadcast] VX 11S v3 Salt Chlorinator status: 0x00
 02 00 81 FF FF 80 00 12 0D 20 00 00 03 
+
+I (23:22:13.177) MSG_DECODER: RX MSG: 02 00 81 FF FF 00 00 13 0B 9F 03
+W (23:22:13.178) MSG_DECODER: Unhandled [VX 11S v3 Salt Chlorinator -> Broadcast] CMD=0x13 (Unknown CMD 0x13) LEN=11 payload=[]
+02 00 81 FF FF 00 00 13 0B 9F 03
