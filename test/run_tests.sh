@@ -43,11 +43,18 @@ for test_src in test_*.c; do
     main_src="../main/${module}.c"
     binary="./run_${module}"
 
+    # message_decoder.c now shares its data/discovery packet classification
+    # with framing.c - link it in for that one module.
+    extra_srcs=()
+    if [ "$module" = "message_decoder" ]; then
+        extra_srcs=(../main/framing.c)
+    fi
+
     echo "========================================"
     echo "  Compiling: $test_src"
     echo "========================================"
 
-    if gcc -I. -I.. -o "$binary" "$test_src" "$main_src" "${SHARED[@]}" 2>&1; then
+    if gcc -I. -I.. -o "$binary" "$test_src" "$main_src" ${extra_srcs[@]+"${extra_srcs[@]}"} "${SHARED[@]}" 2>&1; then
         if "$binary"; then
             PASS=$((PASS + 1))
         else
@@ -87,7 +94,7 @@ if [ -f test_replay.c ]; then
     echo "  Compiling: test_replay.c"
     echo "========================================"
 
-    if gcc -I. -I.. -o ./run_replay test_replay.c ../main/message_decoder.c "${SHARED[@]}" 2>&1; then
+    if gcc -I. -I.. -o ./run_replay test_replay.c ../main/message_decoder.c ../main/framing.c "${SHARED[@]}" 2>&1; then
         if ./run_replay; then
             PASS=$((PASS + 1))
         else

@@ -43,6 +43,17 @@ static void framing_resync_one_byte(framing_buffer_t *fb, uint8_t *out_frame, in
     fb->len--;
 }
 
+framing_packet_type_t framing_classify_packet(uint8_t ctrl_hi, uint8_t ctrl_lo)
+{
+    if (ctrl_hi == 0x80 && ctrl_lo == 0x00) {
+        return FRAMING_PACKET_DATA;
+    }
+    if (ctrl_hi == 0x00 && ctrl_lo == 0x00) {
+        return FRAMING_PACKET_DISCOVERY;
+    }
+    return FRAMING_PACKET_INVALID;
+}
+
 void framing_init(framing_buffer_t *fb)
 {
     if (fb) {
@@ -69,8 +80,10 @@ framing_result_t framing_process_next(framing_buffer_t *fb, uint8_t *out_frame, 
         return FRAMING_NEED_MORE_DATA;
     }
 
-    // Need at least minimum message: START + SRC + DST + CTRL + CMD(3) + CHK + END = 12 bytes
-    if (fb->len < 12) {
+    // Need at least minimum message: START + SRC + DST + CTRL + CMD + LEN + HCHK + END = 11 bytes
+    // (the smallest valid frame has zero payload bytes and no separate data
+    // checksum byte - see the msg_len == 11 special case below)
+    if (fb->len < 11) {
         return FRAMING_NEED_MORE_DATA;
     }
 
@@ -134,21 +147,33 @@ framing_result_t framing_process_next(framing_buffer_t *fb, uint8_t *out_frame, 
         return FRAMING_BAD_HEADER_CHECKSUM;
     }
 
-    // Validate control bytes (positions 5-6 should be 0x80 0x00)
-    if (fb->buffer[5] != 0x80 || fb->buffer[6] != 0x00) {
-        ESP_LOGW(TAG, "Invalid control bytes: %02X %02X (expected 80 00), resyncing by 1 byte",
+    // Validate control bytes (positions 5-6) and classify the packet type
+    framing_packet_type_t packet_type = framing_classify_packet(fb->buffer[5], fb->buffer[6]);
+    if (packet_type == FRAMING_PACKET_INVALID) {
+        ESP_LOGW(TAG, "Invalid control bytes: %02X %02X (expected 80 00 or 00 00), resyncing by 1 byte",
                  fb->buffer[5], fb->buffer[6]);
         framing_resync_one_byte(fb, out_frame, out_len, MIN(fb->len, FRAMING_HEADER_CAPTURE_LEN));
         return FRAMING_BAD_CONTROL_BYTES;
     }
 
-    // Read length from byte 8
+    // Read length from byte 8. Discovery packets are always exactly 11 bytes
+    // (header + END, no payload, no data checksum); data packets are always
+    // at least 12 (header + data-checksum byte + END, plus any payload).
     int msg_len = fb->buffer[8];
-    if (msg_len < 12 || msg_len > BUS_MESSAGE_MAX_SIZE) {
-        ESP_LOGW(TAG, "Invalid length field in header: 0x%02X (%d), resyncing by 1 byte",
-                 msg_len, msg_len);
-        framing_resync_one_byte(fb, out_frame, out_len, MIN(fb->len, FRAMING_HEADER_CAPTURE_LEN));
-        return FRAMING_BAD_LENGTH;
+    if (packet_type == FRAMING_PACKET_DISCOVERY) {
+        if (msg_len != 11) {
+            ESP_LOGW(TAG, "Invalid length field for discovery packet: 0x%02X (%d), expected 0x0B (11), resyncing by 1 byte",
+                     msg_len, msg_len);
+            framing_resync_one_byte(fb, out_frame, out_len, MIN(fb->len, FRAMING_HEADER_CAPTURE_LEN));
+            return FRAMING_BAD_LENGTH;
+        }
+    } else {
+        if (msg_len < 12 || msg_len > BUS_MESSAGE_MAX_SIZE) {
+            ESP_LOGW(TAG, "Invalid length field for data packet: 0x%02X (%d), expected >= 0x0C (12), resyncing by 1 byte",
+                     msg_len, msg_len);
+            framing_resync_one_byte(fb, out_frame, out_len, MIN(fb->len, FRAMING_HEADER_CAPTURE_LEN));
+            return FRAMING_BAD_LENGTH;
+        }
     }
 
     // Check if we have received the full message yet
@@ -164,17 +189,21 @@ framing_result_t framing_process_next(framing_buffer_t *fb, uint8_t *out_frame, 
         return FRAMING_BAD_END_BYTE;
     }
 
-    // Verify data checksum: sum(bytes 10..msg_len-3) & 0xFF
-    uint32_t data_sum = 0;
-    for (int i = 10; i < msg_len - 2; i++) {
-        data_sum += fb->buffer[i];
-    }
-    uint8_t calculated_dchk = data_sum & 0xFF;
-    if (fb->buffer[msg_len - 2] != calculated_dchk) {
-        ESP_LOGW(TAG, "Invalid data checksum: calculated %02X, got %02X, resyncing by 1 byte",
-                 calculated_dchk, fb->buffer[msg_len - 2]);
-        framing_resync_one_byte(fb, out_frame, out_len, msg_len);
-        return FRAMING_BAD_DATA_CHECKSUM;
+    // Verify data checksum: sum(bytes 10..msg_len-3) & 0xFF.
+    // Discovery packets have no data-checksum byte at all (see above), so
+    // there's nothing to verify for them.
+    if (packet_type == FRAMING_PACKET_DATA) {
+        uint32_t data_sum = 0;
+        for (int i = 10; i < msg_len - 2; i++) {
+            data_sum += fb->buffer[i];
+        }
+        uint8_t calculated_dchk = data_sum & 0xFF;
+        if (fb->buffer[msg_len - 2] != calculated_dchk) {
+            ESP_LOGW(TAG, "Invalid data checksum: calculated %02X, got %02X, resyncing by 1 byte",
+                     calculated_dchk, fb->buffer[msg_len - 2]);
+            framing_resync_one_byte(fb, out_frame, out_len, msg_len);
+            return FRAMING_BAD_DATA_CHECKSUM;
+        }
     }
 
     // Valid frame — copy out before consuming from buffer

@@ -59,7 +59,7 @@ All messages follow this basic structure:
 | 0      | START           | Always `0x02`                                                     |
 | 1-2    | SOURCE          | Source device address (big endian)                                |
 | 3-4    | DEST            | Destination device address (big endian)                           |
-| 5-6    | CONTROL         | Control bytes (typically `0x80 0x00`)                             |
+| 5-6    | CONTROL         | Control bytes (`0x80 0x00` or `0x00 0x00`)                        |
 | 7      | COMMAND         | Command byte (message type)                                       |
 | 8      | LENGTH          | Total message length in bytes (including START and END bytes)     |
 | 9      | HEADER_CHECKSUM | Sum of bytes 0–8, masked to 8 bits (`sum(bytes[0..8]) & 0xFF`)    |

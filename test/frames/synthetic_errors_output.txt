@@ -26,3 +26,8 @@ Resync:  data_checksum
 Discard: Discarding 13 byte(s) before next start byte: 00 A0 FF FF 80 00 3B 0E 69 04 65 6A 03
 Decoded: Src=00A0 (Viron XT Pump), Dst=FFFF (Broadcast), Cmd=0x3B, Payload=0465
 
+--- Case 7 ---
+Resync:  bad_length
+Discard: Discarding 10 byte(s) before next start byte: 00 50 FF FF 80 00 99 0B 74 03
+Decoded: Src=00A0 (Viron XT Pump), Dst=FFFF (Broadcast), Cmd=0x3B, Payload=0465
+
