@@ -68,6 +68,7 @@ static void resync_wrapper(tcp_bridge_resync_type_t type, const uint8_t *data, i
         case TCP_BRIDGE_RESYNC_BAD_END:             s_pool_state.resyncs_bad_end++;             break;
         case TCP_BRIDGE_RESYNC_BAD_DATA_CHECKSUM:   s_pool_state.resyncs_bad_data_checksum++;   break;
         case TCP_BRIDGE_RESYNC_BUFFER_OVERFLOW:     s_pool_state.resyncs_buffer_overflow++;     break;
+        default:                                    s_pool_state.resyncs_unexpected++;          break;
     }
     xSemaphoreGive(s_pool_state_mutex);
 

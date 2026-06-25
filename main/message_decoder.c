@@ -2899,6 +2899,11 @@ static bool handle_pump_buttons(
 
 static bool dispatch_message(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 
+// This function assumes the framing layer has validated that the message buffer
+// has valid checksums, start and stop bytes etc. It does not repeat the validation.
+// Note also that this function can be called directly by the test harness and from 
+// the TX-echo path - in these cases it is incumbent on the caller to ensure that
+// messages are valid.
 bool decode_message(const uint8_t *data, int len, message_decoder_context_t *ctx)
 {
     if (!ctx || !ctx->pool_state) {
