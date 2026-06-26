@@ -584,6 +584,78 @@ void test_decode_chlor_ph_setpoint(void)
 }
 
 /**
+ * Test: Chlorinator pump mode unicast
+ * Real message: 02 00 84 00 50 80 00 0F 0E 73 01 03 04 03 (Low)
+ * Pump mode = payload[1] = 0x03
+ */
+void test_decode_chlor_set_pump_mode(void)
+{
+    init_test_context();
+
+    uint8_t msg[] = {
+        0x02, 0x00, 0x84, 0x00, 0x50, 0x80, 0x00,
+        0x0F, 0x0E,  // command 0x0F, length (14)
+        0x73,        // Header checksum
+        0x01,        // fixed byte 10
+        0x03,        // pump speed: 0x03 = Low
+        0x04,        // Data checksum (0x01+0x03 = 0x04)
+        0x03
+    };
+
+    bool decoded = decode_message(msg, sizeof(msg), &test_ctx);
+
+    TEST_ASSERT(decoded, "Chlorinator pump mode should be decoded");
+}
+
+/**
+ * Test: Chlorinator pump mode unicast — unexpected payload[0]
+ * Real message pattern with payload[0]=0x00 instead of 0x01; should still be
+ * recognised (decoded=true) and logged at WARN rather than treated as unknown.
+ */
+void test_decode_chlor_set_pump_mode_bad_byte0(void)
+{
+    init_test_context();
+
+    uint8_t msg[] = {
+        0x02, 0x00, 0x84, 0x00, 0x50, 0x80, 0x00,
+        0x0F, 0x0E,
+        0x73,
+        0x00,        // unexpected: should be 0x01
+        0x03,        // Low
+        0x03,        // Data checksum (0x00+0x03 = 0x03)
+        0x03
+    };
+
+    bool decoded = decode_message(msg, sizeof(msg), &test_ctx);
+
+    TEST_ASSERT(decoded, "Chlorinator pump mode with unexpected payload[0] should still be decoded");
+}
+
+/**
+ * Test: Chlorinator pump mode unicast — out-of-range mode value
+ * payload[1]=0x06 is above the known range (0x00–0x05); should still be
+ * recognised and not counted as an unknown message.
+ */
+void test_decode_chlor_set_pump_mode_bad_mode(void)
+{
+    init_test_context();
+
+    uint8_t msg[] = {
+        0x02, 0x00, 0x84, 0x00, 0x50, 0x80, 0x00,
+        0x0F, 0x0E,
+        0x73,
+        0x01,
+        0x06,        // out-of-range mode
+        0x07,        // Data checksum (0x01+0x06 = 0x07)
+        0x03
+    };
+
+    bool decoded = decode_message(msg, sizeof(msg), &test_ctx);
+
+    TEST_ASSERT(decoded, "Chlorinator pump mode with out-of-range mode should still be decoded");
+}
+
+/**
  * Test: Chlorinator ORP setpoint
  * Real message: 02 00 90 FF FF 80 00 1D 0F 3C 02 8A 02 8E 03
  * ORP setpoint = UINT16_LE(payload[1..2]) = 0x028A = 650 mV
@@ -935,6 +1007,9 @@ int main(void)
     printf("\n--- Chlorinator Tests ---\n");
     test_decode_chlor_ph_setpoint();
     test_decode_chlor_orp_setpoint();
+    test_decode_chlor_set_pump_mode();
+    test_decode_chlor_set_pump_mode_bad_byte0();
+    test_decode_chlor_set_pump_mode_bad_mode();
 
     // Pump tests
     printf("\n--- Pump Tests ---\n");
