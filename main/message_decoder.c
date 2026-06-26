@@ -108,6 +108,10 @@ static const char *MSG_TYPE_ICI_HEATER_TEMP_SETTING = "02 00 74 FF FF 80 00 17 0
 // Chlorinator status broadcast (CMD 0x12) — same payload shape from either variant
 static const char *MSG_TYPE_CHLOR_STATUS_A = "02 00 90 FF FF 80 00 12 0D 2F";
 static const char *MSG_TYPE_CHLOR_STATUS_B = "02 00 84 FF FF 80 00 12 0D 23";
+
+// Chlorinator unicast to Touch screen (CMD 0x0F) — sets pump speed
+static const char *MSG_TYPE_CHLOR_SET_PUMP_MODE = "02 00 84 00 50 80 00 0F 0E 73";
+
 // VX 11S v3 Chlorinator CMD 0x12 status broadcast (meaning unknown; payload always 0x00 in captures)
 static const char *MSG_TYPE_VX11S_STATUS = "02 00 81 FF FF 80 00 12 0D 20";
 
@@ -214,6 +218,7 @@ static const cmd_name_entry_t CMD_NAME_TABLE[] = {
     {0x0A, "Firmware Version"},
     {0x0B, "Channel Status"},
     {0x0D, "Active Channels Bitmask"},
+    {0x0F, "Chlorinator Set Pump Mode"},
     {0x10, "Channel Toggle Cmd"},
     {0x12, "Status/Other"},
     {0x14, "Mode"},
@@ -2081,6 +2086,47 @@ static bool handle_vx11s_status(
 }
 
 /**
+ * Handler: Chlorinator set pump mode unicast
+ * Pattern: "02 00 84 00 50 80 00 0F 0E 73"
+ * Log-only — no pool_state update since the touch screen will talk to the pump,
+ * and the pump will announce its own speed.
+ *
+ * 2-byte payload: first byte is fixed 0x01 (purpose unknown),
+ * second byte is pump mode/speed: 0x00=Off, 0x01=Auto, 0x02=Manual,
+ * 0x03=Low, 0x04=Medium, 0x05=High.
+ */
+static bool handle_chlor_set_pump_mode(
+    const uint8_t *data, int len,
+    const uint8_t *payload, int payload_len,
+    const char *addr_info,
+    message_decoder_context_t *ctx)
+{
+    if (payload_len != 2) return false;
+
+    // Payload 0 is always 0x01, meaning unknown
+    // Payload 1 is always <=5, meaning speed
+    if (payload[0] != 0x01 || payload[1] > 5) {
+        ESP_LOGW(TAG, "%s Chlorinator set pump mode - UNEXPECTED VALUE: payload=0x%02X 0x%02X (expected 0x01 [0x00-0x05])", addr_info, payload[0], payload[1]);
+        return true;
+    }
+
+    uint8_t mode = payload[1];
+    const char *mode_name;
+    switch (mode) {
+        case 0x00: mode_name = "Off";  break;
+        case 0x01: mode_name = "Auto"; break;
+        case 0x02: mode_name = "Manual"; break;
+        case 0x03: mode_name = "Low";  break;
+        case 0x04: mode_name = "Medium"; break;
+        case 0x05: mode_name = "High";  break;
+    }
+
+    ESP_LOGI(TAG, "%s Chlorinator pump mode - %s (0x%02X)", addr_info, mode_name, mode);
+
+    return true;
+}
+
+/**
  * Handler: Light configuration message
  * Pattern: "02 00 50 FF FF 80 00 06 0E E4"
  */
@@ -3165,6 +3211,11 @@ static bool dispatch_message(
     // VX 11S v3 CMD 0x12 status broadcast (payload meaning unknown)
     if (match_pattern(data, len, MSG_TYPE_VX11S_STATUS)) {
         return handle_vx11s_status(data, len, payload, payload_len, addr_info, ctx);
+    }
+
+    // Chlorinator pump mode unicast (§345, issue #23)
+    if (match_pattern(data, len, MSG_TYPE_CHLOR_SET_PUMP_MODE)) {
+        return handle_chlor_set_pump_mode(data, len, payload, payload_len, addr_info, ctx);
     }
 
     // Gateway messages

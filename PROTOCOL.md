@@ -15,7 +15,7 @@ This document describes the proprietary serial protocol used by the Connect 10 p
   - [0x0A — Firmware Version ✅](#0x0a--firmware-version-)
   - [0x0B — Channel Status ✅](#0x0b--channel-status-)
   - [0x0D — Active Channels Bitmask ✅](#0x0d--active-channels-bitmask-)
-  - [0x0F — Chlorinator Mode → Touchscreen ⚠️](#0x0f--chlorinator-mode--touchscreen-️)
+  - [0x0F — Chlorinator Set Pump Speed ✅](#0x0f--chlorinator-set-pump-speed-)
   - [0x10 — Channel Toggle Command ⚠️](#0x10--channel-toggle-command-️)
   - [0x12 — Device Status ⚠️](#0x12--device-status-️)
   - [0x14 — Mode (Spa/Pool) ✅](#0x14--mode-spapool-)
@@ -124,7 +124,7 @@ Click any CMD in the first column to jump to the full section in [Commands](#com
 | [`0x0A`](#0x0a--firmware-version-)                             | Firmware Version                    | `0x0050`, `0x0062`, `0x0070`, `0x0081`, `0x0084`, `0x00A0`, `0x00F0` → Broadcast | Same `{major, minor}` payload across all sources; dispatched on CMD byte alone              | Yes (unified handler)   |
 | [`0x0B`](#0x0b--channel-status-)                               | Channel Status                      | `0x0050` → Broadcast                                                   |                                                                                             | Yes                     |
 | [`0x0D`](#0x0d--active-channels-bitmask-)                      | Active Channels Bitmask             | `0x0050` → `0x006F` Internal Channels                                  | Unicast                                                                                     | Yes                     |
-| [`0x0F`](#0x0f--chlorinator-mode--touchscreen-️)               | Chlorinator Mode → Touchscreen      | `0x0084` → `0x0050`                                                    | 2-byte `[01, mode]`; mirrors [0x18](#0x18--chlorinator-cell-mode-️) cell mode               | **No (doc only)**       |
+| [`0x0F`](#0x0f--chlorinator-set-pump-speed-)                | Chlorinator Set Pump Speed     | `0x0084` → `0x0050`                                                            | The Chlorinator requests the Touch Screen to set pump speed (Off/Auto/Manual/Low/Medium/High)                                                               | Yes                     |
 | [`0x10`](#0x10--channel-toggle-command-️)                      | Channel Toggle Command              | `0x00F0` Gateway → Broadcast                                           |                                                                                             | Yes                     |
 | [`0x12`](#0x12--device-status-️)                               | Device Status                       | `0x0050`, `0x0062`, `0x0074`, `0x0081`, `0x0084`, `0x0090`, `0x00F0` → Broadcast | Payload layout differs per source                                                           | Yes (per-source)        |
 | [`0x14`](#0x14--mode-spapool-)                                 | Mode (Spa/Pool)                     | `0x0050` → Broadcast                                                   |                                                                                             | Yes                     |
@@ -342,22 +342,27 @@ Reports which channels are currently active. Unicast from the Touchscreen (`0x00
 
 ---
 
-### 0x0F — Chlorinator Mode → Touchscreen ⚠️
+### 0x0F — Chlorinator Set Pump Speed ✅
 
-Inter-device unicast from the Viron Chlorinator (`0x0084`) to the Touchscreen (`0x0050`) reporting the chlorinator's current mode. Counterpart to the `0x18` cell-mode unicast that the chlorinator sends to the Viron XT Pump (`0x00A0`) — the two messages carry the same mode value and may briefly disagree during transitions.
+Inter-device unicast from the Viron Chlorinator (`0x0084`) to the Touchscreen (`0x0050`) requesting setting current pump mode.
 
-**Pattern (provisional):** `02 00 84 00 50 80 00 0F ?? ??` (LENGTH and HDR_CHK to be confirmed from a capture)
+**Pattern:** `02 00 84 00 50 80 00 0F 0E 73`
 
-**Data Fields (provisional):**
+**Data Fields:**
 
-- Byte 10: Fixed `0x01` in observed captures (purpose unknown)
-- Byte 11: Mode value — same encoding as the `0x18` cell-mode broadcast (`0x00`=Off, `0x01`=Auto, `0x02`=On — tentative)
+- Byte 10: Always `0x01` (purpose unknown)
+- Byte 11: Pump mode/speed value:
+  - `0x00` = Off
+  - `0x01` = Auto
+  - `0x02` = Manual / On
+  - `0x03` = Low Speed
+  - `0x04` = Medium Speed
+  - `0x05` = High Speed
 
 **Notes:**
 
-- ⚠️ Documented only — no handler in `message_decoder.c` yet. The layout came from contemporaneous capture analysis but a definitive sample pair has not been pinned down.
-- Mode encoding follows the protocol-wide channel-state convention (see [0x0B](#0x0b--channel-status-)).
-- The companion `0x18` cell-mode unicast is documented at [0x18](#0x18--chlorinator-cell-mode-️).
+- Handled in `message_decoder.c` (`handle_chlor_set_pump_mode`) as a log-only message (no state updates or MQTT publishing since the pump announces its own speed).
+
 
 ---
 
