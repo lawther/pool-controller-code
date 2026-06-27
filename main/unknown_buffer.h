@@ -9,12 +9,15 @@
 #define UNKNOWN_BUFFER_CAPACITY         100
 #define UNKNOWN_BUFFER_MAX_RAW_BYTES    64   // store at most the first 64 bytes of each frame
 
-// Why a frame was captured. UNHANDLED means a valid frame with no handler;
-// the rest are framing/validation errors. The framing layer now records
-// every resync type (including the per-byte BAD_* steps) so the offending
-// bytes are visible on the Unknown Messages page.
+// Why a frame was captured. UNHANDLED (no handler matched) and
+// UNDOCUMENTED_PAYLOAD (handler matched, but a field carried an undocumented
+// value) are *not* errors — they are valid frames flagged for protocol
+// research. The remaining reasons are framing/validation errors. The framing
+// layer now records every resync type (including the per-byte BAD_* steps) so
+// the offending bytes are visible on the Unknown Messages page.
 typedef enum {
-    UNKNOWN_REASON_UNHANDLED = 0,   // valid frame, no handler matched
+    UNKNOWN_REASON_UNHANDLED = 0,         // valid frame, no handler matched
+    UNKNOWN_REASON_UNDOCUMENTED_PAYLOAD,  // handler matched, but a field value is undocumented
     UNKNOWN_REASON_NO_START,        // framing: no START byte in buffer
     UNKNOWN_REASON_BUFFER_OVERFLOW, // framing: buffer filled without a complete frame
     UNKNOWN_REASON_BAD_FRAMING,     // decoder: too short / missing START/END (guards test-decode)
@@ -33,7 +36,7 @@ typedef struct {
     time_t   first_seen;   // UTC epoch seconds (0 if NTP not synced)
     time_t   last_seen;    // UTC epoch seconds (0 if NTP not synced)
     unknown_reason_t reason;  // why this frame was captured
-    bool     is_error;     // derived: reason != UNKNOWN_REASON_UNHANDLED
+    bool     is_error;     // derived: true only for framing/validation reasons
 } unknown_entry_t;
 
 void unknown_buffer_init(void);
