@@ -23,6 +23,28 @@ static const char *TAG = "MSG_DECODER";
                                             ((ptr)[(offset)+2] << 16) | ((ptr)[(offset)+3] << 24)))
 
 // ======================================================
+// Undocumented-payload recording
+// ======================================================
+
+// Record a frame that a handler recognised but whose payload carries an
+// undocumented field value (e.g. an unexpected state byte). The handler should
+// still apply and publish the fields it *does* understand, then call this and
+// return true — the frame is counted as decoded, and surfaced on the Unknown
+// Messages page (as a non-error "undocumented" entry) for protocol research.
+//
+// Call this *outside* any ctx->state_mutex critical section: it takes the
+// unknown buffer's own mutex, so recording from inside the state lock would
+// hold state_mutex while blocking on a second lock (extra contention / longer
+// hold time). No code currently acquires state_mutex while holding the unknown
+// buffer mutex, so there is no deadlock cycle today — but keeping the two locks
+// disjoint also future-proofs against one being introduced. Invariant is
+// convention-only; it is not enforced here.
+static inline void record_undocumented(const uint8_t *data, int len)
+{
+    unknown_buffer_record(data, len, UNKNOWN_REASON_UNDOCUMENTED_PAYLOAD);
+}
+
+// ======================================================
 // Helper function for pattern matching
 // ======================================================
 
@@ -201,6 +223,17 @@ const char* get_channel_type_name(uint8_t type_code) {
         }
     }
     return "Unknown";
+}
+
+// True if type_code is one of the documented channel types (see PROTOCOL.md
+// 0x0B "Channel Types"). Used to flag undocumented type codes for research.
+static bool channel_type_is_known(uint8_t type_code) {
+    for (int i = 0; i < CHANNEL_TYPE_TABLE_SIZE; i++) {
+        if (CHANNEL_TYPE_TABLE[i].code == type_code) {
+            return true;
+        }
+    }
+    return false;
 }
 
 // Command byte name lookup table — used to annotate unhandled messages in logs.
@@ -854,6 +887,11 @@ static bool handle_heater1_state(
              state == 0x00 ? "Off" : state == 0x01 ? "On" : "Unknown",
              state);
 
+    // Only Off (0x00) and On (0x01) are documented; flag anything else for research.
+    if (state >= 0x02) {
+        record_undocumented(data, len);
+    }
+
     return true;
 }
 
@@ -874,6 +912,11 @@ static bool handle_heater2_state(
     ESP_LOGI(TAG, "%s Heater 2 state - %s (0x%02X)", addr_info,
              state == 0x00 ? "Off" : state == 0x01 ? "On" : "Unknown",
              state);
+
+    // Only Off (0x00) and On (0x01) are documented; flag anything else for research.
+    if (state >= 0x02) {
+        record_undocumented(data, len);
+    }
 
     pool_state_t snapshot;
     if (!ctx->state_mutex || xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
@@ -968,8 +1011,11 @@ static bool handle_gas_heater_status(
             heater_status = HEATER_LOCKED_OUT;
             break;
         default:
-            ESP_LOGW(TAG, "Invalid gas heater status:%d", functional_status);
-            return false;
+            // Recognised gas-heater frame, but this functional-status value is
+            // not in the documented set (PROTOCOL.md 0x12 gas-heater table).
+            ESP_LOGW(TAG, "%s Undocumented gas heater status: 0x%02X", addr_info, functional_status);
+            record_undocumented(data, len);
+            return true;
     }
 
     const bool heater_on = (raw_status & GAS_HEATER_BITMASK_HEATER_ON) != 0;
@@ -989,9 +1035,12 @@ static bool handle_gas_heater_status(
     } else if (gas_valve_open && burner_alight) {
         burner_state = BURNER_ALIGHT;
     } else {
-        // This should never happen given the valid status filter above
-        ESP_LOGW(TAG, "Invalid gas burner state: gas_valve=%d, alight=%d", gas_valve_open, burner_alight);
-        return false;
+        // gas_valve closed but burner alight — an undocumented combination that
+        // should never occur given the valid status filter above. Capture it for
+        // research and count the frame as decoded.
+        ESP_LOGW(TAG, "%s Undocumented gas burner state: gas_valve=%d, alight=%d", addr_info, gas_valve_open, burner_alight);
+        record_undocumented(data, len);
+        return true;
     }
 
     ESP_LOGI(TAG, "%s Gas heater raw status - [%02X %02X %02X %02X], decoded status - \"%s\"",
@@ -1163,6 +1212,11 @@ static bool handle_mode(
     const char *mode_str = (mode == 0x00) ? "Spa" : (mode == 0x01) ? "Pool" : "Unknown";
     ESP_LOGI(TAG, "%s Mode - %s", addr_info, mode_str);
 
+    // Only Spa (0x00) and Pool (0x01) are documented; flag anything else.
+    if (mode >= 0x02) {
+        record_undocumented(data, len);
+    }
+
     // Update state and publish
     pool_state_t snapshot;
     if (!ctx->state_mutex || xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
@@ -1227,6 +1281,12 @@ static bool handle_controller_time(
     uint8_t minutes = payload[0];
     uint8_t hours = payload[1];
     uint8_t day_of_week = payload[2];  // 0=Monday, 6=Sunday
+
+    if (minutes > 59 || hours > 23 || day_of_week > 6) {
+        ESP_LOGE(TAG, "%s Invalid controller time - %02d:%02d day:%d", addr_info, hours, minutes, day_of_week);
+        record_undocumented(data, len);
+        return true;
+    }
 
     const char *day_name = (day_of_week < DAY_OF_WEEK_COUNT) ? DAY_OF_WEEK_NAMES[day_of_week] : "Unknown";
     ESP_LOGI(TAG, "%s Controller time - %02d:%02d %s", addr_info, hours, minutes, day_name);
@@ -1351,6 +1411,7 @@ static bool handle_touchscreen_unknown1(
     if ((data_byte1 != 0x01 && data_byte1 != 0x05) || data_byte2 != 0x00) {
         ESP_LOGW(TAG, "%s Touchscreen other status - UNEXPECTED VALUE: Byte1: 0x%02X (%d), Byte2: 0x%02X (%d) (expected 0x01|0x05 0x00)",
                  addr_info, data_byte1, data_byte1, data_byte2, data_byte2);
+        record_undocumented(data, len);
     } else {
         ESP_LOGI(TAG, "%s Touchscreen other status - Byte1: 0x%02X (%d), Byte2: 0x%02X (%d)",
                  addr_info, data_byte1, data_byte1, data_byte2, data_byte2);
@@ -1450,10 +1511,12 @@ static bool handle_valve_state(
     if (payload_len < 1 + slot_count * 3) {
         ESP_LOGW(TAG, "%s Valve state - truncated payload (slots=%d, payload_len=%d)",
                  addr_info, slot_count, payload_len);
+        record_undocumented(data, len);
         return true;
     }
 
     // Log each configured valve before taking the mutex
+    bool undocumented_state = false;
     for (int i = 0; i < slot_count; i++) {
         bool configured = (payload[1 + i * 3] == 0x01);
         uint8_t state   = payload[2 + i * 3];
@@ -1462,7 +1525,12 @@ static bool handle_valve_state(
             const char *state_name = (state < CHANNEL_STATE_COUNT) ? CHANNEL_STATE_NAMES[state] : "Unknown";
             ESP_LOGI(TAG, "%s Valve %d - %s (%s)", addr_info, i + 1,
                      state_name, active ? "Active" : "Inactive");
+            // Valves only use Off/Auto/On (0x00-0x02); flag anything else.
+            if (state > 0x02) undocumented_state = true;
         }
+    }
+    if (undocumented_state) {
+        record_undocumented(data, len);
     }
 
     bool changed = false;
@@ -1627,6 +1695,7 @@ static bool handle_gateway_status(
     } else {
         ESP_LOGW(TAG, "%s Internet Gateway status - firmware %d.%d (checksum 0x%02X, expected 0x%02X)",
                  addr_info, major, minor, embedded_checksum, expected_checksum);
+        record_undocumented(data, len);
     }
 
     return true;
@@ -1664,6 +1733,7 @@ static bool handle_register_read_request(
     }
     if (!found) {
         snprintf(desc, sizeof(desc), "0x%02X/0x%02X", reg_id, slot_id);
+        record_undocumented(data, len);
     }
 
     ESP_LOGI(TAG, "%s Register read request - %s", addr_info, desc);
@@ -1791,17 +1861,33 @@ static bool handle_light_control_cmd(
         const char *state_name = (state == 0x00) ? "Off" : (state == 0x01) ? "Auto" : (state == 0x02) ? "On" : "Unknown";
         ESP_LOGI(TAG, "%s Gateway light control command - Zone %d -> %s (0x%02X)",
                  addr_info, zone_num, state_name, state);
+        if (state >= 0x03) {  // Only Off/Auto/On documented for light zone state
+            record_undocumented(data, len);
+        }
     } else if (reg_id == REG_ID_HEATER1_ONOFF && slot == 0x00) {
-        // Heater on/off control (REG_ID_HEATER1_ONOFF, slot 0x00)
-        ESP_LOGI(TAG, "%s Gateway heater control command - Heater -> %s",
+        // Heater 1 on/off control (REG_ID_HEATER1_ONOFF, slot 0x00)
+        ESP_LOGI(TAG, "%s Gateway heater 1 control command - Heater -> %s",
                  addr_info, state ? "On" : "Off");
+        if (state >= 0x02) record_undocumented(data, len);  // documented: 0x00 Off, 0x01 On
+    } else if (reg_id == REG_ID_HEATER2_ONOFF && slot == 0x00) {
+        // Heater 2 on/off control (REG_ID_HEATER2_ONOFF, slot 0x00) — see PROTOCOL.md 0x3A
+        ESP_LOGI(TAG, "%s Gateway heater 2 control command - Heater -> %s",
+                 addr_info, state ? "On" : "Off");
+        if (state >= 0x02) record_undocumented(data, len);  // documented: 0x00 Off, 0x01 On
     } else if (reg_id == REG_ID_HEATER2_POOL_SETPOINT && slot == 0x00) {
         // Heater 2 pool setpoint write (REG_ID_HEATER2_POOL_SETPOINT, slot 0x00) — see PROTOCOL.md 0x3A
         ESP_LOGI(TAG, "%s Gateway heater 2 pool setpoint command -> %d°C",
                  addr_info, state);
+    } else if (reg_id == REG_ID_HEATER2_SPA_SETPOINT && slot == 0x00) {
+        // Heater 2 spa setpoint write (REG_ID_HEATER2_SPA_SETPOINT, slot 0x00) — see PROTOCOL.md 0x3A
+        ESP_LOGI(TAG, "%s Gateway heater 2 spa setpoint command -> %d°C",
+                 addr_info, state);
     } else {
+        // Recognised 0x3A frame, but this (register, slot) write target is not
+        // in the documented set (PROTOCOL.md 0x3A).
         ESP_LOGW(TAG, "%s Gateway register write command - Unknown Reg=0x%02X, Slot=0x%02X, State=0x%02X",
                  addr_info, reg_id, slot, state);
+        record_undocumented(data, len);
     }
 
     // No state update needed - this is a command message, not status
@@ -1832,6 +1918,11 @@ static bool handle_mode_control_cmd(
 
     ESP_LOGI(TAG, "%s Gateway mode control command - %s (0x%02X)",
              addr_info, mode_name, mode_value);
+
+    // Documented values: 0x00-0x07 (Pool/Spa/Fav1-6), 0x80 (All Off), 0x81 (All Auto).
+    if (mode_value > 0x07 && mode_value != 0x80 && mode_value != 0x81) {
+        record_undocumented(data, len);
+    }
 
     pool_state_t state_snapshot;
     bool should_publish = false;
@@ -1865,6 +1956,11 @@ static bool handle_chlor_output_level(
 
     uint8_t level = payload[1];
     ESP_LOGI(TAG, "%s Chlorine output level - %d", addr_info, level);
+
+    if (level == 0 || level > 8) {
+        ESP_LOGW(TAG, "%s Chlorine output level out of expected range 1-8: %d", addr_info, level);
+        record_undocumented(data, len);
+    }
 
     pool_state_t snapshot;
     if (!ctx->state_mutex || xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
@@ -2050,6 +2146,11 @@ static bool handle_chlor_status(
 
     ESP_LOGI(TAG, "%s Chlorinator status - mode=%s (0x%02X)", addr_info, mode_name, mode);
 
+    // Documented modes are Off/Auto/On (0x00-0x02); flag anything else.
+    if (mode > 0x02) {
+        record_undocumented(data, len);
+    }
+
     if (ctx->state_mutex && xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) == pdTRUE) {
         ctx->pool_state->chlor_mode = mode;
         ctx->pool_state->chlor_mode_valid = true;
@@ -2078,6 +2179,7 @@ static bool handle_vx11s_status(
 
     if (data_byte != 0x00) {
         ESP_LOGI(TAG, "%s VX 11S v3 Salt Chlorinator status - UNEXPECTED VALUE: payload=0x%02X (expected 0x00)", addr_info, data_byte);
+        record_undocumented(data, len);
     } else {
         ESP_LOGI(TAG, "%s VX 11S v3 Salt Chlorinator status: 0x%02X", addr_info, data_byte);
     }
@@ -2107,6 +2209,7 @@ static bool handle_chlor_set_pump_mode(
     // Payload 1 is always <=5, meaning speed
     if (payload[0] != 0x01 || payload[1] > 5) {
         ESP_LOGW(TAG, "%s Chlorinator set pump mode - UNEXPECTED VALUE: payload=0x%02X 0x%02X (expected 0x01 [0x00-0x05])", addr_info, payload[0], payload[1]);
+        record_undocumented(data, len);
         return true;
     }
 
@@ -2233,6 +2336,7 @@ static bool handle_timer(
             pos += snprintf(&extra_hex[pos], sizeof(extra_hex) - pos, "%02X ", payload[i]);
         }
         ESP_LOGW(TAG, "%s Timer %d - %d extra unknown byte(s): %s", addr_info, timer_num, extra, extra_hex);
+        record_undocumented(data, len);
     }
 
     // Update state
@@ -2272,6 +2376,10 @@ static bool handle_channel_type(
 
     const char *type_name = get_channel_type_name(ch_type);
     ESP_LOGI(TAG, "%s Channel %d type - %s (%d)", addr_info, ch_num, type_name, ch_type);
+
+    if (!channel_type_is_known(ch_type)) {  // not in PROTOCOL.md 0x0B channel-type set
+        record_undocumented(data, len);
+    }
 
     if (ch_type != CHANNEL_UNUSED) {
         // Update pool state
@@ -2350,6 +2458,10 @@ static bool handle_channel_state(
     const char *state_name = (state < CHANNEL_STATE_COUNT) ? CHANNEL_STATE_NAMES[state] : "Unknown";
     ESP_LOGI(TAG, "%s Channel %d state - %s", addr_info, ch_num, state_name);
 
+    if (ch_num > MAX_CHANNELS || state >= CHANNEL_STATE_COUNT) {
+        record_undocumented(data, len);
+    }
+
     if (ch_num > MAX_CHANNELS) return true;
 
     pool_state_t state_snapshot;
@@ -2391,11 +2503,16 @@ static bool handle_light_zone_state(
 
     if (zone_idx >= MAX_LIGHT_ZONES) {
         ESP_LOGW(TAG, "%s Lighting zone state: zone_idx %d out of range (max %d)", addr_info, zone_idx, MAX_LIGHT_ZONES);
-        return false;
+        record_undocumented(data, len);
+        return true;  // captured as undocumented; don't fall through to UNHANDLED
     }
 
     const char *state_name = (state < LIGHTING_STATE_COUNT) ? LIGHTING_STATE_NAMES[state] : "Unknown";
     ESP_LOGI(TAG, "%s Lighting zone %d state - %s", addr_info, zone_idx + 1, state_name);
+
+    if (state >= LIGHTING_STATE_COUNT) {  // documented states are Off/Auto/On
+        record_undocumented(data, len);
+    }
 
     bool should_publish = false;
     uint8_t zone_num = 0;
@@ -2440,11 +2557,16 @@ static bool handle_light_zone_color(
 
     if (zone_idx >= MAX_LIGHT_ZONES) {
         ESP_LOGW(TAG, "%s Lighting zone color: zone_idx %d out of range (max %d)", addr_info, zone_idx, MAX_LIGHT_ZONES);
-        return false;
+        record_undocumented(data, len);
+        return true;  // captured as undocumented; don't fall through to UNHANDLED
     }
 
     const char *color_name = (color < LIGHTING_COLOR_COUNT) ? LIGHTING_COLOR_NAMES[color] : "Unknown";
     ESP_LOGI(TAG, "%s Lighting zone %d color - %s (%d)", addr_info, zone_idx + 1, color_name, color);
+
+    if (color >= LIGHTING_COLOR_COUNT) {  // not in the known colour table
+        record_undocumented(data, len);
+    }
 
     bool should_publish = false;
     uint8_t zone_num = 0;
@@ -2488,7 +2610,8 @@ static bool handle_light_zone_multicolor(
 
     if (zone_idx >= MAX_LIGHT_ZONES) {
         ESP_LOGW(TAG, "%s Lighting zone multicolor: zone_idx %d out of range (max %d)", addr_info, zone_idx, MAX_LIGHT_ZONES);
-        return false;
+        record_undocumented(data, len);
+        return true;  // captured as undocumented; don't fall through to UNHANDLED
     }
 
     ESP_LOGI(TAG, "%s Lighting zone %d multicolor - %s", addr_info, zone_idx + 1, capable ? "Yes" : "No");
@@ -2530,11 +2653,16 @@ static bool handle_light_zone_name(
 
     if (zone_idx >= MAX_LIGHT_ZONES) {
         ESP_LOGW(TAG, "%s Lighting zone name: zone_idx %d out of range (max %d)", addr_info, zone_idx, MAX_LIGHT_ZONES);
-        return false;
+        record_undocumented(data, len);
+        return true;  // captured as undocumented; don't fall through to UNHANDLED
     }
 
     const char *name = (name_id < LIGHT_ZONE_NAME_COUNT) ? LIGHT_ZONE_NAME_TABLE[name_id] : "Unknown";
     ESP_LOGI(TAG, "%s Lighting zone %d name - %s (%d)", addr_info, zone_idx + 1, name, name_id);
+
+    if (name_id >= LIGHT_ZONE_NAME_COUNT) {  // not in the known name-code table
+        record_undocumented(data, len);
+    }
 
     pool_state_t state_snapshot;
     bool should_publish = false;
@@ -2573,7 +2701,13 @@ static bool handle_light_zone_active(
 
     if (zone_idx >= MAX_LIGHT_ZONES) {
         ESP_LOGW(TAG, "%s Lighting zone active: zone_idx %d out of range (max %d)", addr_info, zone_idx, MAX_LIGHT_ZONES);
-        return false;
+        record_undocumented(data, len);
+        return true;  // captured as undocumented; don't fall through to UNHANDLED
+    }
+
+    if (active >= 0x02) {
+        ESP_LOGW(TAG, "%s Lighting zone active out of expected range 0x00-0x01: 0x%02X", addr_info, active);
+        record_undocumented(data, len);
     }
 
     ESP_LOGI(TAG, "%s Lighting zone %d active - %s", addr_info, zone_idx + 1, active ? "Yes" : "No");
@@ -2785,10 +2919,13 @@ static bool handle_channel_status(
 {
     if (payload_len < 1) return false;
 
+    bool undocumented = false;  // set if we find any undocumented type/state
+
     uint8_t num_channels = payload[0];
     if (num_channels > MAX_CHANNELS) {
         ESP_LOGW(TAG, "%s Channel count %d exceeds MAX_CHANNELS (%d), clamping",
                  addr_info, num_channels, MAX_CHANNELS);
+        undocumented = true;
         num_channels = MAX_CHANNELS;
     }
     ESP_LOGI(TAG, "%s Channel status (%d channels):", addr_info, num_channels);
@@ -2824,6 +2961,13 @@ static bool handle_channel_status(
                 ESP_LOGI(TAG, "  Ch%d: %s (%d) = %s (%s)", ch_num, type_name, ch_type, state_name,
                          active ? "Active" : "Inactive");
 
+                // Flag undocumented channel type/state (PROTOCOL.md 0x0B). Only
+                // checked for used channels — an unused channel's state byte
+                // carries no documented meaning, mirroring handle_valve_state.
+                if (state >= CHANNEL_STATE_COUNT || !channel_type_is_known(ch_type)) {
+                    undocumented = true;
+                }
+
                 // Update channel state
                 ctx->pool_state->channels[ch_num - 1].id = ch_num;
                 ctx->pool_state->channels[ch_num - 1].type = ch_type;
@@ -2849,6 +2993,10 @@ static bool handle_channel_status(
         for (int i = 0; i < num_to_publish; i++) {
             mqtt_publish_channel(&state_snapshot, channels_to_publish[i]);
         }
+    }
+
+    if (undocumented) {  // recorded outside the state_mutex critical section
+        record_undocumented(data, len);
     }
 
     return true;
@@ -2915,6 +3063,11 @@ static bool handle_pump_speed_cmd(
     ESP_LOGI(TAG, "%s Set Pump speed - %s (0x%02X)",
              addr_info, speed_preset_name, speed_preset_val);
 
+    // Only Low/Med/High (0x00-0x02) are documented; flag anything else.
+    if (speed_preset_val > 0x02) {
+        record_undocumented(data, len);
+    }
+
     return true;
 }
 
@@ -2936,6 +3089,11 @@ static bool handle_pump_buttons(
 
     ESP_LOGI(TAG, "%s Speed button on Pump pressed - %s (0x%02X)",
              addr_info, button_name, activity);
+
+    // Only Low/Med/High (0x00-0x02) are documented; flag any other button code.
+    if (payload_len >= 1 && activity > 0x02) {
+        record_undocumented(data, len);
+    }
     return true;
 }
 

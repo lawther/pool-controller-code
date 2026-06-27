@@ -21,7 +21,7 @@ This document describes the proprietary serial protocol used by the Connect 10 p
   - [0x14 — Mode (Spa/Pool) ✅](#0x14--mode-spapool-)
   - [0x16 — Water Temperature Reading ✅](#0x16--water-temperature-reading-)
   - [0x17 — Temperature Settings ✅](#0x17--temperature-settings-)
-  - [0x18 — Chlorinator Cell Mode ⚠️](#0x18--chlorinator-cell-mode-️)
+  - [0x18 — Pump Speed Command ✅](#0x18--pump-speed-command-)
   - [0x19 — Temperature Setpoint Command ✅](#0x19--temperature-setpoint-command-)
   - [0x1B — Pump Button Activity ⚠️](#0x1b--pump-button-activity-️)
   - [0x1D — Chlorinator Setpoint ✅](#0x1d--chlorinator-setpoint-)
@@ -99,7 +99,7 @@ uint8_t data_checksum = sum & 0xFF;
 | `0x0062` | Connect 8/10      | Main pool controller (Connect 10) |
 | `0x006F` | Internal Channels | Internal messages for active channels sent to this address |
 | `0x0070` | Genus Heater      | Active i25 Evo electric heater    |
-| `0x0072` | Internal Genus? 0x72 | Internal temperature module?   |
+| `0x0072` | HiNRG Gas Heater  | Astral/Fluidra HiNRG gas pool heater |
 | `0x0074` | ICI Gas Heater    | Astral/Fluidra ICI 400B NG gas pool heater |
 | `0x007F` | Internal Genus? 0x7F | Internal temperature module?   |
 | `0x0081` | VX 11S v3 Salt Chlorinator | Salt chlorinator (VX 11S v3)|
@@ -144,7 +144,7 @@ Click any CMD in the first column to jump to the full section in [Commands](#com
 | [`0x31`](#0x31--water-temperature-reading-alt-)                | Water Temperature Reading (alt)     | `0x0062` → Broadcast                                                   | Same `{temp1, temp2}` field layout as `0x16`; different disconnected encoding (`>= 0xA0` vs `0x00`); shared handler, log-only | Yes (unified handler)   |
 | [`0x37`](#0x37--internet-gateway-info-️)                       | Internet Gateway Info               | `0x00F0` → Broadcast                                                   | LEN distinguishes serial (`0x11`), network config (`0x15`), comms status (`0x0F`) variants  | Yes (3 handlers)        |
 | [`0x38`](#0x38--register-data-️)                               | Register Data (Response)            | `0x0050` Touchscreen → Broadcast                                       | Universal register system — sub-dispatched by register + slot (see [Appendix A](#appendix-a-register-dispatch-table)); dispatched on CMD byte alone | Yes (unified handler)   |
-| [`0x39`](#0x39--register-read-request-)                        | Register Read Request               | `0x00F0` Gateway → Broadcast                                           | Dispatched on CMD byte alone                                                                | Yes (unified handler)   |
+| [`0x39`](#0x39--register-read-request-)                        | Register Read Request               | `0x00F0` Gateway, `0x0070` Genus Heater → Broadcast                    | Dispatched on CMD byte alone (source-agnostic)                                              | Yes (unified handler)   |
 | [`0x3A`](#0x3a--register-write--control-)                      | Register Write / Control            | `0x00F0` Gateway → Broadcast                                           | Used for Light Zone Control (`0xC0`–`0xC7`/slot `0x01`), Heater Control (`0xE6`/slot `0x00`), and Heater 2 pool setpoint (`0xEA`/slot `0x00`) | Yes (both)              |
 | [`0x3B`](#0x3b--pump-speed-)                                   | Pump Speed Telemetry                | `0x00A0` Viron XT Pump → Broadcast                                      | 2-byte big-endian RPM value; broadcast every ~60 seconds                                    | Yes                     |
 | [`0xFD`](#0xfd--controller-daytimeclock-)                      | Controller Day/Time/Clock           | `0x0050` → Broadcast                                                   |                                                                                             | Yes                     |
@@ -570,7 +570,6 @@ Observed mode values (tentative; follows the standard channel-state convention f
 | `0x01` | Auto    |
 | `0x02` | On      |
 
-Distinct from the configured *cell* mode at [0x18](#0x18--chlorinator-cell-mode-️) (unicast to the Viron XT Pump at `0x00A0`). The two can hold different values concurrently — e.g. chlorinator overall = On while cell = Auto. ⚠️ Tentative because a single-device Off↔Auto↔On transition has not been captured.
 
 ---
 
@@ -629,14 +628,15 @@ Reports the current operating mode — pool or spa. Broadcast by the Touchscreen
 
 ### 0x16 — Water Temperature Reading ✅
 
-Current water temperature broadcast by the device that measures it. Three sources are known: the Connect 8/10 Controller (`0x0062`) and the add-on Genus Heater family (`0x0070`, `0x0072`). All use CMD `0x16` and are dispatched on the CMD byte alone; the payload **length** distinguishes the two layouts.
+Current water temperature broadcast by the device that measures it. There are two variants of CMD `0x16` - heater and controller based. The payload **length** distinguishes the two layouts.
 
 **Source variants:**
 
 | Source                          | LENGTH | Payload                       | Status |
 |---------------------------------|--------|-------------------------------|--------|
 | `0x0062` Connect 8/10 Controller| `0x0E` | 2 bytes — `{temp1, temp2}`    | ✅ |
-| `0x0070`/`0x0072` Genus Heater  | `0x0D` | 1 byte  — `{temp1}`           | ✅ |
+| `0x0070` Genus Heater           | `0x0D` | 1 byte  — `{temp1}`           | ✅ |
+| `0x0072` HiNRG Gas Heater       | `0x0D` | 1 byte  — `{temp1}`           | ✅ |
 | `0x0074` ICI Gas Heater         | `0x0D` | 1 byte  — `{temp1}`           | ✅ |
 
 All variants are handled by the unified `handle_temp_reading()`, which selects the layout from `payload_len`. The Connect 8/10 also emits a second water-temperature variant under [0x31 — Water Temperature Reading (alt)](#0x31--water-temperature-reading-alt-) — same `{temp1, temp2}` field layout, routed through the same handler, but log-only and with a different disconnected-sensor encoding (`>= 0xA0` rather than `0x00`).
@@ -1511,7 +1511,7 @@ Assigns human-readable names to channels, lighting zones, and valves as null-ter
 
 ### 0x39 — Register Read Request ✅
 
-Sent by the Internet Gateway (`0x00F0`) to poll a single controller register. The Touchscreen (`0x0050`) replies with the matching [0x38 Register Data](#0x38--register-data-️) response.
+Sent to poll a single controller register; the Touchscreen (`0x0050`) replies with the matching [0x38 Register Data](#0x38--register-data-️) response. Primarily emitted by the Internet Gateway (`0x00F0`), but the Genus Heater (`0x0070`) has also been observed sending the same `{reg_id, slot_id}` request — the decoder handles CMD `0x39` source-agnostically.
 
 **Pattern:** `02 00 F0 FF FF 80 00 39 0E B7`
 

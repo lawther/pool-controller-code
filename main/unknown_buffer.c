@@ -10,6 +10,15 @@ static unknown_entry_t s_entries[UNKNOWN_BUFFER_CAPACITY];
 static int              s_count = 0;
 static SemaphoreHandle_t s_mutex = NULL;
 
+// True only for framing/validation reasons (rendered as errors in the UI).
+// UNHANDLED and UNDOCUMENTED_PAYLOAD are valid frames flagged for research,
+// not errors.
+static bool reason_is_framing_error(unknown_reason_t reason)
+{
+    return reason != UNKNOWN_REASON_UNHANDLED &&
+           reason != UNKNOWN_REASON_UNDOCUMENTED_PAYLOAD;
+}
+
 void unknown_buffer_init(void)
 {
     s_mutex = xSemaphoreCreateMutex();
@@ -70,7 +79,7 @@ void unknown_buffer_record(const uint8_t *data, int len, unknown_reason_t reason
     e->first_seen = now;
     e->last_seen  = now;
     e->reason     = reason;
-    e->is_error   = (reason != UNKNOWN_REASON_UNHANDLED);
+    e->is_error   = reason_is_framing_error(reason);
 
     xSemaphoreGive(s_mutex);
 }
@@ -79,6 +88,7 @@ const char *unknown_reason_str(unknown_reason_t reason)
 {
     switch (reason) {
         case UNKNOWN_REASON_UNHANDLED:       return "unhandled";
+        case UNKNOWN_REASON_UNDOCUMENTED_PAYLOAD: return "undocumented";
         case UNKNOWN_REASON_NO_START:        return "no start";
         case UNKNOWN_REASON_BUFFER_OVERFLOW: return "overflow";
         case UNKNOWN_REASON_BAD_FRAMING:     return "bad framing";
