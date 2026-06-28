@@ -1731,22 +1731,31 @@ The register ID and slot together determine the message meaning. The slot distin
 | `0x20` ⚠️      | `0x03` | Unknown                | Only `0xFF` observed. Repeats ~every 8 minutes    |
 | `0x21`–`0x28`  | `0x03` | Favourite/Mode Enable  | 1-byte flag (`0x01`=enabled, `0x00`=disabled). Maps to CMD `0x2A` values `0x00`–`0x07` in order. Pool (`0x21`) and Spa (`0x22`) are always `0x01`. |
 | `0x31`–`0x38`  | `0x03` | Favourite/Mode Labels  | Null-terminated ASCII string. Maps to CMD `0x2A` values `0x00`–`0x07` in order. `0x31`=Pool, `0x32`=Spa, `0x33`–`0x38`=user Favourites 1–6. |
+| `0x3A` ⚠️      | `0x01` | Unknown                | Only `0x19` (25) observed. Confirmed real by direct query; stable across overnight monitoring. Not a temperature setpoint or chlorinator level. Purpose unknown. |
 | `0x64`-`0x65` ⚠️| `0x00`| Unknown                | Only `0x01` observed. Repeats ~every 8 minutes   |
 | `0x6C`–`0x73`  | `0x02` | Channel Types          | 1-byte type code (see [0x0B](#0x0b--channel-status-) channel types)    |
+| `0x74`–`0x7B` ⚠️| `0x02` | Channel Types 9–16 (unconfirmed) | Hardware responds to these addresses; all return `0x00` (None) on a system with ≤8 channels. Consistent with a 16-slot block allocation but meaning unconfirmed without a >8-channel system. |
 | `0x7C`–`0x83`  | `0x02` | Channel Names          | Null-terminated ASCII string                     |
+| `0x84`–`0x8B` ⚠️| `0x02` | Channel Names 9–16 (unconfirmed) | Hardware responds; all return zeros on a system with ≤8 channels. See note on `0x74`–`0x7B`. |
 | `0x8C`–`0x93`  | `0x02` | Channel State          | 1-byte value (0=Off, 1=Auto, 2=On) — read-only; writes ignored by controller |
+| `0x94`–`0x9B` ⚠️| `0x02` | Channel State 9–16 (unconfirmed) | Hardware responds; all return zeros on a system with ≤8 channels. See note on `0x74`–`0x7B`. |
 | `0xA0`–`0xA7`  | `0x01` | Light Zone Multicolor  | 1-byte flag (`0x00`=No, `0x01`=Yes)              |
+| `0xA8`–`0xAF` ⚠️| `0x01` | Light Zone Multicolor 9–16 (unconfirmed) | Hardware responds; all return zeros on a system with ≤8 light zones. See note on `0x74`–`0x7B`. |
 | `0xAC`-`0xAF` ⚠️| `0x0D`| Unknown                | Only `0xFF` observed. Repeats ~every 8 minutes   |
 | `0xB0`–`0xB7`  | `0x01` | Light Zone Name        | 1-byte preset name code (see [name codes table](#light-zone-name-codes)) |
+| `0xB8`–`0xBF` ⚠️| `0x01` | Light Zone Name 9–16 (unconfirmed) | Hardware responds; all return zeros on a system with ≤8 light zones. See note on `0x74`–`0x7B`. |
 | `0xB0`–`0xB3` ⚠️| `0x0D` | Unknown               | Only `0xFF` observed. Repeats ~every 8 minutes   |
 | `0xB8`–`0xB9` ⚠️| `0x0B` | Unknown               | Only `0x00` observed. Repeats ~every 8 minutes   |
 | `0xBC`–`0xBF` ⚠️| `0x0D` | Unknown               | Only `0x00` observed. Repeats ~every 8 minutes   |
 | `0xC0`–`0xC7`  | `0x01` | Light Zone State       | 1-byte value (0=Off, 1=Auto, 2=On)               |
+| `0xC8`–`0xCF` ⚠️| `0x01` | Light Zone State 9–16 (unconfirmed) | Hardware responds; all return zeros on a system with ≤8 light zones. See note on `0x74`–`0x7B`. |
 | `0xC0`–`0xC3` ⚠️| `0x0D` | Unknown               | Only `0xFF` observed. Repeats ~every 8 minutes   |
 | `0xC8` ⚠️      | `0x00` | Unknown                | Only `0x01` observed. Repeats ~every 8 minutes   |
-| `0xD0`–`0xD1`  | `0x02` | Valve Labels           | Null-terminated ASCII string                     |
+| `0xD0`–`0xD3`  | `0x02` | Valve Labels           | Null-terminated ASCII string. Valves 3–4 (`0xD2`–`0xD3`) return zeros when unassigned. Observed: `0xD0`="spa suction", `0xD1`="spa return". |
 | `0xD0`–`0xD7`  | `0x01` | Light Zone Color       | 1-byte color code                                |
+| `0xD8`–`0xDF` ⚠️| `0x01` | Light Zone Color 9–16 (probable) | Hardware responds with `0x05` (Blue) on the test system — non-zero unlike other unconfirmed extended ranges, and a meaningful color code rather than a sentinel. Probable zone color registers; unconfirmed without a >8-zone system. |
 | `0xE0`–`0xE7`  | `0x01` | Light Zone Active      | 1-byte binary (`0x00`=Inactive, `0x01`=Active)   |
+| `0xE8`–`0xEF` ⚠️| `0x01` | Light Zone Active 9–16 (unconfirmed) | Hardware responds; all return zeros on a system with ≤8 light zones. See note on `0x74`–`0x7B`. |
 | `0xF4`         | `0x01` | Channel Count          | 1-byte total number of channels in the system    |
 | `0xE6`         | `0x00` | Heater State (Heater 1)   | 1-byte (`0x00`=Off, `0x01`=On)                |
 | `0xE7`         | `0x00` | Pool Temperature Setpoint (Heater 1) | 1-byte °C value                    |
@@ -1764,6 +1773,8 @@ The register ID and slot together determine the message meaning. The slot distin
 - Register ranges can overlap (e.g., `0xD0`–`0xD7`) but are distinguished by the slot value
 - The same slot value (e.g., `0x02`) can represent different data formats depending on the register
 - Slot values appear to be context-dependent rather than globally defining a data type
+- **⚠️ Unconfirmed extended ranges**: Entries marked ⚠️ are addresses the hardware responds to but whose meaning is inferred by pattern — the controller allocates 16-register blocks per property (channels: `0x6C`–`0x7B` type, `0x7C`–`0x8B` name, `0x8C`–`0x9B` state; light zones: `0xA0`–`0xAF` multicolor, `0xB0`–`0xBF` name, `0xC0`–`0xCF` state, `0xD0`–`0xDF` color, `0xE0`–`0xEF` active). On a system with ≤8 channels and ≤8 light zones the upper half of each block returns zeros, which is consistent with empty-but-allocated slots but cannot be distinguished from a generic default response without a system that has >8 channels or >8 light zones configured.
+- **Adjacent-slot protocol behaviour**: Querying register X / slot N routinely causes the touchscreen to also broadcast register X / slot N−1. This was observed in ~90% of same-register cross-slot responses across a full register sweep. Many entries in this table were first discovered as a result of this behaviour rather than from direct query responses.
 - **`0xE9`/`0xEA`/`0xEB` (Heater 2 trio) — confirmed ✅**: Slot `0x00` holds the Heater 1 trio at `0xE6` (state), `0xE7` (Pool setpoint), `0xE8` (Spa setpoint), and `0xE9`/`0xEA`/`0xEB` are the analogous trio for the second heater: `0xE9` = state (`0x00`=Off, `0x01`=On), `0xEA` = Pool setpoint, `0xEB` = Spa setpoint (1-byte °C). All three are writable via the gateway register-write command (CMD `0x3A` / second-byte `0xB9`). `0xEA` was confirmed by UI capture — changing the setpoint in the UI sends a `0x3A` write to `0xEA`/slot `0x00` and the touchscreen rebroadcasts the new value via CMD `0x38` (observed 21°C `EA 00 15`, 22°C `EA 00 16`, 27°C `EA 00 1B`; the 27°C value matched the **H2** value in the heater's `0x0070` CMD `0x17` broadcast). `0xE9` and `0xEB` are confirmed as Heater 2 state and spa setpoint respectively. (On the test install the second heater is a heat pump; "Heater 2" is kept as the generic name since another install's second heater may be a different type.)
 - **Mutually exclusive broadcast**: in captures observed so far the touchscreen broadcasts *either* the `E6/E7/E8` trio *or* the `E9/EA/EB` trio in slot `0x00`, but not both — consistent with a config-dependent enable (likely [0x26](#0x26--configuration-️) byte 10 bit 3 = heater count).
 - **`0xEB` default**: when the second heater isn't plumbed to spa, `0xEB` reads `0x0A` (10°C) — an unused default at the minimum setpoint rather than a live value.
@@ -1885,23 +1896,32 @@ State values: `0x00` = Off, `0x01` = Auto, `0x02` = On
 | `0x6D`   | 2       | ✅            | —             | —              |
 | …        | …       | ✅            | —             | —              |
 | `0x73`   | 8       | ✅            | —             | —              |
+| `0x74`   | 9       | ⚠️            | —             | —              |
+| …        | …       | ⚠️            | —             | —              |
+| `0x7B`   | 16      | ⚠️            | —             | —              |
 | `0x7C`   | 1       | —             | ✅            | —              |
 | …        | …       | —             | ✅            | —              |
 | `0x83`   | 8       | —             | ✅            | —              |
+| `0x84`   | 9       | —             | ⚠️            | —              |
+| …        | …       | —             | ⚠️            | —              |
+| `0x8B`   | 16      | —             | ⚠️            | —              |
 | `0x8C`   | 1       | —             | —             | ✅ read-only   |
 | `0x8D`   | 2       | —             | —             | ✅ read-only   |
 | …        | …       | —             | —             | ✅ read-only   |
 | `0x93`   | 8       | —             | —             | ✅ read-only   |
+| `0x94`   | 9       | —             | —             | ⚠️ read-only   |
+| …        | …       | —             | —             | ⚠️ read-only   |
+| `0x9B`   | 16      | —             | —             | ⚠️ read-only   |
 
 > Channel state is **read-only** via the register system. To change channel state, use the [Channel Toggle Command (0x10)](#0x10--channel-toggle-command-️).
 
 **Lighting Zones:**
 
-- Multicolor (`0xA0`–`0xA7`): `0xA0` = Zone 1, `0xA1` = Zone 2, etc.
-- Name (`0xB0`–`0xB7`): `0xB0` = Zone 1, `0xB1` = Zone 2, etc.
-- State (`0xC0`–`0xC7`): `0xC0` = Zone 1, `0xC1` = Zone 2, etc.
-- Color (`0xD0`–`0xD7`): `0xD0` = Zone 1, `0xD1` = Zone 2, etc.
-- Active (`0xE0`–`0xE7`): `0xE0` = Zone 1, `0xE1` = Zone 2, etc.
+- Multicolor (`0xA0`–`0xAF`): `0xA0` = Zone 1, `0xA1` = Zone 2, … `0xA7` = Zone 8 ✅, `0xA8`–`0xAF` = Zones 9–16 ⚠️
+- Name (`0xB0`–`0xBF`): `0xB0` = Zone 1, `0xB1` = Zone 2, … `0xB7` = Zone 8 ✅, `0xB8`–`0xBF` = Zones 9–16 ⚠️
+- State (`0xC0`–`0xCF`): `0xC0` = Zone 1, `0xC1` = Zone 2, … `0xC7` = Zone 8 ✅, `0xC8`–`0xCF` = Zones 9–16 ⚠️
+- Color (`0xD0`–`0xDF`): `0xD0` = Zone 1, `0xD1` = Zone 2, … `0xD7` = Zone 8 ✅, `0xD8`–`0xDF` = Zones 9–16 ⚠️ (probable — non-zero responses observed)
+- Active (`0xE0`–`0xEF`): `0xE0` = Zone 1, `0xE1` = Zone 2, … `0xE7` = Zone 8 ✅, `0xE8`–`0xEF` = Zones 9–16 ⚠️
 
 ### Implementation
 
