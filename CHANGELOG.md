@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - Saving of unknown bus messages, added web UI to view them
+- Periodic heap-stats logging (free, minimum-free watermark, largest free block) every 5 minutes via a new low-priority `heap_monitor` task, so a slow memory leak or growing fragmentation is visible as a trend in the console/TCP log history before it can exhaust the heap. The home page System table now also shows a Memory row (free / min-free), using the `memory` fields already present in the `/status` JSON.
 ### Changed
 - Note about CMD 0x05 observed with payload 0x00. Added to PROTOCOL.md and new sample trace.
 - Note about CMD 0x12 observed with payload 0x01 0x00. Added to PROTOCOL.md and new sample trace.
@@ -32,6 +33,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Frame parser and decoder now also accept "discovery" packets (control bytes `0x00 0x00`): a shorter 11-byte frame shape with no payload and no data-checksum byte, alongside the existing `0x80 0x00` data packets
 ### Removed
 ### Fixed
+- TCP bridge no longer hangs when a connected client stalls or dies silently. The client socket is now non-blocking with a keep/drop policy on every send (full send keeps the client; a full send buffer drops the message but keeps the connection; a partial write or hard error drops the client), so a stuck peer can never wedge the bridge task — which is also the only task reading the UART, meaning such a wedge previously froze the whole device with no logs and no recovery. Added TCP keepalive (idle 30s, interval 5s, count 3) so a silently dead peer is detected and the single client slot freed.
+- MQTT client is no longer stopped from inside the WiFi event handler on disconnect. `esp_mqtt_client_stop()` blocks waiting for the MQTT task, and calling it from the system event-loop task could stall all further WiFi/IP event processing if the MQTT task was itself stuck on a dead socket during the same outage. The client is now started once on first connectivity and left to esp-mqtt's built-in reconnection, which handles WiFi drops/restores on its own. `mqtt_client_start()` is now idempotent so repeated reconnects are no-ops.
 ### Deprecated
 ### Security
 - Fixed a DOM-based XSS on the home page: channel/zone/valve names read from the bus were injected into the pool status table via `innerHTML`. They are now set with `textContent` so bus-derived strings can never be parsed as HTML/script.

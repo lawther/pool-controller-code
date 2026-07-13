@@ -162,8 +162,13 @@ static void wifi_event_handler(void *arg,
         s_device_ip_address[0] = '\0';
         xEventGroupClearBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
 
-        // Stop MQTT client on WiFi disconnect
-        mqtt_client_stop();
+        // Deliberately do NOT stop the MQTT client here. This handler runs in
+        // the system event-loop task, and esp_mqtt_client_stop() blocks waiting
+        // for the MQTT task to acknowledge — if that task is itself stuck on a
+        // dead socket during the same outage, stopping it here would wedge the
+        // event loop and stall all further WiFi/IP event processing. esp-mqtt
+        // detects the broken connection and reconnects on its own once WiFi
+        // returns, firing MQTT_EVENT_DISCONNECTED (which updates the LED).
 
         if (!s_provisioning_active) {
             s_wifi_retry_count++;
@@ -224,7 +229,9 @@ static void wifi_event_handler(void *arg,
         led_set_connected();
         xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
 
-        // Start MQTT client on WiFi connect
+        // Start the MQTT client the first time we have connectivity. This is
+        // idempotent: on later reconnects esp-mqtt is already running and
+        // managing its own reconnection, so this call is a no-op.
         mqtt_client_start();
 
         // Start mDNS service for network discovery

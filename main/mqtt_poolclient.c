@@ -332,6 +332,13 @@ esp_err_t mqtt_client_start(void)
         return ESP_ERR_INVALID_STATE;
     }
 
+    if (s_mqtt_started) {
+        // Already running. esp-mqtt manages reconnection internally, so this is
+        // expected to be called again on every WiFi reconnect — no-op instead
+        // of letting esp_mqtt_client_start() log a "Client has started" error.
+        return ESP_OK;
+    }
+
     esp_err_t err = esp_mqtt_client_start(s_mqtt_client);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "Failed to start MQTT client: %s", esp_err_to_name(err));

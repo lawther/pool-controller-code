@@ -20,6 +20,7 @@
 #include "message_decoder.h"
 #include "register_requester.h"
 #include "unknown_buffer.h"
+#include "heap_monitor.h"
 
 // ==================== APPLICATION =====================
 // All configuration values are in config.h
@@ -217,4 +218,8 @@ void app_main(void)
     }
 
     register_requester_start(&s_pool_state, s_pool_state_mutex);
+
+    // Periodically log heap stats so a slow leak or fragmentation trend is
+    // visible in the log history before it can exhaust memory and crash.
+    heap_monitor_start();
 }
