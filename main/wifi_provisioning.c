@@ -46,11 +46,23 @@ static esp_err_t start_provisioning(void);
 // WiFi Credential Management
 // ======================================================
 
+// On a mesh network (e.g. eero) several APs broadcast the same SSID. Scan all
+// channels and pick the strongest at connect time, and advertise 802.11k/v so
+// the mesh can steer us to a better node while connected.
+static void apply_sta_roaming_config(wifi_config_t *cfg)
+{
+    cfg->sta.scan_method = WIFI_ALL_CHANNEL_SCAN;
+    cfg->sta.sort_method = WIFI_CONNECT_AP_BY_SIGNAL;
+    cfg->sta.rm_enabled = 1;
+    cfg->sta.btm_enabled = 1;
+}
+
 esp_err_t wifi_credentials_save(const char *ssid, const char *password)
 {
     wifi_config_t wifi_cfg = {0};
     strncpy((char *)wifi_cfg.sta.ssid, ssid, sizeof(wifi_cfg.sta.ssid) - 1);
     strncpy((char *)wifi_cfg.sta.password, password, sizeof(wifi_cfg.sta.password) - 1);
+    apply_sta_roaming_config(&wifi_cfg);
     return esp_wifi_set_config(WIFI_IF_STA, &wifi_cfg);
 }
 
@@ -334,6 +346,14 @@ static esp_err_t start_provisioning(void)
     }
 
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
+
+    // Re-apply roaming config on every boot so devices provisioned before
+    // this option existed also get it.
+    if (wifi_cfg.sta.ssid[0] != '\0') {
+        apply_sta_roaming_config(&wifi_cfg);
+        ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_cfg));
+    }
+
     ESP_ERROR_CHECK(esp_wifi_start());
     return ESP_OK;
 }

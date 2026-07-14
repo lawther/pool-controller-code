@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- WiFi mesh roaming support: on connect the device now scans all channels and joins the strongest AP broadcasting the SSID (instead of the first one found), and advertises 802.11k/v so mesh networks like eero can steer it to a better node while connected
 ### Changed
 ### Removed
 ### Fixed
