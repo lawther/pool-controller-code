@@ -18,6 +18,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+### Changed
+### Removed
+### Fixed
+### Deprecated
+### Security
+
+## [1.7.0] - 2026-07-14
+### Added
 - Saving of unknown bus messages, added web UI to view them
 - Periodic heap-stats logging (free, minimum-free watermark, largest free block) every 5 minutes via a new low-priority `heap_monitor` task, so a slow memory leak or growing fragmentation is visible as a trend in the console/TCP log history before it can exhaust the heap. The home page System table now also shows a Memory row (free / min-free), using the `memory` fields already present in the `/status` JSON.
 ### Changed
@@ -31,12 +39,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Handlers can now flag recognised frames carrying an undocumented field value via the new `UNKNOWN_REASON_UNDOCUMENTED_PAYLOAD` reason (`record_undocumented()`): the known fields are still decoded/published and the frame is counted as decoded, while the raw frame is surfaced on the Unknown Messages page as a non-error "undocumented" chip (amber, distinct from red framing errors). Applied across the decoders wherever a field value falls outside its documented set: heater 1/2 state (0xE6/0xE9), gas-heater status (0x12), Spa/Pool mode (0x14), touchscreen status (0x12), chlorinator mode (0x12) and pump-mode (0x0F), VX 11S status (0x12), pump speed command (0x18) and buttons (0x1B), mode/favourite command (0x2A), gateway register writes (0x3A), and the register-based channel type/state, light zone state/colour/name, valve state, and channel-status broadcasts (0x0B/0x27/0x38).
 - **Breaking (HTTP):** `/status` JSON's `message_counts.errors` (per-type protocol error counters) and `message_counts.error_detail` (introduced in 1.6.0-rc1) are removed, replaced by the new per-type `resyncs` object (`total`, `no_start`, `header_checksum`, `bad_control`, `bad_length`, `bad_end`, `data_checksum`, `buffer_overflow`) emitted by the sliding-window frame parser. Any external consumer reading the old fields needs to switch to `resyncs`.
 - Frame parser and decoder now also accept "discovery" packets (control bytes `0x00 0x00`): a shorter 11-byte frame shape with no payload and no data-checksum byte, alongside the existing `0x80 0x00` data packets
-### Removed
 ### Fixed
 - Fixed the home page Temperature row showing nothing useful since the per-source temperature refactor: the page's script still read the removed `/status` field `temperature.current`; it now renders one row per temperature-reporting device (e.g. "Genus Heater Temperature", "Connect 8/10 Temperature 1/2") from the per-device `temperature1`/`temperature2` fields
 - TCP bridge no longer hangs when a connected client stalls or dies silently. The client socket is now non-blocking with a keep/drop policy on every send (full send keeps the client; a full send buffer drops the message but keeps the connection; a partial write or hard error drops the client), so a stuck peer can never wedge the bridge task — which is also the only task reading the UART, meaning such a wedge previously froze the whole device with no logs and no recovery. Added TCP keepalive (idle 30s, interval 5s, count 3) so a silently dead peer is detected and the single client slot freed.
 - MQTT client is no longer stopped from inside the WiFi event handler on disconnect. `esp_mqtt_client_stop()` blocks waiting for the MQTT task, and calling it from the system event-loop task could stall all further WiFi/IP event processing if the MQTT task was itself stuck on a dead socket during the same outage. The client is now started once on first connectivity and left to esp-mqtt's built-in reconnection, which handles WiFi drops/restores on its own. `mqtt_client_start()` is now idempotent so repeated reconnects are no-ops.
-### Deprecated
 ### Security
 - Fixed a DOM-based XSS on the home page: channel/zone/valve names read from the bus were injected into the pool status table via `innerHTML`. They are now set with `textContent` so bus-derived strings can never be parsed as HTML/script.
 
