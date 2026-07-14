@@ -4,3 +4,4 @@ sdkconfig
 sdkconfig.old
 main/secrets.h
 .cache/
+.vscode/settings.json
