@@ -100,6 +100,12 @@ const char* get_channel_type_name(uint8_t type_code);
 #define CHANNEL_TYPE_HEATER     0xFD  // Channel is a heater (handled separately)
 #define CHANNEL_TYPE_LIGHT_ZONE 0xFE  // Channel is a lighting zone (handled separately)
 
+// Channel category codes (registers 0xF5–0xFC, slot 0x01) — coarser than the
+// per-channel type codes above; only broadcast for channels that are in use.
+#define CHANNEL_CATEGORY_POOL_EQUIPMENT 0x01
+#define CHANNEL_CATEGORY_LIGHT          0x02
+#define CHANNEL_CATEGORY_HEATER_POWER   0x03  // Controlled Heater Power
+
 // Register IDs used in CMD 0x38 (register data) and CMD 0x3A (register write).
 // See PROTOCOL.md Appendix A for the full dispatch table.
 typedef enum {
@@ -153,6 +159,9 @@ typedef enum {
     REG_ID_HEATER2_POOL_SETPOINT = 0xEA,  // Heater 2 pool setpoint
     REG_ID_HEATER2_SPA_SETPOINT  = 0xEB,  // Heater 2 spa setpoint — tentative, see PROTOCOL.md Appendix A
     REG_ID_CHANNEL_COUNT         = 0xF4,  // Total number of channels
+
+    REG_ID_CHANNEL_CATEGORY_0    = 0xF5,  // Channel 0 category (0–7 → 0xF5–0xFC, slot 0x01)
+    REG_ID_CHANNEL_CATEGORY_7    = 0xFC,  // Channel 7 category (last)
 } reg_id_t;
 
 #endif // MESSAGE_DECODER_H

@@ -630,6 +630,7 @@ static bool handle_favourite_label(const uint8_t *data, int len, const uint8_t *
 static bool handle_favourite_enable(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 static bool handle_temp_setpoint(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 static bool handle_channel_count(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
+static bool handle_channel_category(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 static bool handle_valve_state(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 static bool handle_touchscreen_unknown3(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 static bool handle_heater1_state(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
@@ -681,6 +682,10 @@ static const register_handler_t REGISTER_HANDLERS[] = {
     {REG_ID_HEATER2_POOL_SETPOINT, REG_ID_HEATER2_SPA_SETPOINT, 0x00, handle_temp_setpoint,          "Heater 2 Setpoint"},
 
     {REG_ID_CHANNEL_COUNT,         REG_ID_CHANNEL_COUNT,         0x01, handle_channel_count,         "Channel Count"},
+
+    // Channel categories (slot 0x01, registers 0xF5-0xFC = channels 1-8);
+    // only broadcast for channels that are in use
+    {REG_ID_CHANNEL_CATEGORY_0,    REG_ID_CHANNEL_CATEGORY_7,    0x01, handle_channel_category,      "Channel Category"},
 };
 
 #define REGISTER_HANDLER_COUNT (sizeof(REGISTER_HANDLERS) / sizeof(REGISTER_HANDLERS[0]))
@@ -2480,6 +2485,58 @@ static bool handle_channel_state(
 
     if (changed && ctx->enable_mqtt) {
         mqtt_publish_channel(&state_snapshot, ch_num);
+    }
+
+    return true;
+}
+
+/**
+ * Get channel category name from category code.
+ *
+ * If the code is known, returns the static label. Otherwise formats
+ * "Unknown 0xXX" into the caller-supplied buffer and returns a pointer to it.
+ */
+static const char* get_channel_category_name(uint8_t code, char *fallback_buf, size_t buf_size) {
+    switch (code) {
+        case CHANNEL_CATEGORY_POOL_EQUIPMENT: return "Pool equipment";
+        case CHANNEL_CATEGORY_LIGHT:          return "Light";
+        case CHANNEL_CATEGORY_HEATER_POWER:   return "Controlled Heater Power";
+    }
+    snprintf(fallback_buf, buf_size, "Unknown 0x%02X", code);
+    return fallback_buf;
+}
+
+/**
+ * Handler: Channel category
+ * Register range: 0xF5-0xFC, Slot: 0x01
+ * Values: 0x01=Pool equipment, 0x02=Light, 0x03=Controlled Heater Power
+ * Only broadcast for channels that are in use.
+ */
+static bool handle_channel_category(
+    const uint8_t *data, int len,
+    const uint8_t *payload, int payload_len,
+    const char *addr_info,
+    message_decoder_context_t *ctx)
+{
+    if (payload_len < 3) return false;
+
+    uint8_t reg_id = payload[0];
+    uint8_t category = payload[2];
+    uint8_t ch_num = reg_id - REG_ID_CHANNEL_CATEGORY_0 + 1;
+
+    char fallback[16];
+    const char *category_name = get_channel_category_name(category, fallback, sizeof(fallback));
+    ESP_LOGI(TAG, "%s Channel %d category - %s (%d)", addr_info, ch_num, category_name, category);
+
+    if (category < CHANNEL_CATEGORY_POOL_EQUIPMENT || category > CHANNEL_CATEGORY_HEATER_POWER) {
+        record_undocumented(data, len);
+    }
+
+    if (ctx->state_mutex && xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) == pdTRUE) {
+        ctx->pool_state->channels[ch_num - 1].category = category;
+        ctx->pool_state->channels[ch_num - 1].configured = true;
+        ctx->pool_state->last_update_ms = xTaskGetTickCount() * portTICK_PERIOD_MS;
+        xSemaphoreGive(ctx->state_mutex);
     }
 
     return true;

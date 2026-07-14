@@ -1757,7 +1757,7 @@ The register ID and slot together determine the message meaning. The slot distin
 | `0xEB`         | `0x00` | Heater 2 Spa Setpoint  | 1-byte °C value — writable via gateway CMD `0x3A`. See note below.   |
 | `0xEC` ⚠️       | `0x00` | Unknown                | Only `0x01` observed. Repeats ~every 8 minutes |
 | `0xF0` ⚠️       | `0x01` | Unknown                | Only `0xFF` observed. Repeats ~every 8 minutes |
-| `0xF5`–`0xFA` ⚠️| `0x01` | Unknown                | Only `0x01` observed. Repeats ~every 8 minutes |
+| `0xF5`–`0xFC`  | `0x01` | Channel Category       | 1-byte category code (`0x01`=Pool equipment, `0x02`=Light, `0x03`=Controlled Heater Power) — see note below |
 
 **Notes:**
 
@@ -1767,6 +1767,7 @@ The register ID and slot together determine the message meaning. The slot distin
 - **`0xE9`/`0xEA`/`0xEB` (Heater 2 trio) — confirmed ✅**: Slot `0x00` holds the Heater 1 trio at `0xE6` (state), `0xE7` (Pool setpoint), `0xE8` (Spa setpoint), and `0xE9`/`0xEA`/`0xEB` are the analogous trio for the second heater: `0xE9` = state (`0x00`=Off, `0x01`=On), `0xEA` = Pool setpoint, `0xEB` = Spa setpoint (1-byte °C). All three are writable via the gateway register-write command (CMD `0x3A` / second-byte `0xB9`). `0xEA` was confirmed by UI capture — changing the setpoint in the UI sends a `0x3A` write to `0xEA`/slot `0x00` and the touchscreen rebroadcasts the new value via CMD `0x38` (observed 21°C `EA 00 15`, 22°C `EA 00 16`, 27°C `EA 00 1B`; the 27°C value matched the **H2** value in the heater's `0x0070` CMD `0x17` broadcast). `0xE9` and `0xEB` are confirmed as Heater 2 state and spa setpoint respectively. (On the test install the second heater is a heat pump; "Heater 2" is kept as the generic name since another install's second heater may be a different type.)
 - **Mutually exclusive broadcast**: in captures observed so far the touchscreen broadcasts *either* the `E6/E7/E8` trio *or* the `E9/EA/EB` trio in slot `0x00`, but not both — consistent with a config-dependent enable (likely [0x26](#0x26--configuration-️) byte 10 bit 3 = heater count).
 - **`0xEB` default**: when the second heater isn't plumbed to spa, `0xEB` reads `0x0A` (10°C) — an unused default at the minimum setpoint rather than a live value.
+- **`0xF5`–`0xFC` (Channel Category) — confirmed ✅**: per-channel category code following the Channel Count register (`0xF4`): `0xF5` = Channel 1, `0xF6` = Channel 2, … `0xFC` = Channel 8. Values: `0x01` = Pool equipment, `0x02` = Light, `0x03` = Controlled Heater Power. Registers for unused channels are not broadcast (only `0xF5`–`0xFB` observed on a 7-channel system, so `0xFC` = Channel 8 is inferred from the range width of the other per-channel register blocks). This is a coarser classification than the per-channel [Channel Type](#0x0b--channel-status-) codes at `0x6C`–`0x73`.
 
 ### Examples by Register Type
 
@@ -1800,6 +1801,17 @@ The register ID and slot together determine the message meaning. The slot distin
 State values: `0x00` = Off, `0x01` = Auto, `0x02` = On
 
 > Read-only — write commands (`0x3A`) targeting these registers are silently ignored.
+
+**Channel Category (`0xF5`–`0xFC`, Slot `0x01`):**
+
+```
+02 00 50 FF FF 80 00 38 0F 17 F7 01 02 FA 03
+                              ^^ Channel 3 (0xF7)
+                                 ^^ Slot 0x01 (Category)
+                                    ^^ Category: 0x02 = Light
+```
+
+Category codes: `0x01` = Pool equipment, `0x02` = Light, `0x03` = Controlled Heater Power. Registers for unused channels are not broadcast.
 
 **Light Zone State (`0xC0`–`0xC7`, Slot `0x01`):**
 
@@ -1894,6 +1906,8 @@ State values: `0x00` = Off, `0x01` = Auto, `0x02` = On
 | `0x93`   | 8       | —             | —             | ✅ read-only   |
 
 > Channel state is **read-only** via the register system. To change channel state, use the [Channel Toggle Command (0x10)](#0x10--channel-toggle-command-️).
+
+Channel Category (`0xF5`–`0xFC`, slot `0x01`): `0xF5` = Channel 1, `0xF6` = Channel 2, … `0xFC` = Channel 8.
 
 **Lighting Zones:**
 

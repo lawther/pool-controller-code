@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - WiFi mesh roaming support: on connect the device now scans all channels and joins the strongest AP broadcasting the SSID (instead of the first one found), and advertises 802.11k/v so mesh networks like eero can steer it to a better node while connected
+- Decoded the Channel Category registers (0xF5–0xFC, slot 0x01, one per channel: Pool equipment / Light / Controlled Heater Power; only broadcast for in-use channels) — documented in PROTOCOL.md Appendix A and now decoded into pool state instead of being logged as unhandled registers
 ### Changed
 ### Removed
 ### Fixed
