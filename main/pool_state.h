@@ -146,6 +146,17 @@ typedef struct {
 } seen_device_t;
 
 // Favourite/mode slot (indices 0–7: Pool, Spa, Fav1–Fav6)
+
+// Favourite/mode values (shared by CMD 0x2A commands and active_favourite).
+// Pool/Spa are built-ins at values 0x00/0x01; user favourites are 0x02-0x07.
+// All Off/All Auto are momentary actions: the controller never reports them in the
+// Active Favourite register (0x20) — All Off reports as Pool, All Auto as none.
+#define FAVOURITE_POOL     0x00
+#define FAVOURITE_SPA      0x01
+#define FAVOURITE_ALL_OFF  0x80
+#define FAVOURITE_ALL_AUTO 0x81
+#define FAVOURITE_NONE     0xFF  // no favourite active (register 0x20, slot 0x03)
+
 typedef struct {
     char name[32];        // Label from register 0x31+index, slot 0x03
     bool enabled;         // Enable flag from register 0x21+index, slot 0x03
@@ -181,7 +192,7 @@ typedef struct {
 
     // Favourites / mode slots (Pool, Spa, Fav1–Fav6)
     favourite_t favourites[MAX_FAVOURITES];
-    uint8_t active_favourite;    // 0x00=Pool, 0x01=Spa, 0x02-0x07=Fav1-6, 0x80=AllOff, 0x81=AllAuto
+    uint8_t active_favourite;    // 0x00=Pool, 0x01=Spa, 0x02-0x07=Fav1-6, 0x80=AllOff, 0x81=AllAuto, 0xFF=none (FAVOURITE_NONE)
     bool active_favourite_valid;
 
     // Device serial number

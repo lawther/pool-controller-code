@@ -113,6 +113,8 @@ typedef enum {
     REG_ID_TIMER_0                 = 0x08,  // Timer index 0    (0–15 → 0x08–0x17, slot 0x04)
     REG_ID_TIMER_15                = 0x17,  // Timer index 15 (last)
 
+    REG_ID_ACTIVE_FAVOURITE        = 0x20,  // Currently active favourite (slot 0x03): CMD 0x2A value, 0xFF=none
+
     REG_ID_FAVOURITE_ENABLE_0      = 0x21,  // Fav enable index 0  (0–7 → 0x21–0x28, slot 0x03)
     REG_ID_FAVOURITE_ENABLE_7      = 0x28,  // Fav enable index 7 (last)
 

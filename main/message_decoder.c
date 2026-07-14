@@ -628,6 +628,7 @@ static bool handle_light_zone_name(const uint8_t *data, int len, const uint8_t *
 static bool handle_valve_label(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 static bool handle_favourite_label(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 static bool handle_favourite_enable(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
+static bool handle_active_favourite(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 static bool handle_temp_setpoint(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 static bool handle_channel_count(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 static bool handle_channel_category(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
@@ -659,6 +660,9 @@ static const register_handler_t REGISTER_HANDLERS[] = {
 
     // Valve labels (slot 0x02)
     {REG_ID_VALVE_LABEL_0,           REG_ID_VALVE_LABEL_1,           0x02, handle_valve_label,           "Valve Label"},
+
+    // Active favourite (slot 0x03, register 0x20): CMD 0x2A value, 0xFF = none active
+    {REG_ID_ACTIVE_FAVOURITE,        REG_ID_ACTIVE_FAVOURITE,        0x03, handle_active_favourite,      "Active Favourite"},
 
     // Favourite/mode enable flags (slot 0x03, registers 0x21-0x28 = Pool,Spa,Fav1-6)
     {REG_ID_FAVOURITE_ENABLE_0,      REG_ID_FAVOURITE_ENABLE_7,      0x03, handle_favourite_enable,      "Favourite Enable"},
@@ -1914,18 +1918,18 @@ static bool handle_mode_control_cmd(
 
     uint8_t mode_value = payload[0];
     const char *mode_name;
-    if (mode_value == 0x00)      mode_name = "Pool";
-    else if (mode_value == 0x01) mode_name = "Spa";
-    else if (mode_value == 0x80) mode_name = "All Off";
-    else if (mode_value == 0x81) mode_name = "All Auto";
+    if (mode_value == FAVOURITE_POOL)      mode_name = "Pool";
+    else if (mode_value == FAVOURITE_SPA)  mode_name = "Spa";
+    else if (mode_value == FAVOURITE_ALL_OFF)  mode_name = "All Off";
+    else if (mode_value == FAVOURITE_ALL_AUTO) mode_name = "All Auto";
     else if (mode_value >= 0x02 && mode_value <= 0x07) mode_name = "Favourite";
     else mode_name = "Unknown";
 
     ESP_LOGI(TAG, "%s Gateway mode control command - %s (0x%02X)",
              addr_info, mode_name, mode_value);
 
-    // Documented values: 0x00-0x07 (Pool/Spa/Fav1-6), 0x80 (All Off), 0x81 (All Auto).
-    if (mode_value > 0x07 && mode_value != 0x80 && mode_value != 0x81) {
+    // Documented values: 0x00-0x07 (Pool/Spa/Fav1-6), All Off, All Auto.
+    if (mode_value > 0x07 && mode_value != FAVOURITE_ALL_OFF && mode_value != FAVOURITE_ALL_AUTO) {
         record_undocumented(data, len);
     }
 
@@ -2905,6 +2909,55 @@ static bool handle_favourite_label(
  * Register range: 0x21–0x28, Slot: 0x03
  * Index 0=Pool, 1=Spa, 2–7=Favourites 1–6
  */
+/**
+ * Handler: Active favourite (register 0x20, slot 0x03)
+ * Value is the CMD 0x2A favourite/mode value (0x00=Pool, 0x01=Spa,
+ * 0x02-0x07=Fav1-6); 0xFF = no favourite active. Broadcast on change and in
+ * the periodic register dump.
+ */
+static bool handle_active_favourite(
+    const uint8_t *data, int len,
+    const uint8_t *payload, int payload_len,
+    const char *addr_info,
+    message_decoder_context_t *ctx)
+{
+    if (payload_len < 3) return false;
+
+    uint8_t value = payload[2];
+
+    const char *name;
+    if (value == FAVOURITE_POOL)                       name = "Pool";
+    else if (value == FAVOURITE_SPA)                   name = "Spa";
+    else if (value >= 0x02 && value < MAX_FAVOURITES)  name = "Favourite";
+    else if (value == FAVOURITE_ALL_OFF)               name = "All Off";
+    else if (value == FAVOURITE_ALL_AUTO)              name = "All Auto";
+    else if (value == FAVOURITE_NONE)                  name = "None";
+    else                                               name = "Unknown";
+
+    ESP_LOGI(TAG, "%s Active favourite - %s (0x%02X)", addr_info, name, value);
+
+    if (value >= MAX_FAVOURITES && value != FAVOURITE_ALL_OFF && value != FAVOURITE_ALL_AUTO &&
+        value != FAVOURITE_NONE) {
+        record_undocumented(data, len);
+    }
+
+    pool_state_t state_snapshot;
+    bool should_publish = false;
+    if (ctx->state_mutex && xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) == pdTRUE) {
+        ctx->pool_state->active_favourite = value;
+        ctx->pool_state->active_favourite_valid = true;
+        ctx->pool_state->last_update_ms = xTaskGetTickCount() * portTICK_PERIOD_MS;
+        state_snapshot = *ctx->pool_state;
+        should_publish = true;
+        xSemaphoreGive(ctx->state_mutex);
+    }
+
+    if (should_publish) {
+        mqtt_publish_favourite(&state_snapshot);
+    }
+    return true;
+}
+
 static bool handle_favourite_enable(
     const uint8_t *data, int len,
     const uint8_t *payload, int payload_len,

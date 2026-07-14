@@ -162,13 +162,19 @@ static void handle_favourite_command(const char *payload, int payload_len)
 
     uint8_t value;
     if (strncmp(payload, "Pool", payload_len) == 0 && payload_len == 4) {
-        value = 0x00;
+        value = FAVOURITE_POOL;
     } else if (strncmp(payload, "Spa", payload_len) == 0 && payload_len == 3) {
-        value = 0x01;
+        value = FAVOURITE_SPA;
     } else if (strncmp(payload, "All Off", payload_len) == 0 && payload_len == 7) {
-        value = 0x80;
+        value = FAVOURITE_ALL_OFF;
     } else if (strncmp(payload, "All Auto", payload_len) == 0 && payload_len == 8) {
-        value = 0x81;
+        value = FAVOURITE_ALL_AUTO;
+    } else if (strncmp(payload, "No Favourite", payload_len) == 0 && payload_len == 12) {
+        // Status-only value (register 0x20 = 0xFF, no favourite active).
+        // There is no bus command to deactivate a favourite: CMD 0x2A with
+        // value 0xFF was tested and the controller ignores it.
+        ESP_LOGI(TAG, "Ignoring 'No Favourite' selection (status-only)");
+        return;
     } else {
         // Search enabled user favourites (indices 2–7 → values 0x02–0x07)
         value = 0xFF;
@@ -224,9 +230,9 @@ static void handle_mode_command(const char *payload, int payload_len)
     // Command: Spa=0x01, Pool=0x00
     uint8_t mode_value;
     if (strncmp(payload, "Pool", payload_len) == 0) {
-        mode_value = 0x00;  // Switch to Pool mode
+        mode_value = FAVOURITE_POOL;  // Switch to Pool mode
     } else if (strncmp(payload, "Spa", payload_len) == 0) {
-        mode_value = 0x01;  // Switch to Spa mode
+        mode_value = FAVOURITE_SPA;   // Switch to Spa mode
     } else {
         ESP_LOGE(TAG, "Invalid mode command: %.*s (expected Pool/Spa)", payload_len, payload);
         return;
