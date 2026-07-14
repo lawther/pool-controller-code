@@ -1022,16 +1022,16 @@ static void publish_favourite_discovery(const char *device_id, const char *mac_s
 
     cJSON *opts = cJSON_CreateArray();
 
-    // Pool (index 0)
-    if (state && state->favourites[0].name_valid && state->favourites[0].name[0] != '\0') {
-        cJSON_AddItemToArray(opts, cJSON_CreateString(state->favourites[0].name));
+    // Pool (index FAVOURITE_POOL = 0)
+    if (state && state->favourites[FAVOURITE_POOL].name_valid && state->favourites[FAVOURITE_POOL].name[0] != '\0') {
+        cJSON_AddItemToArray(opts, cJSON_CreateString(state->favourites[FAVOURITE_POOL].name));
     } else {
         cJSON_AddItemToArray(opts, cJSON_CreateString("Pool"));
     }
 
-    // Spa (index 1)
-    if (state && state->favourites[1].name_valid && state->favourites[1].name[0] != '\0') {
-        cJSON_AddItemToArray(opts, cJSON_CreateString(state->favourites[1].name));
+    // Spa (index FAVOURITE_SPA = 1)
+    if (state && state->favourites[FAVOURITE_SPA].name_valid && state->favourites[FAVOURITE_SPA].name[0] != '\0') {
+        cJSON_AddItemToArray(opts, cJSON_CreateString(state->favourites[FAVOURITE_SPA].name));
     } else {
         cJSON_AddItemToArray(opts, cJSON_CreateString("Spa"));
     }
@@ -1053,6 +1053,13 @@ static void publish_favourite_discovery(const char *device_id, const char *mac_s
     // All Off / All Auto (always available)
     cJSON_AddItemToArray(opts, cJSON_CreateString("All Off"));
     cJSON_AddItemToArray(opts, cJSON_CreateString("All Auto"));
+
+    // "No Favourite" is status-only (register 0x20 = 0xFF, no favourite
+    // active); it is included so HA renders the state as a valid option, but
+    // selecting it sends no bus command (see handle_favourite_command).
+    // Deliberately not labelled "None" — HA treats that payload as its
+    // set-to-unknown sentinel.
+    cJSON_AddItemToArray(opts, cJSON_CreateString("No Favourite"));
 
     cJSON_AddItemToObject(root, "options", opts);
     cJSON_AddStringToObject(root, "unique_id", uid);

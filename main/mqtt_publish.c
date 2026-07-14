@@ -694,19 +694,24 @@ void mqtt_publish_valve(const pool_state_t *current_state, uint8_t valve_num)
 static const char *get_favourite_option_name(const pool_state_t *state, uint8_t value,
                                              char *buf, size_t buf_len)
 {
-    if (value == 0x80) {
+    if (value == FAVOURITE_ALL_OFF) {
         return "All Off";
     }
-    if (value == 0x81) {
+    if (value == FAVOURITE_ALL_AUTO) {
         return "All Auto";
+    }
+    if (value == FAVOURITE_NONE) {
+        // Not "None": HA treats a payload of literally "None" as its
+        // set-to-unknown sentinel, which blanks the select
+        return "No Favourite";
     }
     if (value < MAX_FAVOURITES) {
         if (state->favourites[value].name_valid && state->favourites[value].name[0] != '\0') {
             return state->favourites[value].name;
         }
         // Fallback names
-        if (value == 0x00) return "Pool";
-        if (value == 0x01) return "Spa";
+        if (value == FAVOURITE_POOL) return "Pool";
+        if (value == FAVOURITE_SPA)  return "Spa";
         snprintf(buf, buf_len, "Favourite %d", value - 1);
         return buf;
     }
