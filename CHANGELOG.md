@@ -21,7 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - WiFi mesh roaming support: on connect the device now scans all channels and joins the strongest AP broadcasting the SSID (instead of the first one found), and advertises 802.11k/v so mesh networks like eero can steer it to a better node while connected
 - Decoded the Channel Category registers (0xF5–0xFC, slot 0x01, one per channel: Pool equipment / Light / Controlled Heater Power; only broadcast for in-use channels) — documented in PROTOCOL.md Appendix A and now decoded into pool state instead of being logged as unhandled registers
 - Decoded the Active Favourite register (0x20, slot 0x03): reports the currently active favourite/mode using the CMD 0x2A values, with 0xFF = none active (All Off reports as Pool and All Auto as none, since the controller treats them as momentary actions rather than states) — documented in PROTOCOL.md Appendix A and fed into the Home Assistant favourite select, which gains a status-only "No Favourite" option; favourites activated outside HA now update the select (immediately for gateway/MQTT commands, at the next ~8-minute register dump for touchscreen activations)
+- Decoded the newly discovered CMD 0x15 Mode Set Command: broadcast from the Touchscreen address (0x0050), switches Spa/Pool mode using the same encoding as the 0x14 status (Spa=0x00, Pool=0x01, unlike the inverted 0x2A values), confirmed by injection testing — documented in PROTOCOL.md and decoded into pool state, so mode switches commanded by other senders update Home Assistant immediately
 ### Changed
+- The Home Assistant Spa/Pool mode select (mode/set) now switches mode with the dedicated CMD 0x15 Mode Set Command instead of activating the Pool/Spa built-in favourites via CMD 0x2A; mode values throughout the code now use the new MODE_SPA/MODE_POOL constants
+- Renamed CMD 0x2A from "Mode/Favourite Control Command" to "Favourite Control Command" throughout PROTOCOL.md and the code (handler, pattern constant, comments and logs), since its value space is the favourite slots; the Spa/Pool MQTT mode select is unaffected
 ### Removed
 ### Fixed
 ### Deprecated

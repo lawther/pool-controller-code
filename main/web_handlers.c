@@ -738,8 +738,8 @@ static esp_err_t status_get_handler(httpd_req_t *req)
 
     // Mode
     if (state.mode_valid) {
-        const char *mode_str = (state.mode == 0) ? "Spa" :
-                               (state.mode == 1) ? "Pool" : "Unknown";
+        const char *mode_str = (state.mode == MODE_SPA) ? "Spa" :
+                               (state.mode == MODE_POOL) ? "Pool" : "Unknown";
         cJSON_AddStringToObject(root, "mode", mode_str);
     } else {
         cJSON_AddNullToObject(root, "mode");

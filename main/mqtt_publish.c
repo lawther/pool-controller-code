@@ -256,7 +256,7 @@ void mqtt_publish_mode(const pool_state_t *current_state)
     char topic[128];
     snprintf(topic, sizeof(topic), "pool/%s/mode/state", device_id);
 
-    const char *payload = (current_state->mode == 0) ? "Spa" : (current_state->mode == 1) ? "Pool" : "Unknown";
+    const char *payload = (current_state->mode == MODE_SPA) ? "Spa" : (current_state->mode == MODE_POOL) ? "Pool" : "Unknown";
     mqtt_publish(topic, payload, 0, true);
 
     // Update last published state

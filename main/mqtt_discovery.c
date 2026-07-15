@@ -1121,7 +1121,7 @@ void mqtt_publish_discovery(void)
     // Note: Channels and lights are NOT published here.
     // They are published individually when first configured (see mqtt_publish.c)
 
-    // Favourite/mode select (snapshot state for dynamic options)
+    // Favourite select (snapshot state for dynamic options)
     {
         pool_state_t snapshot = {0};
         if (s_pool_state_mutex &&
