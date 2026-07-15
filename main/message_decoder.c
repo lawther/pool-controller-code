@@ -1922,6 +1922,7 @@ static bool handle_mode_control_cmd(
     else if (mode_value == FAVOURITE_SPA)  mode_name = "Spa";
     else if (mode_value == FAVOURITE_ALL_OFF)  mode_name = "All Off";
     else if (mode_value == FAVOURITE_ALL_AUTO) mode_name = "All Auto";
+    else if (mode_value == FAVOURITE_NONE) mode_name = "None";
     else if (mode_value >= 0x02 && mode_value <= 0x07) mode_name = "Favourite";
     else mode_name = "Unknown";
 
@@ -1929,7 +1930,10 @@ static bool handle_mode_control_cmd(
              addr_info, mode_name, mode_value);
 
     // Documented values: 0x00-0x07 (Pool/Spa/Fav1-6), All Off, All Auto.
-    if (mode_value > 0x07 && mode_value != FAVOURITE_ALL_OFF && mode_value != FAVOURITE_ALL_AUTO) {
+    if (mode_value > 0x07 
+         && mode_value != FAVOURITE_ALL_OFF
+         && mode_value != FAVOURITE_ALL_AUTO 
+         && mode_value != FAVOURITE_NONE) {
         record_undocumented(data, len);
     }
 

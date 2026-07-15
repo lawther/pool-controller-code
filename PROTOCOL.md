@@ -1166,6 +1166,7 @@ Command sent by the Internet Gateway (`0x00F0`) to the Touchscreen (`0x0050`) to
 02 00 F0 00 50 80 00 2A 0D F9 02 02 03   Activate Favourite 1
 02 00 F0 00 50 80 00 2A 0D F9 80 80 03   All Off mode
 02 00 F0 00 50 80 00 2A 0D F9 81 81 03   All Auto mode
+02 00 F0 00 50 80 00 2A 0D F9 FF FF 03   None
                               ^^ Mode/favourite byte
                                  ^^ Data checksum (equals the mode byte)
 ```
