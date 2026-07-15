@@ -17,6 +17,7 @@ idf_component_register(
         "unknown_buffer.c"
         "dns_server.c"
         "heap_monitor.c"
+        "firmware_update.c"
     INCLUDE_DIRS
          "."
     EMBED_TXTFILES
@@ -32,6 +33,10 @@ idf_component_register(
         esp_event
         esp_netif
         esp_http_server
+        esp_http_client
+        esp_https_ota
+        esp-tls
+        mbedtls
         nvs_flash
         driver
         mqtt

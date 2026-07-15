@@ -19,7 +19,7 @@
 
 // HTTP Server
 #define HTTP_SERVER_PORT               80
-#define HTTP_MAX_URI_HANDLERS          20      // Number of endpoint handlers
+#define HTTP_MAX_URI_HANDLERS          24      // Number of endpoint handlers
 #define HTTP_RECV_TIMEOUT_SEC          10      // Timeout for receiving requests
 #define HTTP_SEND_TIMEOUT_SEC          10      // Timeout for sending responses
 #define HTTP_STACK_SIZE                8192    // Stack size for HTTP server task
@@ -134,5 +134,23 @@
 #define OTA_REBOOT_DELAY_MS            2000    // Delay before reboot after OTA
 #define OTA_UPLOAD_TIMEOUT_MS          120000  // 2 minutes max for OTA upload
 #define OTA_MAX_FIRMWARE_SIZE          0x1E0000 // Must match ota_0/ota_1 partition size in partitions.csv
+
+// ======================================================
+// GitHub Firmware Update
+// ======================================================
+
+// Repository that publishes firmware releases. The latest release is resolved
+// via https://github.com/<owner>/<repo>/releases/latest and the OTA image is
+// pulled from that release's asset (named <asset_prefix><tag>.bin, matching the
+// artifact the build workflow uploads).
+#define FW_UPDATE_GITHUB_OWNER         "marklynch"
+#define FW_UPDATE_GITHUB_REPO          "pool-controller-code"
+#define FW_UPDATE_ASSET_PREFIX         "pool-controller-update-"  // + <tag> + ".bin"
+
+#define FW_UPDATE_CHECK_INTERVAL_MS    (12 * 60 * 60 * 1000)  // Re-check GitHub every 12 hours
+#define FW_UPDATE_STARTUP_DELAY_MS     30000    // Wait after boot before the first check
+#define FW_UPDATE_HTTP_TIMEOUT_MS      15000    // Per-request timeout for the version check
+#define FW_UPDATE_OTA_TIMEOUT_MS       60000    // Socket timeout while downloading the image
+#define FW_UPDATE_TASK_STACK           8192     // Stack for the check/install task (TLS is heavy)
 
 #endif // CONFIG_H
