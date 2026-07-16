@@ -6,6 +6,7 @@
 #include "message_decoder.h"
 #include "unknown_buffer.h"
 #include "device_serial.h"
+#include "firmware_update.h"
 #include "esp_wifi.h"
 #include "esp_log.h"
 #include "esp_system.h"
@@ -1272,7 +1273,101 @@ static esp_err_t update_get_handler(httpd_req_t *req)
         "<div role='alert' data-variant='warning' class='mt-4'>"
         "<strong>Warning:</strong> Do not power off the device during update!"
         "</div>"
-        "<form id='updateForm' class='mt-4'>"
+
+        // ---- Update from GitHub -------------------------------------------
+        "<h2 class='mt-4'>Update from GitHub</h2>"
+        "<div id='ghStatus' role='alert'>Checking for the latest release&hellip;</div>"
+        "<progress id='ghProgress' value='0' max='100' hidden class='mt-2'></progress>"
+        "<div id='ghVersionWrap' hidden class='mt-2' data-field>"
+        "<label for='ghVersion'>Version to install</label>"
+        "<select id='ghVersion'></select>"
+        "</div>"
+        "<div class='mt-2'>"
+        "<button type='button' id='ghCheck'>Check for updates</button> "
+        "<button type='button' id='ghInstall' hidden data-variant='success'>Install selected version</button>"
+        "</div>"
+        "<script>"
+        // Shared by the GitHub and manual-upload flows: count down while the
+        // device reboots, then reload so the page shows the new firmware.
+        "function rebootReload(el){"
+        "el.setAttribute('data-variant','success');"
+        "let countdown=15;"
+        "el.textContent='Update successful! Rebooting... reload in '+countdown+' seconds';"
+        "const timer=setInterval(function(){"
+        "countdown--;"
+        "if(countdown>0){"
+        "el.textContent='Update successful! Rebooting... reload in '+countdown+' seconds';"
+        "}else{"
+        "clearInterval(timer);"
+        "el.textContent='Update successful! Rebooting... reloading now...';"
+        "window.location.reload();"
+        "}},1000);}"
+        "(function(){"
+        "const s=document.getElementById('ghStatus');"
+        "const p=document.getElementById('ghProgress');"
+        "const vw=document.getElementById('ghVersionWrap');"
+        "const vs=document.getElementById('ghVersion');"
+        "const bC=document.getElementById('ghCheck');"
+        "const bI=document.getElementById('ghInstall');"
+        "let polling=false;let last='';let rebooting=false;"
+        // Populate the version dropdown (newest first) only when the list
+        // changes, so an in-progress user selection isn't reset by polling.
+        "function fill(list){"
+        "const sig=(list||[]).join(',');"
+        "if(vs.dataset.sig===sig)return;"
+        "vs.dataset.sig=sig;vs.innerHTML='';"
+        "(list||[]).forEach(function(v,i){"
+        "const o=document.createElement('option');"
+        "o.value=v;o.textContent=v+(i===0?' (latest)':'');vs.appendChild(o);});}"
+        "function render(d){"
+        "if(d.state==='downloading'){"
+        "p.removeAttribute('hidden');p.value=d.progress||0;"
+        "s.removeAttribute('data-variant');"
+        "s.textContent='Downloading update '+(d.progress||0)+'%… do not power off.';"
+        "vw.setAttribute('hidden','');bC.setAttribute('hidden','');bI.setAttribute('hidden','');return;}"
+        "if(d.state==='success'){p.removeAttribute('hidden');p.value=100;"
+        "vw.setAttribute('hidden','');bC.setAttribute('hidden','');bI.setAttribute('hidden','');"
+        "if(!rebooting){rebooting=true;rebootReload(s);}return;}"
+        "p.setAttribute('hidden','');bC.removeAttribute('hidden');"
+        "const have=d.versions&&d.versions.length;"
+        "if(have){fill(d.versions);vw.removeAttribute('hidden');bI.removeAttribute('hidden');}"
+        "else{vw.setAttribute('hidden','');bI.setAttribute('hidden','');}"
+        "if(d.state==='error'&&d.error){s.setAttribute('data-variant','danger');"
+        "s.textContent='Error: '+d.error;}"
+        "else if(d.update_available){s.setAttribute('data-variant','warning');"
+        "let msg='Update available: '+d.latest+' (installed '+d.installed+').';"
+        "if(d.release_url){s.innerHTML='';s.appendChild(document.createTextNode(msg+' '));"
+        "const a=document.createElement('a');a.href=d.release_url;a.target='_blank';"
+        "a.textContent='Release notes';s.appendChild(a);}else{s.textContent=msg;}}"
+        "else if(d.checked){s.setAttribute('data-variant','success');"
+        "s.textContent='Up to date ('+d.installed+'). You can reinstall or roll back below.';}"
+        "else{s.removeAttribute('data-variant');"
+        "s.textContent='Latest release not yet checked.';}}"
+        "function poll(){fetch('/update/check').then(r=>r.json()).then(function(d){"
+        "last=d.state;render(d);"
+        "if(d.state==='downloading'||d.state==='checking'){polling=true;setTimeout(poll,2000);}"
+        "else{polling=false;}"
+        // A failed poll right after a download means the device rebooted
+        // before we saw the 'success' state — treat it as success.
+        "}).catch(function(){polling=false;"
+        "if(last==='downloading')render({state:'success'});});}"
+        "bC.addEventListener('click',function(){"
+        "s.removeAttribute('data-variant');s.textContent='Checking for the latest release…';"
+        "fetch('/update/check?refresh=1').then(r=>r.json()).then(render)"
+        ".catch(function(){s.setAttribute('data-variant','danger');s.textContent='Check failed.';});});"
+        "bI.addEventListener('click',function(){"
+        "const v=vs.value;if(!v)return;"
+        "if(!confirm('Download and install firmware '+v+' from GitHub?'))return;"
+        "fetch('/update/github?version='+encodeURIComponent(v),{method:'POST'}).then(r=>r.json()).then(function(d){"
+        "if(d.success){if(!polling)poll();}"
+        "else{s.setAttribute('data-variant','danger');s.textContent='Error: '+(d.message||'could not start');}});});"
+        "poll();"
+        "})();"
+        "</script>"
+
+        // ---- Manual upload -------------------------------------------------
+        "<h2 class='mt-4'>Manual upload</h2>"
+        "<form id='updateForm' class='mt-2'>"
         "<div data-field>"
             "<label for='firmware'>Firmware File (.bin)</label>"
             "<input type='file' id='firmware' name='firmware' accept='.bin' required>"
@@ -1308,18 +1403,7 @@ static esp_err_t update_get_handler(httpd_req_t *req)
         "const resp=JSON.parse(xhr.responseText);"
         "if(resp.success){"
         "progressBar.setAttribute('hidden','');progressText.setAttribute('hidden','');"
-        "status.setAttribute('data-variant','success');"
-        "let countdown=15;"
-        "status.textContent='Update successful! Rebooting... reload in '+countdown+' seconds';"
-        "const timer=setInterval(function(){"
-        "countdown--;"
-        "if(countdown>0){"
-        "status.textContent='Update successful! Rebooting... reload in '+countdown+' seconds';"
-        "}else{"
-        "clearInterval(timer);"
-        "status.textContent='Update successful! Rebooting... reloading now...';"
-        "window.location.reload();"
-        "}},1000);"
+        "rebootReload(status);"
         "}else{"
         "status.textContent='Error: '+resp.message;"
         "status.setAttribute('data-variant','danger');"
@@ -1500,6 +1584,95 @@ static esp_err_t update_post_handler(httpd_req_t *req)
     vTaskDelay(pdMS_TO_TICKS(OTA_REBOOT_DELAY_MS));
     esp_restart();
 
+    return ESP_OK;
+}
+
+// ======================================================
+// GitHub Update Handlers
+// ======================================================
+
+static const char *fw_state_str(fw_update_state_t state)
+{
+    switch (state) {
+        case FW_UPDATE_STATE_CHECKING:    return "checking";
+        case FW_UPDATE_STATE_DOWNLOADING: return "downloading";
+        case FW_UPDATE_STATE_SUCCESS:     return "success";
+        case FW_UPDATE_STATE_ERROR:       return "error";
+        case FW_UPDATE_STATE_IDLE:
+        default:                          return "idle";
+    }
+}
+
+// GET /update/check[?refresh=1] — return current GitHub update status as JSON.
+// With ?refresh=1, synchronously re-query GitHub before responding.
+static esp_err_t update_check_handler(httpd_req_t *req)
+{
+    char query[32];
+    if (httpd_req_get_url_query_str(req, query, sizeof(query)) == ESP_OK) {
+        char val[8];
+        if (httpd_query_key_value(query, "refresh", val, sizeof(val)) == ESP_OK &&
+            strcmp(val, "1") == 0) {
+            firmware_update_check_now();
+        }
+    }
+
+    fw_update_status_t st;
+    firmware_update_get_status(&st);
+
+    cJSON *root = cJSON_CreateObject();
+    cJSON_AddStringToObject(root, "state", fw_state_str(st.state));
+    cJSON_AddStringToObject(root, "installed", st.installed_version);
+    cJSON_AddStringToObject(root, "latest", st.latest_version);
+    cJSON_AddStringToObject(root, "release_url", st.release_url);
+    cJSON_AddBoolToObject(root, "checked", st.checked);
+    cJSON_AddBoolToObject(root, "update_available", st.update_available);
+    cJSON_AddNumberToObject(root, "progress", st.progress_pct);
+    cJSON_AddStringToObject(root, "error", st.last_error);
+
+    // Recent releases, newest first (latest + up to 4 prior), so the UI can
+    // offer installing or rolling back to a specific version.
+    cJSON *versions = cJSON_CreateArray();
+    for (int i = 0; i < st.version_count && i < FW_UPDATE_MAX_VERSIONS; i++) {
+        cJSON_AddItemToArray(versions, cJSON_CreateString(st.versions[i]));
+    }
+    cJSON_AddItemToObject(root, "versions", versions);
+
+    char *json = cJSON_PrintUnformatted(root);
+    httpd_resp_set_type(req, "application/json; charset=UTF-8");
+    if (json) {
+        httpd_resp_send(req, json, HTTPD_RESP_USE_STRLEN);
+        cJSON_free(json);
+    } else {
+        httpd_resp_send(req, "{}", HTTPD_RESP_USE_STRLEN);
+    }
+    cJSON_Delete(root);
+    return ESP_OK;
+}
+
+// POST /update/github[?version=<tag>] — start an OTA install of a GitHub
+// release. Without a version, the latest release is installed; a version must
+// be one of the recent releases reported by /update/check.
+static esp_err_t update_github_post_handler(httpd_req_t *req)
+{
+    char version[FW_UPDATE_VERSION_LEN] = {0};
+    char query[96];
+    if (httpd_req_get_url_query_str(req, query, sizeof(query)) == ESP_OK) {
+        httpd_query_key_value(query, "version", version, sizeof(version));
+    }
+
+    esp_err_t err = firmware_update_start_install(version[0] ? version : NULL);
+    httpd_resp_set_type(req, "application/json; charset=UTF-8");
+    if (err == ESP_OK) {
+        httpd_resp_send(req, "{\"success\":true,\"message\":\"Update started\"}", HTTPD_RESP_USE_STRLEN);
+    } else if (err == ESP_ERR_NOT_FOUND) {
+        httpd_resp_send(req,
+            "{\"success\":false,\"message\":\"Unknown release version\"}",
+            HTTPD_RESP_USE_STRLEN);
+    } else {
+        httpd_resp_send(req,
+            "{\"success\":false,\"message\":\"No release available or an update is already running\"}",
+            HTTPD_RESP_USE_STRLEN);
+    }
     return ESP_OK;
 }
 
@@ -1896,6 +2069,18 @@ static const httpd_uri_t update_post_uri = {
     .handler = update_post_handler
 };
 
+static const httpd_uri_t update_check_uri = {
+    .uri = "/update/check",
+    .method = HTTP_GET,
+    .handler = update_check_handler
+};
+
+static const httpd_uri_t update_github_uri = {
+    .uri = "/update/github",
+    .method = HTTP_POST,
+    .handler = update_github_post_handler
+};
+
 static const httpd_uri_t test_decode_uri = {
     .uri = "/api/test_decode",
     .method = HTTP_POST,
@@ -2081,6 +2266,8 @@ esp_err_t web_handlers_register(httpd_handle_t server)
     httpd_register_uri_handler(server, &mqtt_config_post_uri);
     httpd_register_uri_handler(server, &update_get_uri);
     httpd_register_uri_handler(server, &update_post_uri);
+    httpd_register_uri_handler(server, &update_check_uri);
+    httpd_register_uri_handler(server, &update_github_uri);
     httpd_register_uri_handler(server, &test_decode_uri);
     httpd_register_uri_handler(server, &unknown_msgs_json_uri);
     httpd_register_uri_handler(server, &unknown_msgs_clear_uri);

@@ -21,6 +21,7 @@
 #include "register_requester.h"
 #include "unknown_buffer.h"
 #include "heap_monitor.h"
+#include "firmware_update.h"
 
 // ==================== APPLICATION =====================
 // All configuration values are in config.h
@@ -186,6 +187,11 @@ void app_main(void)
     } else {
         ESP_LOGW(TAG, "MQTT initialization failed: %s", esp_err_to_name(mqtt_err));
     }
+
+    // Initialize the GitHub firmware-update checker. Done before WiFi connects
+    // so its state/locks exist by the time MQTT connects and publishes the HA
+    // update entity's state; the check task itself waits for the network.
+    firmware_update_init();
 
     // Wait for WiFi connection or stay in provisioning mode
     wifi_wait_for_connection();

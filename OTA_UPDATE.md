@@ -1,10 +1,42 @@
 # OTA (Over-The-Air) Firmware Updates
 
-This document describes how to use the web-based OTA firmware update feature.
+This document describes the OTA firmware update features.
 
 ## Overview
 
 The device supports updating firmware over WiFi without needing a USB connection. The OTA update system uses dual app partitions for safe rollback if the new firmware fails to boot.
+
+There are three ways to update:
+
+1. **Update from GitHub (recommended)** — the device checks the project's GitHub *latest release* on a schedule, and can download and install it on demand. No file handling required.
+2. **Home Assistant update entity** — the "Firmware" update entity mirrors the GitHub check and installs with the HA *Install* button.
+3. **Manual upload** — upload a locally built `.bin` from the `/update` page.
+
+## Update from GitHub
+
+### How it works
+
+- On boot (after a short delay) and every `FW_UPDATE_CHECK_INTERVAL_MS` (default 12 h), the firmware fetches the releases Atom feed `https://github.com/<owner>/<repo>/releases.atom` and reads the tags of the most recent releases (newest first) — the latest plus up to `FW_UPDATE_MAX_VERSIONS - 1` prior versions (default: latest + 4). This uses no GitHub API token and no rate-limited JSON call. The feed is parsed as it streams, so a repo with large release notes doesn't need a big buffer.
+- The newest tag is compared against the running build's version (`major.minor.patch`, ignoring any `git describe` suffix). If it is newer, an update is flagged as available.
+- Installing pulls the chosen release's asset `pool-controller-update-<tag>.bin` (the artifact the build workflow uploads) directly over HTTPS via `esp_https_ota`, writing to the inactive OTA partition, then reboots. The requested version must be one of the recently discovered releases, so the download URL can't be pointed at an arbitrary target.
+
+The GitHub owner/repo, asset name prefix, number of versions tracked, check interval, and timeouts are configured in `main/config.h` (`FW_UPDATE_*`).
+
+### From the web UI
+
+1. Open `http://<device-ip>/update`.
+2. The **Update from GitHub** section shows whether you are up to date or a newer release is available (with a link to the release notes).
+3. Choose a version from the dropdown — the latest plus the previous few releases, so you can update or **roll back** to a specific version — then click **Install selected version**. Click **Check for updates** to re-query GitHub immediately. Progress is shown; the device reboots when finished.
+
+> Rolling back requires that the older release still has a `pool-controller-update-<tag>.bin` asset attached; releases published before this asset naming was in place cannot be installed this way.
+
+### From Home Assistant
+
+With MQTT configured, the device publishes a Home Assistant `update` entity ("Firmware") via MQTT discovery. It shows the installed and latest versions and provides an **Install** button that triggers the same GitHub OTA. Download progress is reported back to the entity.
+
+### Network requirements
+
+The device must be able to reach `github.com` and `objects.githubusercontent.com` (where release downloads redirect) over HTTPS. TLS is validated against the ESP-IDF certificate bundle (`CONFIG_MBEDTLS_CERTIFICATE_BUNDLE`).
 
 ## Partition Layout
 
@@ -19,7 +51,9 @@ The device uses the following partition table (defined in `partitions.csv`):
 
 Updates alternate between ota_0 and ota_1, providing automatic rollback protection. The **otadata** partition is critical - it stores which OTA partition should boot next.
 
-## How to Update Firmware
+## Manual Upload (build and upload a .bin)
+
+Use this when developing locally or installing a build that isn't a published GitHub release.
 
 ### 1. Build New Firmware
 
@@ -131,14 +165,22 @@ The current firmware version is displayed:
 Version format: `v{tag}-{commits}-g{hash}[-dirty]`
 - Example: `v1.0.0-5-g870d65b` = 5 commits after v1.0.0 tag
 
-## Files Modified
+The GitHub install endpoints (`POST /update/github`, `POST /update`) and the MQTT install command likewise have no authentication and rely on network/broker security. The GitHub image download is transport-encrypted (HTTPS, validated against the certificate bundle) but the image itself is not signature-verified unless Secure Boot / signed OTA is enabled.
+
+## Files
 
 - `partitions.csv` - Partition table definition
-- `main/web_handlers.c` - OTA upload handlers
-- `main/CMakeLists.txt` - Added app_update component dependency
-- `CMakeLists.txt` - (No changes needed for basic OTA)
+- `main/firmware_update.c/.h` - GitHub release check + pull-based OTA
+- `main/web_handlers.c` - Manual upload handler + `/update/check` and `/update/github` endpoints
+- `main/mqtt_discovery.c` - Home Assistant `update` entity discovery
+- `main/mqtt_poolclient.c` - Subscribes to and routes the MQTT install command
+- `main/config.h` - `FW_UPDATE_*` settings (repo, interval, timeouts)
+- `main/CMakeLists.txt` - `esp_https_ota` / `esp_http_client` / `esp-tls` / `mbedtls` dependencies
+- `sdkconfig.defaults` - Enables the mbedTLS certificate bundle
 
 ## References
 
 - [ESP-IDF OTA Documentation](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/system/ota.html)
+- [ESP HTTPS OTA Component](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/system/esp_https_ota.html)
 - [app_update Component](https://github.com/espressif/esp-idf/tree/master/components/app_update)
+- [Home Assistant MQTT Update](https://www.home-assistant.io/integrations/update.mqtt/)
