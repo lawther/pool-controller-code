@@ -92,6 +92,7 @@ static bool match_pattern(const uint8_t *data, int data_len, const char *pattern
 static const char *MSG_TYPE_TEMP_SETTING =          "02 00 50 FF FF 80 00 17 10 F7";
 static const char *MSG_TYPE_CONFIG =                "02 00 50 FF FF 80 00 26 0E 04";
 static const char *MSG_TYPE_MODE =                  "02 00 50 FF FF 80 00 14 0D F1";
+static const char *MSG_TYPE_MODE_SET_CMD =          "02 00 50 FF FF 80 00 15 0D F2";
 static const char *MSG_TYPE_CHANNELS =              "02 00 50 00 6F 80 00 0D 0D 5B";
 static const char *MSG_TYPE_CHANNEL_STATUS =        "02 00 50 FF FF 80 00 0B 25 00";
 static const char *MSG_TYPE_LIGHT_CONFIG =          "02 00 50 FF FF 80 00 06 0E E4";
@@ -160,7 +161,7 @@ static const char *MSG_TYPE_PUMP_BUTTONS =            "02 00 A0 FF FF 80 00 1B 0
 // F0 Gateway Control Commands (Gateway -> Controller)
 static const char *MSG_TYPE_CHANNEL_TOGGLE_CMD =      "02 00 F0 FF FF 80 00 10 0D 8D";
 static const char *MSG_TYPE_LIGHT_CONTROL_CMD =       "02 00 F0 FF FF 80 00 3A 0F B9";
-static const char *MSG_TYPE_MODE_CONTROL_CMD =        "02 00 F0 00 50 80 00 2A 0D F9";
+static const char *MSG_TYPE_FAVOURITE_CONTROL_CMD =   "02 00 F0 00 50 80 00 2A 0D F9";
 
 // ======================================================
 // Lookup tables and constants
@@ -255,6 +256,7 @@ static const cmd_name_entry_t CMD_NAME_TABLE[] = {
     {0x10, "Channel Toggle Cmd"},
     {0x12, "Status/Other"},
     {0x14, "Mode"},
+    {0x15, "Mode Set Cmd"},
     {0x16, "Temperature Reading"},
     {0x17, "Temperature Setting"},
     {0x18, "Pump Speed Command"},
@@ -264,7 +266,7 @@ static const cmd_name_entry_t CMD_NAME_TABLE[] = {
     {0x25, "Valve Sync"},
     {0x26, "Configuration"},
     {0x27, "Valve State"},
-    {0x2A, "Mode/Favourite Cmd"},
+    {0x2A, "Favourite Cmd"},
     {0x31, "Temperature Reading (alt)"},
     {0x37, "Gateway Info Req/Resp"},
     {0x38, "Register Response"},
@@ -664,10 +666,10 @@ static const register_handler_t REGISTER_HANDLERS[] = {
     // Active favourite (slot 0x03, register 0x20): CMD 0x2A value, 0xFF = none active
     {REG_ID_ACTIVE_FAVOURITE,        REG_ID_ACTIVE_FAVOURITE,        0x03, handle_active_favourite,      "Active Favourite"},
 
-    // Favourite/mode enable flags (slot 0x03, registers 0x21-0x28 = Pool,Spa,Fav1-6)
+    // Favourite enable flags (slot 0x03, registers 0x21-0x28 = Pool,Spa,Fav1-6)
     {REG_ID_FAVOURITE_ENABLE_0,      REG_ID_FAVOURITE_ENABLE_7,      0x03, handle_favourite_enable,      "Favourite Enable"},
 
-    // Favourite/mode labels (slot 0x03, registers 0x31-0x38 = Pool,Spa,Fav1-6)
+    // Favourite labels (slot 0x03, registers 0x31-0x38 = Pool,Spa,Fav1-6)
     {REG_ID_FAVOURITE_LABEL_0,       REG_ID_FAVOURITE_LABEL_7,       0x03, handle_favourite_label,       "Favourite Label"},
 
     // Heater 1 state (slot 0x00, register 0xE6) — touchscreen register-response broadcast.
@@ -1218,11 +1220,11 @@ static bool handle_mode(
     if (payload_len < 1) return false;
 
     uint8_t mode = payload[0];
-    const char *mode_str = (mode == 0x00) ? "Spa" : (mode == 0x01) ? "Pool" : "Unknown";
+    const char *mode_str = (mode == MODE_SPA) ? "Spa" : (mode == MODE_POOL) ? "Pool" : "Unknown";
     ESP_LOGI(TAG, "%s Mode - %s", addr_info, mode_str);
 
-    // Only Spa (0x00) and Pool (0x01) are documented; flag anything else.
-    if (mode >= 0x02) {
+    // Only MODE_SPA and MODE_POOL are documented; flag anything else.
+    if (mode > MODE_POOL) {
         record_undocumented(data, len);
     }
 
@@ -1230,6 +1232,48 @@ static bool handle_mode(
     pool_state_t snapshot;
     if (!ctx->state_mutex || xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
         ESP_LOGW(TAG, "Failed to acquire mutex for mode");
+        return true;
+    }
+    ctx->pool_state->mode = mode;
+    ctx->pool_state->mode_valid = true;
+    ctx->pool_state->last_update_ms = xTaskGetTickCount() * portTICK_PERIOD_MS;
+    snapshot = *ctx->pool_state;
+    xSemaphoreGive(ctx->state_mutex);
+
+    if (ctx->enable_mqtt) {
+        mqtt_publish_mode(&snapshot);
+    }
+
+    return true;
+}
+
+/**
+ * Handler: Mode set command (CMD 0x15)
+ * Pattern: "02 00 50 FF FF 80 00 15 0D F2"
+ * Switches the operating mode; same encoding as the 0x14 status (0x00 = Spa,
+ * 0x01 = Pool). Mode is updated optimistically — the touchscreen broadcasts
+ * a 0x14 status to confirm.
+ */
+static bool handle_mode_set_cmd(
+    const uint8_t *data, int len,
+    const uint8_t *payload, int payload_len,
+    const char *addr_info,
+    message_decoder_context_t *ctx)
+{
+    if (payload_len < 1) return false;
+
+    uint8_t mode = payload[0];
+    const char *mode_str = (mode == MODE_SPA) ? "Spa" : (mode == MODE_POOL) ? "Pool" : "Unknown";
+    ESP_LOGI(TAG, "%s Mode set command - %s", addr_info, mode_str);
+
+    // Only MODE_SPA and MODE_POOL are documented; flag anything else.
+    if (mode > MODE_POOL) {
+        record_undocumented(data, len);
+    }
+
+    pool_state_t snapshot;
+    if (!ctx->state_mutex || xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGW(TAG, "Failed to acquire mutex for mode set command");
         return true;
     }
     ctx->pool_state->mode = mode;
@@ -1905,10 +1949,10 @@ static bool handle_light_control_cmd(
 }
 
 /**
- * Handler: Mode control command (Gateway -> Controller)
+ * Handler: Favourite control command (Gateway -> Touchscreen)
  * Pattern: "02 00 F0 00 50 80 00 2A 0D F9"
  */
-static bool handle_mode_control_cmd(
+static bool handle_favourite_control_cmd(
     const uint8_t *data, int len,
     const uint8_t *payload, int payload_len,
     const char *addr_info,
@@ -1916,24 +1960,24 @@ static bool handle_mode_control_cmd(
 {
     if (payload_len < 1) return false;
 
-    uint8_t mode_value = payload[0];
-    const char *mode_name;
-    if (mode_value == FAVOURITE_POOL)      mode_name = "Pool";
-    else if (mode_value == FAVOURITE_SPA)  mode_name = "Spa";
-    else if (mode_value == FAVOURITE_ALL_OFF)  mode_name = "All Off";
-    else if (mode_value == FAVOURITE_ALL_AUTO) mode_name = "All Auto";
-    else if (mode_value == FAVOURITE_NONE) mode_name = "None";
-    else if (mode_value >= 0x02 && mode_value <= 0x07) mode_name = "Favourite";
-    else mode_name = "Unknown";
+    uint8_t favourite_value = payload[0];
+    const char *favourite_name;
+    if (favourite_value == FAVOURITE_POOL)      favourite_name = "Pool";
+    else if (favourite_value == FAVOURITE_SPA)  favourite_name = "Spa";
+    else if (favourite_value == FAVOURITE_ALL_OFF)  favourite_name = "All Off";
+    else if (favourite_value == FAVOURITE_ALL_AUTO) favourite_name = "All Auto";
+    else if (favourite_value == FAVOURITE_NONE) favourite_name = "None";
+    else if (favourite_value >= 0x02 && favourite_value <= 0x07) favourite_name = "Favourite";
+    else favourite_name = "Unknown";
 
-    ESP_LOGI(TAG, "%s Gateway mode control command - %s (0x%02X)",
-             addr_info, mode_name, mode_value);
+    ESP_LOGI(TAG, "%s Gateway favourite control command - %s (0x%02X)",
+             addr_info, favourite_name, favourite_value);
 
     // Documented values: 0x00-0x07 (Pool/Spa/Fav1-6), All Off, All Auto.
-    if (mode_value > 0x07 
-         && mode_value != FAVOURITE_ALL_OFF
-         && mode_value != FAVOURITE_ALL_AUTO 
-         && mode_value != FAVOURITE_NONE) {
+    if (favourite_value > 0x07
+         && favourite_value != FAVOURITE_ALL_OFF
+         && favourite_value != FAVOURITE_ALL_AUTO
+         && favourite_value != FAVOURITE_NONE) {
         record_undocumented(data, len);
     }
 
@@ -1941,7 +1985,7 @@ static bool handle_mode_control_cmd(
     bool should_publish = false;
 
     if (ctx->state_mutex && xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) == pdTRUE) {
-        ctx->pool_state->active_favourite = mode_value;
+        ctx->pool_state->active_favourite = favourite_value;
         ctx->pool_state->active_favourite_valid = true;
         state_snapshot = *ctx->pool_state;
         should_publish = true;
@@ -2870,7 +2914,7 @@ static bool handle_valve_label(
 }
 
 /**
- * Handler: Favourite/mode label
+ * Handler: Favourite label
  * Register range: 0x31–0x38, Slot: 0x03
  * Index 0=Pool, 1=Spa, 2–7=Favourites 1–6
  */
@@ -2910,14 +2954,14 @@ static bool handle_favourite_label(
 }
 
 /**
- * Handler: Favourite/mode enable flag
+ * Handler: Favourite enable flag
 
  * Register range: 0x21–0x28, Slot: 0x03
  * Index 0=Pool, 1=Spa, 2–7=Favourites 1–6
  */
 /**
  * Handler: Active favourite (register 0x20, slot 0x03)
- * Value is the CMD 0x2A favourite/mode value (0x00=Pool, 0x01=Spa,
+ * Value is the CMD 0x2A favourite value (0x00=Pool, 0x01=Spa,
  * 0x02-0x07=Fav1-6); 0xFF = no favourite active. Broadcast on change and in
  * the periodic register dump.
  */
@@ -3446,6 +3490,10 @@ static bool dispatch_message(
         return handle_mode(data, len, payload, payload_len, addr_info, ctx);
     }
 
+    if (match_pattern(data, len, MSG_TYPE_MODE_SET_CMD)) {
+        return handle_mode_set_cmd(data, len, payload, payload_len, addr_info, ctx);
+    }
+
     if (match_pattern(data, len, MSG_TYPE_CHANNELS)) {
         return handle_channels(data, len, payload, payload_len, addr_info, ctx);
     }
@@ -3518,8 +3566,8 @@ static bool dispatch_message(
         return handle_light_control_cmd(data, len, payload, payload_len, addr_info, ctx);
     }
 
-    if (match_pattern(data, len, MSG_TYPE_MODE_CONTROL_CMD)) {
-        return handle_mode_control_cmd(data, len, payload, payload_len, addr_info, ctx);
+    if (match_pattern(data, len, MSG_TYPE_FAVOURITE_CONTROL_CMD)) {
+        return handle_favourite_control_cmd(data, len, payload, payload_len, addr_info, ctx);
     }
 
     // Controller info messages

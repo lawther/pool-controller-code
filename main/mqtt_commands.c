@@ -153,7 +153,7 @@ static void handle_heater_command(const char *payload, int payload_len, int inde
 }
 
 // ======================================================
-// Favourite/Mode Control
+// Favourite Control
 // ======================================================
 
 static void handle_favourite_command(const char *payload, int payload_len)
@@ -207,12 +207,12 @@ static void handle_favourite_command(const char *payload, int payload_len)
         0x00, 0x50, // DEST: Touchscreen
         0x80, 0x00, // CONTROL
         0x2A, 0x0D, 0xF9, // Command pattern
-        value,      // Mode/favourite value
+        value,      // Favourite value
         value,      // Checksum (= value)
         0x03        // END
     };
 
-    ESP_LOGI(TAG, "Sending favourite/mode command 0x%02X", value);
+    ESP_LOGI(TAG, "Sending favourite command 0x%02X", value);
     send_uart_command(cmd, sizeof(cmd));
 }
 
@@ -224,35 +224,31 @@ static void handle_mode_command(const char *payload, int payload_len)
 {
     ESP_LOGI(TAG, "Mode command: %.*s", payload_len, payload);
 
-    // Determine mode value
-    // Note: Command values are inverted from status values
-    // Status: Spa=0x00, Pool=0x01
-    // Command: Spa=0x01, Pool=0x00
+    // CMD 0x15 uses the same encoding as the 0x14 status: MODE_SPA/MODE_POOL
     uint8_t mode_value;
     if (strncmp(payload, "Pool", payload_len) == 0) {
-        mode_value = FAVOURITE_POOL;  // Switch to Pool mode
+        mode_value = MODE_POOL;
     } else if (strncmp(payload, "Spa", payload_len) == 0) {
-        mode_value = FAVOURITE_SPA;   // Switch to Spa mode
+        mode_value = MODE_SPA;
     } else {
         ESP_LOGE(TAG, "Invalid mode command: %.*s (expected Pool/Spa)", payload_len, payload);
         return;
     }
 
-    // Build UART command
-    // Pattern: 02 00 F0 00 50 80 00 2A 0D F9 [MODE] [CHECKSUM] 03
-    // Note: Destination is Touch Screen (0x0050), not broadcast
+    // Build CMD 0x15 Mode Set broadcast, impersonating the Touchscreen
+    // Pattern: 02 00 50 FF FF 80 00 15 0D F2 [MODE] [CHECKSUM] 03
     uint8_t cmd[] = {
         0x02,       // START
-        0x00, 0xF0, // SOURCE: Internet Gateway
-        0x00, 0x50, // DEST: Touch Screen (not broadcast!)
+        0x00, 0x50, // SOURCE: Touchscreen
+        0xFF, 0xFF, // DEST: Broadcast
         0x80, 0x00, // CONTROL
-        0x2A, 0x0D, 0xF9, // Command pattern
-        mode_value, // Mode value (Pool=0x00, Spa=0x01)
+        0x15, 0x0D, 0xF2, // Command pattern
+        mode_value, // Mode value (MODE_SPA or MODE_POOL)
         mode_value, // Checksum (just the mode value)
         0x03        // END
     };
 
-    ESP_LOGI(TAG, "Sending mode switch to %s", mode_value == 0x01 ? "Spa" : "Pool");
+    ESP_LOGI(TAG, "Sending mode switch to %s", mode_value == MODE_POOL ? "Pool" : "Spa");
     send_uart_command(cmd, sizeof(cmd));
 }
 
