@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 ### Removed
 ### Fixed
+- Fixed favourite activations made at the Connect 10 controller itself (e.g. All Auto) being logged as unhandled: the controller unicasts the same CMD 0x2A Favourite Control Command to the Touchscreen as the Gateway does for remote activations, so the command is now dispatched on its CMD byte regardless of source and updates the active favourite in Home Assistant — both sources documented in PROTOCOL.md
 ### Deprecated
 ### Security
 

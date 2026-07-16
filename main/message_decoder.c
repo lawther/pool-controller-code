@@ -161,7 +161,6 @@ static const char *MSG_TYPE_PUMP_BUTTONS =            "02 00 A0 FF FF 80 00 1B 0
 // F0 Gateway Control Commands (Gateway -> Controller)
 static const char *MSG_TYPE_CHANNEL_TOGGLE_CMD =      "02 00 F0 FF FF 80 00 10 0D 8D";
 static const char *MSG_TYPE_LIGHT_CONTROL_CMD =       "02 00 F0 FF FF 80 00 3A 0F B9";
-static const char *MSG_TYPE_FAVOURITE_CONTROL_CMD =   "02 00 F0 00 50 80 00 2A 0D F9";
 
 // ======================================================
 // Lookup tables and constants
@@ -1949,8 +1948,10 @@ static bool handle_light_control_cmd(
 }
 
 /**
- * Handler: Favourite control command (Gateway -> Touchscreen)
- * Pattern: "02 00 F0 00 50 80 00 2A 0D F9"
+ * Handler: Favourite control command (CMD 0x2A) — source-agnostic.
+ * Sent to the Touchscreen by the Gateway (0x00F0) for remote activations
+ * and by the Connect 8/10 controller (0x0062) for activations made at the
+ * controller itself; same 1-byte favourite-value payload from either source.
  */
 static bool handle_favourite_control_cmd(
     const uint8_t *data, int len,
@@ -1970,7 +1971,7 @@ static bool handle_favourite_control_cmd(
     else if (favourite_value >= 0x02 && favourite_value <= 0x07) favourite_name = "Favourite";
     else favourite_name = "Unknown";
 
-    ESP_LOGI(TAG, "%s Gateway favourite control command - %s (0x%02X)",
+    ESP_LOGI(TAG, "%s Favourite control command - %s (0x%02X)",
              addr_info, favourite_name, favourite_value);
 
     // Documented values: 0x00-0x07 (Pool/Spa/Fav1-6), All Off, All Auto.
@@ -3421,6 +3422,14 @@ static bool dispatch_message(
         }
     }
 
+    // Favourite control command (CMD 0x2A) — source-agnostic. Sent to the
+    // Touchscreen by the Gateway (0x00F0) for remote activations and by the
+    // Connect 8/10 controller (0x0062) for activations made at the controller
+    // itself; same 1-byte favourite-value payload from either source.
+    if (data[7] == 0x2A) {
+        return handle_favourite_control_cmd(data, len, payload, payload_len, addr_info, ctx);
+    }
+
     // Register read request (CMD 0x39) — source-agnostic. Observed from the
     // Internet Gateway (0x00F0) and the Genus Heater (0x0070); same
     // `{reg_id, slot_id}` payload from either source.
@@ -3564,10 +3573,6 @@ static bool dispatch_message(
 
     if (match_pattern(data, len, MSG_TYPE_LIGHT_CONTROL_CMD)) {
         return handle_light_control_cmd(data, len, payload, payload_len, addr_info, ctx);
-    }
-
-    if (match_pattern(data, len, MSG_TYPE_FAVOURITE_CONTROL_CMD)) {
-        return handle_favourite_control_cmd(data, len, payload, payload_len, addr_info, ctx);
     }
 
     // Controller info messages

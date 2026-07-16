@@ -141,7 +141,7 @@ Click any CMD in the first column to jump to the full section in [Commands](#com
 | [`0x26`](#0x26--configuration-️)                               | Configuration                       | `0x0050` → Broadcast                                                   |                                                                                             | Yes                     |
 | [`0x27`](#0x27--valve-state-broadcast-)                        | Valve State Broadcast               | `0x0050` → Broadcast                                                   | Two LEN variants: `0x0D` (short) and `0x13` (full)                                          | Yes (both variants)     |
 | [`0x28`](#0x28--valve-control-command-)                        | Valve Control Command               | `0x00F0` Gateway → Broadcast                                           |                                                                                             | **No (doc only)**       |
-| [`0x2A`](#0x2a--favourite-control-command-)                    | Favourite Control Command           | `0x00F0` Gateway → `0x0050` Touchscreen                                | Unicast                                                                                     | Yes                     |
+| [`0x2A`](#0x2a--favourite-control-command-)                    | Favourite Control Command           | `0x00F0` Gateway, `0x0062` Connect 8/10 → `0x0050` Touchscreen         | Unicast; dispatched on CMD byte alone (source-agnostic)                                     | Yes (unified handler)   |
 | [`0x2B`](#0x2b--unknown-️)                                     | Unknown                             | `0x0062` Connect 8/10 → `0x0050` Touchscreen                          | Unicast; payload `[02 00]` observed; meaning unknown                                        | **No (doc only)**       |
 | [`0x31`](#0x31--water-temperature-reading-alt-)                | Water Temperature Reading (alt)     | `0x0062` → Broadcast                                                   | Same `{temp1, temp2}` field layout as `0x16`; different disconnected encoding (`>= 0xA0` vs `0x00`); shared handler, log-only | Yes (unified handler)   |
 | [`0x37`](#0x37--internet-gateway-info-️)                       | Internet Gateway Info               | `0x00F0` → Broadcast                                                   | LEN distinguishes serial (`0x11`), network config (`0x15`), comms status (`0x0F`) variants  | Yes (3 handlers)        |
@@ -1188,9 +1188,9 @@ Sent by the Internet Gateway (`0x00F0`) to set a valve to a specific state direc
 
 ### 0x2A — Favourite Control Command ✅
 
-Command sent by the Internet Gateway (`0x00F0`) to the Touchscreen (`0x0050`) to activate a favourite — the Pool and Spa built-ins, a stored user Favourite preset, All Off, or All Auto. A single data byte encodes the favourite value.
+Command sent to the Touchscreen (`0x0050`) to activate a favourite — the Pool and Spa built-ins, a stored user Favourite preset, All Off, or All Auto. A single data byte encodes the favourite value. Sent by the Internet Gateway (`0x00F0`) for remote activations, and by the Connect 8/10 Controller (`0x0062`) for activations made at the controller itself.
 
-**Pattern:** `02 00 F0 00 50 80 00 2A 0D F9`
+**Pattern:** `02 00 F0 00 50 80 00 2A 0D F9` (Gateway) or `02 00 62 00 50 80 00 2A 0D 6B` (Controller)
 
 **Examples:**
 
@@ -1203,11 +1203,13 @@ Command sent by the Internet Gateway (`0x00F0`) to the Touchscreen (`0x0050`) to
 02 00 F0 00 50 80 00 2A 0D F9 FF FF 03   None
                               ^^ Favourite byte
                                  ^^ Data checksum (equals the favourite byte)
+
+02 00 62 00 50 80 00 2A 0D 6B 81 81 03   All Auto mode, triggered at the controller
 ```
 
 **Data Fields:**
 
-- Bytes 1-2: `00 F0` — Source (Internet Gateway = `0x00F0`)
+- Bytes 1-2: Source — Internet Gateway (`0x00F0`) or Connect 8/10 Controller (`0x0062`)
 - Bytes 3-4: `00 50` — Destination (Touchscreen = `0x0050`) — **not broadcast**
 - Byte 10: Favourite value (see table below)
 - Byte 11: Data checksum (equals byte 10 since it is the only data byte)
