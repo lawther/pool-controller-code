@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 ### Removed
 ### Fixed
+- Fixed phantom "Unused" / "Unused Active" Home Assistant entities appearing for unconfigured channels: a channel-state register (0x8C–0x93), which the controller broadcasts for unused channels too, wrongly marked the channel as configured and published discovery for it under the fallback type name "Unused"; a channel is now only marked in use once its type is known
 ### Deprecated
 ### Security
 
