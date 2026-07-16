@@ -153,4 +153,9 @@
 #define FW_UPDATE_OTA_TIMEOUT_MS       60000    // Socket timeout while downloading the image
 #define FW_UPDATE_TASK_STACK           8192     // Stack for the check/install task (TLS is heavy)
 
+// Number of most-recent releases to track (latest + 4 prior), so the web UI
+// can offer installing/rolling back to a specific version.
+#define FW_UPDATE_MAX_VERSIONS         5
+#define FW_UPDATE_VERSION_LEN          48       // Max length of a version tag string
+
 #endif // CONFIG_H

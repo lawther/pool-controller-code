@@ -16,17 +16,19 @@ There are three ways to update:
 
 ### How it works
 
-- On boot (after a short delay) and every `FW_UPDATE_CHECK_INTERVAL_MS` (default 12 h), the firmware resolves `https://github.com/<owner>/<repo>/releases/latest`. The request is issued with auto-redirect disabled, and the latest tag is read from the `Location: .../releases/tag/<tag>` header — no GitHub API token and no rate-limited JSON call.
-- The tag is compared against the running build's version (`major.minor.patch`, ignoring any `git describe` suffix). If it is newer, an update is flagged as available.
-- Installing pulls the release asset `pool-controller-update-<tag>.bin` (the artifact the build workflow uploads) directly over HTTPS via `esp_https_ota`, writing to the inactive OTA partition, then reboots.
+- On boot (after a short delay) and every `FW_UPDATE_CHECK_INTERVAL_MS` (default 12 h), the firmware fetches the releases Atom feed `https://github.com/<owner>/<repo>/releases.atom` and reads the tags of the most recent releases (newest first) — the latest plus up to `FW_UPDATE_MAX_VERSIONS - 1` prior versions (default: latest + 4). This uses no GitHub API token and no rate-limited JSON call. The feed is parsed as it streams, so a repo with large release notes doesn't need a big buffer.
+- The newest tag is compared against the running build's version (`major.minor.patch`, ignoring any `git describe` suffix). If it is newer, an update is flagged as available.
+- Installing pulls the chosen release's asset `pool-controller-update-<tag>.bin` (the artifact the build workflow uploads) directly over HTTPS via `esp_https_ota`, writing to the inactive OTA partition, then reboots. The requested version must be one of the recently discovered releases, so the download URL can't be pointed at an arbitrary target.
 
-The GitHub owner/repo, asset name prefix, check interval, and timeouts are configured in `main/config.h` (`FW_UPDATE_*`).
+The GitHub owner/repo, asset name prefix, number of versions tracked, check interval, and timeouts are configured in `main/config.h` (`FW_UPDATE_*`).
 
 ### From the web UI
 
 1. Open `http://<device-ip>/update`.
 2. The **Update from GitHub** section shows whether you are up to date or a newer release is available (with a link to the release notes).
-3. Click **Check for updates** to re-check immediately, or **Install update** to download and install the latest release. Progress is shown; the device reboots when finished.
+3. Choose a version from the dropdown — the latest plus the previous few releases, so you can update or **roll back** to a specific version — then click **Install selected version**. Click **Check for updates** to re-query GitHub immediately. Progress is shown; the device reboots when finished.
+
+> Rolling back requires that the older release still has a `pool-controller-update-<tag>.bin` asset attached; releases published before this asset naming was in place cannot be installed this way.
 
 ### From Home Assistant
 

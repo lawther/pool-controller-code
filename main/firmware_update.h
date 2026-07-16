@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include "esp_err.h"
+#include "config.h"
 
 // ======================================================
 // GitHub-backed firmware update
@@ -28,8 +29,11 @@ typedef enum {
 // Snapshot of the update subsystem, safe to read from any task.
 typedef struct {
     fw_update_state_t state;
-    char installed_version[48]; // Running firmware version (esp_app_desc)
-    char latest_version[48];    // Latest GitHub release tag, "" if unknown
+    char installed_version[FW_UPDATE_VERSION_LEN]; // Running firmware version (esp_app_desc)
+    char latest_version[FW_UPDATE_VERSION_LEN];    // Latest GitHub release tag, "" if unknown
+    // Most-recent release tags, newest first (versions[0] == latest_version).
+    char versions[FW_UPDATE_MAX_VERSIONS][FW_UPDATE_VERSION_LEN];
+    int  version_count;         // Number of valid entries in versions[]
     char release_url[160];      // URL of the latest release page, "" if unknown
     bool checked;               // True once at least one check has completed
     bool update_available;      // latest_version is newer than installed_version
@@ -48,10 +52,12 @@ void firmware_update_get_status(fw_update_status_t *out);
 // successful query. Safe to call from a web handler.
 esp_err_t firmware_update_check_now(void);
 
-// Kick off an OTA install of the latest GitHub release in a background task.
-// Returns ESP_OK if the install task was started, ESP_ERR_INVALID_STATE if an
-// install is already running or no update target is known.
-esp_err_t firmware_update_start_install(void);
+// Kick off an OTA install in a background task. `tag` selects which release to
+// install and must be one of the known recent versions (see fw_update_status_t
+// versions[]); pass NULL or "" to install the latest. Returns ESP_OK if the
+// install task was started, ESP_ERR_INVALID_STATE if an install is already
+// running, or ESP_ERR_NOT_FOUND if `tag` is not a known release.
+esp_err_t firmware_update_start_install(const char *tag);
 
 // Publish the current update state to the Home Assistant MQTT update entity.
 // Called internally after checks/installs; also called on MQTT (re)connect so

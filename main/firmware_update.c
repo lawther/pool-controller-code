@@ -16,7 +16,6 @@
 #include "cJSON.h"
 
 #include <string.h>
-#include <strings.h>
 #include <stdio.h>
 #include <ctype.h>
 
@@ -29,6 +28,10 @@ static SemaphoreHandle_t s_status_lock;
 // Serializes network operations (a periodic check must not race a manual
 // check or an install, and two installs must not run at once).
 static SemaphoreHandle_t s_op_lock;
+
+// Release tag the pending install should fetch. Written by
+// firmware_update_start_install while it holds s_op_lock, read by install_task.
+static char s_install_tag[FW_UPDATE_VERSION_LEN];
 
 // ======================================================
 // Status helpers
@@ -156,57 +159,140 @@ void firmware_update_publish_mqtt_state(void)
 }
 
 // ======================================================
-// GitHub latest-release lookup
+// GitHub recent-releases lookup
 //
-// Rather than hitting the rate-limited JSON API, we GET the HTML
-// ".../releases/latest" endpoint with auto-redirect disabled and read the tag
-// out of the 302 "Location: .../releases/tag/<tag>" header. This is cheap on
-// memory (no JSON body to buffer) and needs no authentication.
+// Rather than hitting the rate-limited JSON API, we GET the Atom feed at
+// ".../releases.atom", which lists recent releases newest-first without
+// authentication. Each entry carries a link of the form
+// href="https://github.com/<owner>/<repo>/releases/tag/<tag>", so we look for
+// "/releases/tag/" and read the tag that follows.
+//
+// The feed embeds each release's (potentially large) rendered notes, so the
+// tag links can be spread across tens of KB. We therefore parse the response
+// as it streams with a small byte-level state machine — no full-body buffer —
+// which also transparently handles a needle/tag split across chunk boundaries.
 // ======================================================
 
-typedef struct {
-    char *buf;
-    size_t cap;
-} location_ctx_t;
+static const char FEED_NEEDLE[] = "/releases/tag/";
+#define FEED_NEEDLE_LEN (sizeof(FEED_NEEDLE) - 1)
+static const char FEED_ENTRY[] = "<entry";
+#define FEED_ENTRY_LEN (sizeof(FEED_ENTRY) - 1)
 
-static esp_err_t check_http_event(esp_http_client_event_t *evt)
+typedef struct {
+    char (*tags)[FW_UPDATE_VERSION_LEN];
+    int max;
+    int count;
+    int needle_pos;                 // matched chars of FEED_NEEDLE so far
+    int entry_pos;                  // matched chars of FEED_ENTRY so far
+    bool armed;                     // saw "<entry"; next tag link is the entry's own
+    bool collecting;                // currently reading the tag after a match
+    char tag[FW_UPDATE_VERSION_LEN];
+    size_t tag_len;
+} feed_parse_ctx_t;
+
+static bool is_tag_delim(char c)
 {
-    if (evt->event_id == HTTP_EVENT_ON_HEADER) {
-        location_ctx_t *ctx = (location_ctx_t *)evt->user_data;
-        if (ctx && evt->header_key && strcasecmp(evt->header_key, "Location") == 0) {
-            strncpy(ctx->buf, evt->header_value, ctx->cap - 1);
-            ctx->buf[ctx->cap - 1] = '\0';
+    return c == '"' || c == '<' || c == '/' || c == '\'' ||
+           c == '?' || c == '#' || isspace((unsigned char)c);
+}
+
+// Store the collected tag, but only if it is the first "/releases/tag/" link
+// of an entry (armed) — this ignores any tag URLs embedded in a release's
+// notes, which would otherwise corrupt the ordered list.
+static void feed_store_tag(feed_parse_ctx_t *ctx)
+{
+    if (ctx->armed && ctx->tag_len > 0 && ctx->count < ctx->max) {
+        ctx->tag[ctx->tag_len] = '\0';
+        bool dup = false;
+        for (int k = 0; k < ctx->count; k++) {
+            if (strcmp(ctx->tags[k], ctx->tag) == 0) { dup = true; break; }
         }
+        if (!dup) {
+            strncpy(ctx->tags[ctx->count], ctx->tag, FW_UPDATE_VERSION_LEN - 1);
+            ctx->tags[ctx->count][FW_UPDATE_VERSION_LEN - 1] = '\0';
+            ctx->count++;
+        }
+    }
+    ctx->armed = false;             // one tag per entry
+    ctx->collecting = false;
+    ctx->tag_len = 0;
+    ctx->needle_pos = 0;
+}
+
+static void feed_consume(feed_parse_ctx_t *ctx, const char *data, int len)
+{
+    for (int i = 0; i < len; i++) {
+        char c = data[i];
+
+        // Track entry boundaries so only each entry's own tag link is taken.
+        if (c == FEED_ENTRY[ctx->entry_pos]) {
+            ctx->entry_pos++;
+            if (ctx->entry_pos == (int)FEED_ENTRY_LEN) {
+                ctx->armed = true;
+                ctx->entry_pos = 0;
+            }
+        } else {
+            ctx->entry_pos = (c == FEED_ENTRY[0]) ? 1 : 0;
+        }
+
+        if (ctx->collecting) {
+            if (!is_tag_delim(c) && ctx->tag_len < FW_UPDATE_VERSION_LEN - 1) {
+                ctx->tag[ctx->tag_len++] = c;
+                continue;
+            }
+            // Delimiter (or overflow): finish this tag, then let the delimiter
+            // fall through to the needle matcher (a trailing '/' can begin the
+            // next "/releases/tag/").
+            feed_store_tag(ctx);
+        }
+
+        if (ctx->count >= ctx->max) continue;
+
+        if (c == FEED_NEEDLE[ctx->needle_pos]) {
+            ctx->needle_pos++;
+            if (ctx->needle_pos == (int)FEED_NEEDLE_LEN) {
+                ctx->collecting = true;
+                ctx->tag_len = 0;
+                ctx->needle_pos = 0;
+            }
+        } else {
+            ctx->needle_pos = (c == FEED_NEEDLE[0]) ? 1 : 0;
+        }
+    }
+}
+
+static esp_err_t feed_http_event(esp_http_client_event_t *evt)
+{
+    if (evt->event_id == HTTP_EVENT_ON_DATA) {
+        feed_parse_ctx_t *ctx = (feed_parse_ctx_t *)evt->user_data;
+        if (ctx) feed_consume(ctx, (const char *)evt->data, evt->data_len);
     }
     return ESP_OK;
 }
 
-// Trim trailing whitespace/quotes that could ride along a header value.
-static void rstrip(char *s)
+// Fetch the releases Atom feed and parse up to `max` newest tags into `tags`.
+static esp_err_t query_recent_releases(char tags[][FW_UPDATE_VERSION_LEN],
+                                       int max, int *count)
 {
-    size_t n = strlen(s);
-    while (n > 0 && (isspace((unsigned char)s[n - 1]) || s[n - 1] == '"' || s[n - 1] == '/')) {
-        s[--n] = '\0';
-    }
-}
-
-static esp_err_t query_latest_release(char *tag_out, size_t tag_len,
-                                      char *url_out, size_t url_len)
-{
-    char location[192] = {0};
-    location_ctx_t lctx = { location, sizeof(location) };
+    feed_parse_ctx_t ctx = {
+        .tags = tags,
+        .max = max,
+        .count = 0,
+        .needle_pos = 0,
+        .collecting = false,
+        .tag_len = 0,
+    };
 
     char url[128];
-    snprintf(url, sizeof(url), "https://github.com/%s/%s/releases/latest",
+    snprintf(url, sizeof(url), "https://github.com/%s/%s/releases.atom",
              FW_UPDATE_GITHUB_OWNER, FW_UPDATE_GITHUB_REPO);
 
     esp_http_client_config_t cfg = {
         .url = url,
         .crt_bundle_attach = esp_crt_bundle_attach,
         .timeout_ms = FW_UPDATE_HTTP_TIMEOUT_MS,
-        .disable_auto_redirect = true,
-        .event_handler = check_http_event,
-        .user_data = &lctx,
+        .event_handler = feed_http_event,
+        .user_data = &ctx,
     };
 
     esp_http_client_handle_t client = esp_http_client_init(&cfg);
@@ -217,30 +303,20 @@ static esp_err_t query_latest_release(char *tag_out, size_t tag_len,
     int status = esp_http_client_get_status_code(client);
     esp_http_client_cleanup(client);
 
+    // If the body ended mid-tag (feed always closes with markup, so unlikely),
+    // still capture what we collected.
+    if (ctx.collecting) feed_store_tag(&ctx);
+    *count = ctx.count;
+
     if (err != ESP_OK) {
-        ESP_LOGW(TAG, "release check request failed: %s", esp_err_to_name(err));
+        ESP_LOGW(TAG, "release feed request failed: %s", esp_err_to_name(err));
         return err;
     }
-    if (status < 300 || status >= 400 || location[0] == '\0') {
-        ESP_LOGW(TAG, "unexpected release response (HTTP %d)", status);
+    if (status != 200) {
+        ESP_LOGW(TAG, "unexpected release feed response (HTTP %d)", status);
         return ESP_FAIL;
     }
-
-    char *tag = strstr(location, "/tag/");
-    if (!tag) {
-        ESP_LOGW(TAG, "no tag in redirect: %s", location);
-        return ESP_FAIL;
-    }
-    tag += 5;  // skip "/tag/"
-
-    rstrip(location);
-    strncpy(url_out, location, url_len - 1);
-    url_out[url_len - 1] = '\0';
-
-    strncpy(tag_out, tag, tag_len - 1);
-    tag_out[tag_len - 1] = '\0';
-    rstrip(tag_out);
-    return ESP_OK;
+    return (*count > 0) ? ESP_OK : ESP_FAIL;
 }
 
 esp_err_t firmware_update_check_now(void)
@@ -252,9 +328,9 @@ esp_err_t firmware_update_check_now(void)
 
     status_set_state(FW_UPDATE_STATE_CHECKING);
 
-    char tag[48] = {0};
-    char rel_url[160] = {0};
-    esp_err_t err = query_latest_release(tag, sizeof(tag), rel_url, sizeof(rel_url));
+    char tags[FW_UPDATE_MAX_VERSIONS][FW_UPDATE_VERSION_LEN];
+    int count = 0;
+    esp_err_t err = query_recent_releases(tags, FW_UPDATE_MAX_VERSIONS, &count);
 
     if (err != ESP_OK) {
         status_set_error("GitHub release check failed");
@@ -264,18 +340,25 @@ esp_err_t firmware_update_check_now(void)
     }
 
     if (xSemaphoreTake(s_status_lock, portMAX_DELAY) == pdTRUE) {
-        strncpy(s_status.latest_version, tag, sizeof(s_status.latest_version) - 1);
+        s_status.version_count = count;
+        for (int i = 0; i < count; i++) {
+            strncpy(s_status.versions[i], tags[i], FW_UPDATE_VERSION_LEN - 1);
+            s_status.versions[i][FW_UPDATE_VERSION_LEN - 1] = '\0';
+        }
+        // versions[0] is the newest release.
+        strncpy(s_status.latest_version, tags[0], sizeof(s_status.latest_version) - 1);
         s_status.latest_version[sizeof(s_status.latest_version) - 1] = '\0';
-        strncpy(s_status.release_url, rel_url, sizeof(s_status.release_url) - 1);
-        s_status.release_url[sizeof(s_status.release_url) - 1] = '\0';
+        snprintf(s_status.release_url, sizeof(s_status.release_url),
+                 "https://github.com/%s/%s/releases/tag/%s",
+                 FW_UPDATE_GITHUB_OWNER, FW_UPDATE_GITHUB_REPO, s_status.latest_version);
         s_status.update_available =
             (semver_cmp(s_status.installed_version, s_status.latest_version) < 0);
         s_status.checked = true;
         s_status.last_error[0] = '\0';
         s_status.state = FW_UPDATE_STATE_IDLE;
-        ESP_LOGI(TAG, "installed=%s latest=%s update_available=%d",
+        ESP_LOGI(TAG, "installed=%s latest=%s (%d releases) update_available=%d",
                  s_status.installed_version, s_status.latest_version,
-                 s_status.update_available);
+                 count, s_status.update_available);
         xSemaphoreGive(s_status_lock);
     }
 
@@ -298,11 +381,13 @@ static void set_progress(int pct)
 
 static void install_task(void *arg)
 {
-    // s_op_lock is already held by the caller (firmware_update_start_install).
-    char tag[48];
+    // s_op_lock is already held by the caller (firmware_update_start_install),
+    // which also populated s_install_tag.
+    char tag[FW_UPDATE_VERSION_LEN];
+    strncpy(tag, s_install_tag, sizeof(tag) - 1);
+    tag[sizeof(tag) - 1] = '\0';
+
     if (xSemaphoreTake(s_status_lock, portMAX_DELAY) == pdTRUE) {
-        strncpy(tag, s_status.latest_version, sizeof(tag) - 1);
-        tag[sizeof(tag) - 1] = '\0';
         s_status.progress_pct = 0;
         s_status.state = FW_UPDATE_STATE_DOWNLOADING;
         xSemaphoreGive(s_status_lock);
@@ -381,23 +466,43 @@ static void install_task(void *arg)
     vTaskDelete(NULL);
 }
 
-esp_err_t firmware_update_start_install(void)
+esp_err_t firmware_update_start_install(const char *tag)
 {
-    // Must have a known, newer target.
-    bool have_target = false;
+    // Resolve the requested tag to a known release. An empty/NULL tag means
+    // "latest"; any explicit tag must be one we discovered in the last check,
+    // so the web/MQTT callers can't point the OTA at an arbitrary URL.
+    char target[FW_UPDATE_VERSION_LEN] = {0};
+    bool known = false;
     if (xSemaphoreTake(s_status_lock, portMAX_DELAY) == pdTRUE) {
-        have_target = s_status.update_available && s_status.latest_version[0];
+        if (!tag || tag[0] == '\0') {
+            strncpy(target, s_status.latest_version, sizeof(target) - 1);
+        } else {
+            strncpy(target, tag, sizeof(target) - 1);
+        }
+        target[sizeof(target) - 1] = '\0';
+        for (int i = 0; i < s_status.version_count; i++) {
+            if (strcmp(s_status.versions[i], target) == 0) { known = true; break; }
+        }
         xSemaphoreGive(s_status_lock);
     }
-    if (!have_target) {
-        ESP_LOGW(TAG, "install requested but no newer release is known");
+
+    if (target[0] == '\0') {
+        ESP_LOGW(TAG, "install requested but no release is known yet");
         return ESP_ERR_INVALID_STATE;
+    }
+    if (!known) {
+        ESP_LOGW(TAG, "install requested for unknown release '%s'", target);
+        return ESP_ERR_NOT_FOUND;
     }
 
     if (xSemaphoreTake(s_op_lock, 0) != pdTRUE) {
         ESP_LOGW(TAG, "install skipped: an update operation is already running");
         return ESP_ERR_INVALID_STATE;
     }
+
+    strncpy(s_install_tag, target, sizeof(s_install_tag) - 1);
+    s_install_tag[sizeof(s_install_tag) - 1] = '\0';
+    ESP_LOGI(TAG, "Installing release %s", s_install_tag);
 
     // install_task owns s_op_lock from here and releases it (or reboots).
     if (xTaskCreate(install_task, "fw_ota", FW_UPDATE_TASK_STACK, NULL, 4, NULL) != pdPASS) {

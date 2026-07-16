@@ -243,7 +243,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
         if (event->topic_len >= 15 &&
             memcmp(event->topic + event->topic_len - 15, "/update/install", 15) == 0) {
             ESP_LOGI(TAG, "Firmware install requested via MQTT");
-            firmware_update_start_install();
+            firmware_update_start_install(NULL);  // HA update entity installs latest
         } else {
             // Handle pool control command
             mqtt_handle_command(event->topic, event->topic_len, event->data, event->data_len);

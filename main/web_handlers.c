@@ -1278,39 +1278,56 @@ static esp_err_t update_get_handler(httpd_req_t *req)
         "<h2 class='mt-4'>Update from GitHub</h2>"
         "<div id='ghStatus' role='alert'>Checking for the latest release&hellip;</div>"
         "<progress id='ghProgress' value='0' max='100' hidden class='mt-2'></progress>"
+        "<div id='ghVersionWrap' hidden class='mt-2' data-field>"
+        "<label for='ghVersion'>Version to install</label>"
+        "<select id='ghVersion'></select>"
+        "</div>"
         "<div class='mt-2'>"
         "<button type='button' id='ghCheck'>Check for updates</button> "
-        "<button type='button' id='ghInstall' hidden data-variant='success'>Install update</button>"
+        "<button type='button' id='ghInstall' hidden data-variant='success'>Install selected version</button>"
         "</div>"
         "<script>"
         "(function(){"
         "const s=document.getElementById('ghStatus');"
         "const p=document.getElementById('ghProgress');"
+        "const vw=document.getElementById('ghVersionWrap');"
+        "const vs=document.getElementById('ghVersion');"
         "const bC=document.getElementById('ghCheck');"
         "const bI=document.getElementById('ghInstall');"
         "let polling=false;"
+        // Populate the version dropdown (newest first) only when the list
+        // changes, so an in-progress user selection isn't reset by polling.
+        "function fill(list){"
+        "const sig=(list||[]).join(',');"
+        "if(vs.dataset.sig===sig)return;"
+        "vs.dataset.sig=sig;vs.innerHTML='';"
+        "(list||[]).forEach(function(v,i){"
+        "const o=document.createElement('option');"
+        "o.value=v;o.textContent=v+(i===0?' (latest)':'');vs.appendChild(o);});}"
         "function render(d){"
         "if(d.state==='downloading'){"
         "p.removeAttribute('hidden');p.value=d.progress||0;"
         "s.removeAttribute('data-variant');"
         "s.textContent='Downloading update '+(d.progress||0)+'%… do not power off.';"
-        "bC.setAttribute('hidden','');bI.setAttribute('hidden','');return;}"
+        "vw.setAttribute('hidden','');bC.setAttribute('hidden','');bI.setAttribute('hidden','');return;}"
         "if(d.state==='success'){p.removeAttribute('hidden');p.value=100;"
         "s.setAttribute('data-variant','success');"
         "s.textContent='Update installed — rebooting…';return;}"
         "p.setAttribute('hidden','');bC.removeAttribute('hidden');"
+        "const have=d.versions&&d.versions.length;"
+        "if(have){fill(d.versions);vw.removeAttribute('hidden');bI.removeAttribute('hidden');}"
+        "else{vw.setAttribute('hidden','');bI.setAttribute('hidden','');}"
         "if(d.state==='error'&&d.error){s.setAttribute('data-variant','danger');"
         "s.textContent='Error: '+d.error;}"
         "else if(d.update_available){s.setAttribute('data-variant','warning');"
         "let msg='Update available: '+d.latest+' (installed '+d.installed+').';"
         "if(d.release_url){s.innerHTML='';s.appendChild(document.createTextNode(msg+' '));"
         "const a=document.createElement('a');a.href=d.release_url;a.target='_blank';"
-        "a.textContent='Release notes';s.appendChild(a);}else{s.textContent=msg;}"
-        "bI.removeAttribute('hidden');}"
+        "a.textContent='Release notes';s.appendChild(a);}else{s.textContent=msg;}}"
         "else if(d.checked){s.setAttribute('data-variant','success');"
-        "s.textContent='Up to date ('+d.installed+').';bI.setAttribute('hidden','');}"
+        "s.textContent='Up to date ('+d.installed+'). You can reinstall or roll back below.';}"
         "else{s.removeAttribute('data-variant');"
-        "s.textContent='Latest release not yet checked.';bI.setAttribute('hidden','');}}"
+        "s.textContent='Latest release not yet checked.';}}"
         "function poll(){fetch('/update/check').then(r=>r.json()).then(function(d){"
         "render(d);"
         "if(d.state==='downloading'||d.state==='checking'){polling=true;setTimeout(poll,2000);}"
@@ -1320,8 +1337,9 @@ static esp_err_t update_get_handler(httpd_req_t *req)
         "fetch('/update/check?refresh=1').then(r=>r.json()).then(render)"
         ".catch(function(){s.setAttribute('data-variant','danger');s.textContent='Check failed.';});});"
         "bI.addEventListener('click',function(){"
-        "if(!confirm('Download and install the latest firmware from GitHub?'))return;"
-        "fetch('/update/github',{method:'POST'}).then(r=>r.json()).then(function(d){"
+        "const v=vs.value;if(!v)return;"
+        "if(!confirm('Download and install firmware '+v+' from GitHub?'))return;"
+        "fetch('/update/github?version='+encodeURIComponent(v),{method:'POST'}).then(r=>r.json()).then(function(d){"
         "if(d.success){if(!polling)poll();}"
         "else{s.setAttribute('data-variant','danger');s.textContent='Error: '+(d.message||'could not start');}});});"
         "poll();"
@@ -1603,6 +1621,14 @@ static esp_err_t update_check_handler(httpd_req_t *req)
     cJSON_AddNumberToObject(root, "progress", st.progress_pct);
     cJSON_AddStringToObject(root, "error", st.last_error);
 
+    // Recent releases, newest first (latest + up to 4 prior), so the UI can
+    // offer installing or rolling back to a specific version.
+    cJSON *versions = cJSON_CreateArray();
+    for (int i = 0; i < st.version_count && i < FW_UPDATE_MAX_VERSIONS; i++) {
+        cJSON_AddItemToArray(versions, cJSON_CreateString(st.versions[i]));
+    }
+    cJSON_AddItemToObject(root, "versions", versions);
+
     char *json = cJSON_PrintUnformatted(root);
     httpd_resp_set_type(req, "application/json; charset=UTF-8");
     if (json) {
@@ -1615,16 +1641,28 @@ static esp_err_t update_check_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
-// POST /update/github — start an OTA install of the latest GitHub release.
+// POST /update/github[?version=<tag>] — start an OTA install of a GitHub
+// release. Without a version, the latest release is installed; a version must
+// be one of the recent releases reported by /update/check.
 static esp_err_t update_github_post_handler(httpd_req_t *req)
 {
-    esp_err_t err = firmware_update_start_install();
+    char version[FW_UPDATE_VERSION_LEN] = {0};
+    char query[96];
+    if (httpd_req_get_url_query_str(req, query, sizeof(query)) == ESP_OK) {
+        httpd_query_key_value(query, "version", version, sizeof(version));
+    }
+
+    esp_err_t err = firmware_update_start_install(version[0] ? version : NULL);
     httpd_resp_set_type(req, "application/json; charset=UTF-8");
     if (err == ESP_OK) {
         httpd_resp_send(req, "{\"success\":true,\"message\":\"Update started\"}", HTTPD_RESP_USE_STRLEN);
+    } else if (err == ESP_ERR_NOT_FOUND) {
+        httpd_resp_send(req,
+            "{\"success\":false,\"message\":\"Unknown release version\"}",
+            HTTPD_RESP_USE_STRLEN);
     } else {
         httpd_resp_send(req,
-            "{\"success\":false,\"message\":\"No newer release available or an update is already running\"}",
+            "{\"success\":false,\"message\":\"No release available or an update is already running\"}",
             HTTPD_RESP_USE_STRLEN);
     }
     return ESP_OK;
