@@ -16,13 +16,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
-- Added a logo to the Home Assistant "Firmware" update entity (shown on the Updates page and in the update dialog) by pointing its `entity_picture` at the project favicon hosted on GitHub
 ### Changed
 ### Removed
 ### Fixed
-- Fixed phantom "Unused" / "Unused Active" Home Assistant entities appearing for unconfigured channels: a channel-state register (0x8C–0x93), which the controller broadcasts for unused channels too, wrongly marked the channel as configured and published discovery for it under the fallback type name "Unused"; a channel is now only marked in use once its type is known
 ### Deprecated
 ### Security
+
+## [1.8.1] - 2026-07-16
+### Fixed
+- Added a logo to the Home Assistant "Firmware" update entity (shown on the Updates page and in the update dialog) by pointing its `entity_picture` at the project favicon hosted on GitHub
+- Fixed phantom "Unused" / "Unused Active" Home Assistant entities appearing for unconfigured channels: a channel-state register (0x8C–0x93), which the controller broadcasts for unused channels too, wrongly marked the channel as configured and published discovery for it under the fallback type name "Unused"; a channel is now only marked in use once its type is known
 
 ## [1.8.0] - 2026-07-16
 ### Added
