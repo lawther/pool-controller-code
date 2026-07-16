@@ -2525,7 +2525,9 @@ static bool handle_channel_state(
     bool changed = false;
     if (ctx->state_mutex && xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) == pdTRUE) {
         channel_state_t *ch = &ctx->pool_state->channels[ch_num - 1];
-        if (!ch->configured || ch->state != state) {
+        // State registers are broadcast for unused channels too (e.g. in the
+        // periodic register dump) — only a known channel type marks it in use
+        if (ch->type != CHANNEL_UNUSED && (!ch->configured || ch->state != state)) {
             ch->state = state;
             ch->configured = true;
             ctx->pool_state->last_update_ms = xTaskGetTickCount() * portTICK_PERIOD_MS;

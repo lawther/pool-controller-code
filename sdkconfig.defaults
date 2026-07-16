@@ -29,6 +29,12 @@ CONFIG_ESPTOOLPY_FLASHSIZE="4MB"
 CONFIG_PARTITION_TABLE_CUSTOM=y
 CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
 
+# TLS certificate bundle — used by the GitHub firmware update (HTTPS release
+# lookup + esp_https_ota). The full bundle covers github.com and the
+# objects.githubusercontent.com host that release downloads redirect to.
+CONFIG_MBEDTLS_CERTIFICATE_BUNDLE=y
+CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_FULL=y
+
 # Bootloader
 # CONFIG_BOOTLOADER_LOG_LEVEL_WARN=y
 CONFIG_BOOTLOADER_LOG_LEVEL_INFO=y

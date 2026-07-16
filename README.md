@@ -373,7 +373,7 @@ The workflow will:
 1. Build the firmware with `PROJECT_VER` set to the tag name (embedded into the binary and visible via the device's `/status` page).
 2. Create a draft GitHub Release with auto-generated notes.
 3. Attach two assets:
-   - `pool-controller-update-v1.0.0.bin` — app-only binary, for the existing `/update` OTA flow.
+   - `pool-controller-update-v1.0.0.bin` — app-only binary, used by both the `/update` upload flow and the GitHub auto-update (the device downloads this asset by name).
    - `pool-controller-full-v1.0.0.bin` — merged bootloader + partition table + otadata + app, for first-time flashing via `esptool.py --chip esp32c6 write_flash 0x0 pool-controller-full-v1.0.0.bin`.
 4. Publish the draft.
 
@@ -396,10 +396,12 @@ Documents the proprietary serial protocol used by the Connect 10, reverse-engine
 
 ### [OTA_UPDATE.md](OTA_UPDATE.md) — Over-The-Air Firmware Updates
 
-Describes the web-based OTA update system. Covers:
+Describes the OTA update system. Covers:
 
-- **How to update** — Build the `.bin`, navigate to `http://<device-ip>/update`, upload via the web form
+- **Update from GitHub** — The device checks the GitHub *latest release* on a schedule and can download/install it on demand from the `/update` page or the Home Assistant `update` entity — no local file handling
+- **Home Assistant update entity** — A "Firmware" update entity shows installed/latest versions and installs with the HA *Install* button, reporting download progress
+- **Manual upload** — Build the `.bin`, navigate to `http://<device-ip>/update`, upload via the web form
 - **Dual-partition layout** — Updates alternate between `ota_0` and `ota_1`, with automatic rollback if the new firmware fails to boot
 - **Safety** — Image validation before write, boot confirmation required by new firmware, rollback after 3 failed boots
 - **Version information** — Version string generated from `git describe` (e.g. `v1.0.0-5-g870d65b`)
-- **Security notes** — No authentication on `/update` currently; see the doc for recommended production hardening
+- **Security notes** — No authentication on the update endpoints currently; see the doc for recommended production hardening

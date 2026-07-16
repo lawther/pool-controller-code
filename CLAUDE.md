@@ -33,6 +33,7 @@ Requires ESP-IDF v5.5+ with environment sourced (`. $IDF_PATH/export.sh`).
 - **mqtt_publish.c/.h**: MQTT publishing functions for pool state updates
 - **mqtt_discovery.c/.h**: Home Assistant MQTT discovery integration
 - **mqtt_commands.c/.h**: MQTT command subscription and handling
+- **firmware_update.c/.h**: GitHub release checker + pull-based OTA. Periodically reads the repo's recent release tags from the streamed `releases.atom` feed (latest + prior versions), compares the newest against the running build, and can install any tracked release's update binary over HTTPS (`esp_https_ota`). Exposes status + the version list to the web UI and the Home Assistant `update` entity
 - **web_handlers.c/.h**: HTTP server endpoints (status, provisioning, MQTT config)
 - **led_helper.c/.h**: WS2812 LED control for status indication
 - **heap_monitor.c/.h**: Low-priority task that periodically logs heap stats (free, min-free watermark, largest block) for leak/fragmentation diagnostics
@@ -83,8 +84,12 @@ main.c
   │     └─> bus (send CMD 0x39 requests)
   ├─> mqtt_poolclient (MQTT connection)
   │     ├─> mqtt_discovery (Home Assistant integration)
-  │     └─> mqtt_commands (handle MQTT commands)
+  │     ├─> mqtt_commands (handle MQTT commands)
+  │     └─> firmware_update (publish update state, handle install command)
+  ├─> firmware_update (GitHub release check + pull OTA)
+  │     └─> mqtt_poolclient (publish HA update entity state)
   ├─> web_handlers (HTTP API)
+  │     └─> firmware_update (check/install from GitHub)
   ├─> led_helper (status LED)
   └─> heap_monitor (periodic heap-stats logging)
 ```

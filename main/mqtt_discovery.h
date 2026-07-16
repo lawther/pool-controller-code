@@ -7,6 +7,11 @@
 // This should be called once when MQTT connects
 void mqtt_publish_discovery(void);
 
+// Publish the Home Assistant "update" entity discovery (firmware update via
+// GitHub release). Published once on connect; state is carried on
+// pool/<id>/update/state (see firmware_update.c).
+void mqtt_publish_update_discovery_single(void);
+
 // Publish individual channel discovery (called when channel first configured)
 void mqtt_publish_channel_discovery_single(int channel_num, const char *channel_name);
 
