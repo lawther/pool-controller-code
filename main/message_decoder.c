@@ -1315,7 +1315,20 @@ static bool handle_config(
         xSemaphoreGive(ctx->state_mutex);
     }
 
-    return false;  // Intentionally return false to match original behavior
+    // Flag anomalous config bytes for protocol research (e.g. a service-mode
+    // signal hiding in an undocumented bit; see PROTOCOL.md 0x26 byte 10).
+    // Documented bits are the low five (mask 0x1F): bit 0 (0x01) is documented
+    // as always 1, bits 1-4 carry the fields decoded above. Bits 5-7 (0xE0) are
+    // reserved/unknown. Record — outside the state lock, per record_undocumented's
+    // contract — if any reserved bit is set, or if the "always 1" bit 0 is
+    // unexpectedly clear. Called only on anomalies so normal frames don't flood
+    // the Unknown Messages page.
+    if ((config_byte & 0xE0) != 0 || (config_byte & 0x01) == 0) {
+        ESP_LOGW(TAG, "%s Undocumented config bits: 0x%02X", addr_info, config_byte);
+        record_undocumented(data, len);
+    }
+
+    return true;
 }
 
 /**
