@@ -110,6 +110,7 @@ static const char *MSG_TYPE_VALVE_STATE =           "02 00 50 FF FF 80 00 27 13 
 
 // 62 Connect 8/10 Controller
 static const char *MSG_TYPE_HEATER =                "02 00 62 FF FF 80 00 12 0F 03";
+static const char *MSG_TYPE_CONTROLLER_UNKNOWN2B =  "02 00 62 00 50 80 00 2B 0E 6D";
 
 // 70 Genus Heater (Active i25 Evo)
 static const char *MSG_TYPE_GENUS_HEATER_TEMP_SETTING = "02 00 70 FF FF 80 00 17 0E 15";
@@ -266,6 +267,7 @@ static const cmd_name_entry_t CMD_NAME_TABLE[] = {
     {0x26, "Configuration"},
     {0x27, "Valve State"},
     {0x2A, "Favourite Cmd"},
+    {0x2B, "Controller Heartbeat"},
     {0x31, "Temperature Reading (alt)"},
     {0x37, "Gateway Info Req/Resp"},
     {0x38, "Register Response"},
@@ -3341,6 +3343,39 @@ static bool handle_pump_buttons(
     return true;
 }
 
+/**
+ * Handler: Connect 8/10 Controller -> Touchscreen heartbeat (CMD 0x2B)
+ * Pattern: "02 00 62 00 50 80 00 2B 0E 6D"
+ *
+ * Unicast from the controller (0x0062) directly to the Touchscreen (0x0050)
+ * roughly every 60 s. Purpose unknown; the 2-byte payload is 02 00 in every
+ * observed capture. Log-only, but flag any deviation: this is one of only two
+ * message types the controller sends straight to the touchscreen, making it a
+ * prime candidate carrier for a controller-originated state signal (e.g.
+ * service mode). See PROTOCOL.md command 0x2B.
+ */
+static bool handle_controller_heartbeat(
+    const uint8_t *data, int len,
+    const uint8_t *payload, int payload_len,
+    const char *addr_info,
+    message_decoder_context_t *ctx)
+{
+    if (payload_len < 2) return false;
+
+    uint8_t b1 = payload[0];
+    uint8_t b2 = payload[1];
+
+    if (b1 != 0x02 || b2 != 0x00) {
+        ESP_LOGW(TAG, "%s Controller heartbeat (CMD 0x2B) - UNEXPECTED VALUE: 0x%02X 0x%02X (expected 0x02 0x00)",
+                 addr_info, b1, b2);
+        record_undocumented(data, len);
+    } else {
+        ESP_LOGI(TAG, "%s Controller heartbeat (CMD 0x2B): 0x%02X 0x%02X", addr_info, b1, b2);
+    }
+
+    return true;
+}
+
 // ======================================================
 // Main decoder function
 // ======================================================
@@ -3601,6 +3636,10 @@ static bool dispatch_message(
 
     if (match_pattern(data, len, MSG_TYPE_HEATER)) {
         return handle_heater(data, len, payload, payload_len, addr_info, ctx);
+    }
+
+    if (match_pattern(data, len, MSG_TYPE_CONTROLLER_UNKNOWN2B)) {
+        return handle_controller_heartbeat(data, len, payload, payload_len, addr_info, ctx);
     }
 
     // Heater temperature setting messages
