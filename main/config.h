@@ -151,6 +151,10 @@
 #define FW_UPDATE_STARTUP_DELAY_MS     30000    // Wait after boot before the first check
 #define FW_UPDATE_HTTP_TIMEOUT_MS      15000    // Per-request timeout for the version check
 #define FW_UPDATE_OTA_TIMEOUT_MS       60000    // Socket timeout while downloading the image
+#define FW_UPDATE_HTTP_BUF_SIZE        2048     // GitHub redirects the asset download to a
+                                                // signed URL well over the 512-byte default;
+                                                // needed for both the Location header (RX)
+                                                // and the redirected request line (TX)
 #define FW_UPDATE_TASK_STACK           8192     // Stack for the check/install task (TLS is heavy)
 
 // Number of most-recent releases to track (latest + 4 prior), so the web UI

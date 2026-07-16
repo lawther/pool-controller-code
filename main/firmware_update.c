@@ -26,7 +26,10 @@ static fw_update_status_t s_status;
 static SemaphoreHandle_t s_status_lock;
 
 // Serializes network operations (a periodic check must not race a manual
-// check or an install, and two installs must not run at once).
+// check or an install, and two installs must not run at once). Binary
+// semaphore, not a mutex: firmware_update_start_install takes it and hands
+// ownership to install_task, which releases it from a different task —
+// a mutex would assert in xTaskPriorityDisinherit on that cross-task give.
 static SemaphoreHandle_t s_op_lock;
 
 // Release tag the pending install should fetch. Written by
@@ -407,6 +410,8 @@ static void install_task(void *arg)
         .crt_bundle_attach = esp_crt_bundle_attach,
         .timeout_ms = FW_UPDATE_OTA_TIMEOUT_MS,
         .keep_alive_enable = true,
+        .buffer_size = FW_UPDATE_HTTP_BUF_SIZE,
+        .buffer_size_tx = FW_UPDATE_HTTP_BUF_SIZE,
     };
     esp_https_ota_config_t ota_cfg = {
         .http_config = &http_cfg,
@@ -529,11 +534,12 @@ static void check_task(void *arg)
 void firmware_update_init(void)
 {
     s_status_lock = xSemaphoreCreateMutex();
-    s_op_lock = xSemaphoreCreateMutex();
+    s_op_lock = xSemaphoreCreateBinary();
     if (!s_status_lock || !s_op_lock) {
         ESP_LOGE(TAG, "Failed to create firmware update locks");
         return;
     }
+    xSemaphoreGive(s_op_lock);   // binary semaphores start empty; mark available
     status_init();
 
     if (xTaskCreate(check_task, "fw_check", FW_UPDATE_TASK_STACK, NULL, 3, NULL) != pdPASS) {
