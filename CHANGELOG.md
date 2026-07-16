@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 ### Removed
 ### Fixed
+- Fixed the Home Assistant "Firmware" update entity reverting to "Update available" (with a live Install button) during the post-flash reboot: the rebooting window now reports as still installing with an indeterminate progress bar, flipping to "Up-to-date" once the new firmware boots and reports its version
 ### Deprecated
 ### Security
 

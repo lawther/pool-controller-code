@@ -150,9 +150,15 @@ void firmware_update_publish_mqtt_state(void)
     }
     cJSON_AddStringToObject(root, "title", "Pool Controller Firmware");
 
-    bool in_progress = (st.state == FW_UPDATE_STATE_DOWNLOADING);
+    // SUCCESS (flashed, reboot imminent) still counts as in progress so HA
+    // keeps showing "installing" across the reboot instead of reverting to
+    // "Update available"; the retained message holds until the new firmware's
+    // boot-time publish delivers the new installed_version. A null percentage
+    // renders as an indeterminate bar.
+    bool in_progress = (st.state == FW_UPDATE_STATE_DOWNLOADING ||
+                        st.state == FW_UPDATE_STATE_SUCCESS);
     cJSON_AddBoolToObject(root, "in_progress", in_progress);
-    if (in_progress) {
+    if (st.state == FW_UPDATE_STATE_DOWNLOADING) {
         cJSON_AddNumberToObject(root, "update_percentage", st.progress_pct);
     } else {
         cJSON_AddNullToObject(root, "update_percentage");
