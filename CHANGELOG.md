@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 ### Changed
+- Decoded the newly discovered CMD 0x15 Mode Set Command: broadcast from the Touchscreen address (0x0050), switches Spa/Pool mode using the same encoding as the 0x14 status (Spa=0x00, Pool=0x01, unlike the inverted 0x2A values), confirmed by injection testing — documented in PROTOCOL.md and decoded into pool state, so mode switches commanded by other senders update Home Assistant immediately
+- The Home Assistant Spa/Pool mode select (mode/set) now switches mode with the dedicated CMD 0x15 Mode Set Command instead of activating the Pool/Spa built-in favourites via CMD 0x2A; mode values throughout the code now use the new MODE_SPA/MODE_POOL constants
+- Renamed CMD 0x2A from "Mode/Favourite Control Command" to "Favourite Control Command" throughout PROTOCOL.md and the code (handler, pattern constant, comments and logs), since its value space is the favourite slots; the Spa/Pool MQTT mode select is unaffected
 ### Removed
 ### Fixed
 - Fixed the Home Assistant "Firmware" update entity reverting to "Update available" (with a live Install button) during the post-flash reboot: the rebooting window now reports as still installing with an indeterminate progress bar, flipping to "Up-to-date" once the new firmware boots and reports its version

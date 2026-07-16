@@ -227,12 +227,12 @@ void test_mode_pool(void)
 {
     send_cmd("mode/set", "Pool");
 
-    // Expected: 02 00 F0 00 50 80 00 2A 0D F9 00 00 03
+    // Expected: 02 00 50 FF FF 80 00 15 0D F2 01 01 03
     // mode_value=0x00 (Pool), checksum=0x00
     uint8_t expected[] = {
-        0x02, 0x00, 0xF0, 0x00, 0x50, 0x80, 0x00,
-        0x2A, 0x0D, 0xF9,
-        0x00, 0x00,
+        0x02, 0x00, 0x50, 0xFF, 0xFF, 0x80, 0x00,
+        0x15, 0x0D, 0xF2,
+        0x01, 0x01,
         0x03
     };
     TEST_ASSERT(s_uart_calls == 1, "mode/set Pool: exactly one UART write");
@@ -243,12 +243,12 @@ void test_mode_pool(void)
 void test_mode_spa(void)
 {
     send_cmd("mode/set", "Spa");
-
+    // Expected: 02 00 50 FF FF 80 00 15 0D F2 00 00 03
     // mode_value=0x01 (Spa), checksum=0x01
     uint8_t expected[] = {
-        0x02, 0x00, 0xF0, 0x00, 0x50, 0x80, 0x00,
-        0x2A, 0x0D, 0xF9,
-        0x01, 0x01,
+        0x02, 0x00, 0x50, 0xFF, 0xFF, 0x80, 0x00,
+        0x15, 0x0D, 0xF2,
+        0x00, 0x00,
         0x03
     };
     TEST_ASSERT(s_uart_calls == 1, "mode/set Spa: exactly one UART write");

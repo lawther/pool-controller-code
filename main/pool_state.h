@@ -145,9 +145,14 @@ typedef struct {
     bool single_sensor_source;  // True if this source only ever broadcasts temp1 (LEN 0x0D)
 } seen_device_t;
 
-// Favourite/mode slot (indices 0–7: Pool, Spa, Fav1–Fav6)
+// Operating mode values (CMD 0x14 status broadcast and CMD 0x15 set command;
+// note CMD 0x2A uses inverted Pool/Spa values)
+#define MODE_SPA   0x00
+#define MODE_POOL  0x01
 
-// Favourite/mode values (shared by CMD 0x2A commands and active_favourite).
+// Favourite slot (indices 0–7: Pool, Spa, Fav1–Fav6)
+
+// Favourite values (shared by CMD 0x2A commands and active_favourite).
 // Pool/Spa are built-ins at values 0x00/0x01; user favourites are 0x02-0x07.
 // All Off/All Auto are momentary actions: the controller never reports them in the
 // Active Favourite register (0x20) — All Off reports as Pool, All Auto as none.
@@ -173,7 +178,7 @@ typedef struct {
     pool_heater_t heaters[MAX_HEATERS];
 
     // Mode
-    uint8_t mode;  // 0=Spa, 1=Pool
+    uint8_t mode;  // MODE_SPA (0x00) or MODE_POOL (0x01)
     bool mode_valid;
 
     // Channels (up to MAX_CHANNELS)
@@ -190,7 +195,7 @@ typedef struct {
     // Register labels (general storage for register names like favourites, etc.)
     register_label_t register_labels[MAX_REGISTER_LABELS];
 
-    // Favourites / mode slots (Pool, Spa, Fav1–Fav6)
+    // Favourite slots (Pool, Spa, Fav1–Fav6)
     favourite_t favourites[MAX_FAVOURITES];
     uint8_t active_favourite;    // 0x00=Pool, 0x01=Spa, 0x02-0x07=Fav1-6, 0x80=AllOff, 0x81=AllAuto, 0xFF=none (FAVOURITE_NONE)
     bool active_favourite_valid;

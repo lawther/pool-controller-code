@@ -19,6 +19,7 @@ This document describes the proprietary serial protocol used by the Connect 10 p
   - [0x10 — Channel Toggle Command ⚠️](#0x10--channel-toggle-command-️)
   - [0x12 — Device Status ⚠️](#0x12--device-status-️)
   - [0x14 — Mode (Spa/Pool) ✅](#0x14--mode-spapool-)
+  - [0x15 — Mode Set Command (Spa/Pool) ✅](#0x15--mode-set-command-spapool-)
   - [0x16 — Water Temperature Reading ✅](#0x16--water-temperature-reading-)
   - [0x17 — Temperature Settings ✅](#0x17--temperature-settings-)
   - [0x18 — Pump Speed Command ✅](#0x18--pump-speed-command-)
@@ -30,7 +31,7 @@ This document describes the proprietary serial protocol used by the Connect 10 p
   - [0x26 — Configuration ⚠️](#0x26--configuration-️)
   - [0x27 — Valve State Broadcast ✅](#0x27--valve-state-broadcast-)
   - [0x28 — Valve Control Command ✅](#0x28--valve-control-command-)
-  - [0x2A — Mode/Favourite Control Command ✅](#0x2a--modefavourite-control-command-)
+  - [0x2A — Favourite Control Command ✅](#0x2a--favourite-control-command-)
   - [0x2B — Unknown ⚠️](#0x2b--unknown-️)
   - [0x31 — Water Temperature Reading (alt) ✅](#0x31--water-temperature-reading-alt-)
   - [0x37 — Internet Gateway Info ⚠️](#0x37--internet-gateway-info-️)
@@ -119,7 +120,7 @@ Click any CMD in the first column to jump to the full section in [Commands](#com
 
 | CMD                                                            | Name                                | Direction                                                              | Variants / Notes                                                                            | In code?                |
 |----------------------------------------------------------------|-------------------------------------|------------------------------------------------------------------------|---------------------------------------------------------------------------------------------|-------------------------|
-| [`0x05`](#0x05--touchscreen-activation-ack-️)                  | Touchscreen Activation Ack          | `0x0050` → Broadcast                                                   | 1-byte payload `0x01`; sent after mode/favourite changes                                    | Yes (log-only)          |
+| [`0x05`](#0x05--touchscreen-activation-ack-️)                  | Touchscreen Activation Ack          | `0x0050` → Broadcast                                                   | 1-byte payload `0x01`; sent after favourite changes                                    | Yes (log-only)          |
 | [`0x06`](#0x06--lighting-zone-configuration-)                  | Lighting Zone Configuration         | `0x0050` → Broadcast                                                   |                                                                                             | Yes                     |
 | [`0x0A`](#0x0a--firmware-version-)                             | Firmware Version                    | `0x0050`, `0x0062`, `0x0070`, `0x0081`, `0x0084`, `0x00A0`, `0x00F0` → Broadcast | Same `{major, minor}` payload across all sources; dispatched on CMD byte alone              | Yes (unified handler)   |
 | [`0x0B`](#0x0b--channel-status-)                               | Channel Status                      | `0x0050` → Broadcast                                                   |                                                                                             | Yes                     |
@@ -128,6 +129,7 @@ Click any CMD in the first column to jump to the full section in [Commands](#com
 | [`0x10`](#0x10--channel-toggle-command-️)                      | Channel Toggle Command              | `0x00F0` Gateway → Broadcast                                           |                                                                                             | Yes                     |
 | [`0x12`](#0x12--device-status-️)                               | Device Status                       | `0x0050`, `0x0062`, `0x0074`, `0x0081`, `0x0084`, `0x0090`, `0x00F0` → Broadcast | Payload layout differs per source                                                           | Yes (per-source)        |
 | [`0x14`](#0x14--mode-spapool-)                                 | Mode (Spa/Pool)                     | `0x0050` → Broadcast                                                   |                                                                                             | Yes                     |
+| [`0x15`](#0x15--mode-set-command-spapool-)                     | Mode Set Command (Spa/Pool)         | `0x0050` → Broadcast                                                   | Sets the mode; same encoding as the `0x14` status (Spa=`0x00`, Pool=`0x01`)                 | Yes                     |
 | [`0x16`](#0x16--water-temperature-reading-)                    | Water Temperature Reading           | `0x0062` (LEN `0x0E`), `0x0070`/`0x0072`/`0x0074` (LEN `0x0D`) → Broadcast | Payload length differs by source: LEN `0x0E` = `{temp1, temp2}`, LEN `0x0D` = `{temp1}`; dispatched on CMD byte alone | Yes (unified handler)   |
 | [`0x17`](#0x17--temperature-settings-)                         | Temperature Settings                | `0x0050` (LEN `0x10`), `0x0070`/`0x0074` (LEN `0x0E`) → Broadcast | Source-dependent payload layout                                                             | Yes (per-source)        |
 | [`0x18`](#0x18--pump-speed-command-)                           | Pump Speed Command                  | `0x0050`, `0x0084` → `0x00A0` Viron XT Pump                            | Set pump speed (low/med/high)                                                       | Yes                     |
@@ -139,7 +141,7 @@ Click any CMD in the first column to jump to the full section in [Commands](#com
 | [`0x26`](#0x26--configuration-️)                               | Configuration                       | `0x0050` → Broadcast                                                   |                                                                                             | Yes                     |
 | [`0x27`](#0x27--valve-state-broadcast-)                        | Valve State Broadcast               | `0x0050` → Broadcast                                                   | Two LEN variants: `0x0D` (short) and `0x13` (full)                                          | Yes (both variants)     |
 | [`0x28`](#0x28--valve-control-command-)                        | Valve Control Command               | `0x00F0` Gateway → Broadcast                                           |                                                                                             | **No (doc only)**       |
-| [`0x2A`](#0x2a--modefavourite-control-command-)                | Mode/Favourite Control Command      | `0x00F0` Gateway → `0x0050` Touchscreen                                | Unicast                                                                                     | Yes                     |
+| [`0x2A`](#0x2a--favourite-control-command-)                    | Favourite Control Command           | `0x00F0` Gateway → `0x0050` Touchscreen                                | Unicast                                                                                     | Yes                     |
 | [`0x2B`](#0x2b--unknown-️)                                     | Unknown                             | `0x0062` Connect 8/10 → `0x0050` Touchscreen                          | Unicast; payload `[02 00]` observed; meaning unknown                                        | **No (doc only)**       |
 | [`0x31`](#0x31--water-temperature-reading-alt-)                | Water Temperature Reading (alt)     | `0x0062` → Broadcast                                                   | Same `{temp1, temp2}` field layout as `0x16`; different disconnected encoding (`>= 0xA0` vs `0x00`); shared handler, log-only | Yes (unified handler)   |
 | [`0x37`](#0x37--internet-gateway-info-️)                       | Internet Gateway Info               | `0x00F0` → Broadcast                                                   | LEN distinguishes serial (`0x11`), network config (`0x15`), comms status (`0x0F`) variants  | Yes (3 handlers)        |
@@ -183,7 +185,7 @@ Single-byte broadcast emitted by the Touchscreen (`0x0050`) immediately after a 
 **Notes:**
 
 - Decoded in code by `handle_touchscreen_unknown3` — log-only, no `pool_state` update.
-- Triggered by [0x2A Mode/Favourite Control Command](#0x2a--modefavourite-control-command-); see that section for the full activation sequence.
+- Triggered by [0x2A Favourite Control Command](#0x2a--favourite-control-command-); see that section for the full activation sequence.
 - Status ⚠️ because the meaning of the constants `0x00` and `0x01` is unconfirmed — it could be a fixed "ack" sentinel or a single-value-observed flags field.
 
 ---
@@ -623,6 +625,38 @@ Reports the current operating mode — pool or spa. Broadcast by the Touchscreen
 **Data Fields:**
 
 - Byte 10: Mode (`0x00` = Spa, `0x01` = Pool)
+
+**Notes:**
+
+- The mode can be set with the companion [0x15 Mode Set Command](#0x15--mode-set-command-spapool-), which uses the same encoding
+
+---
+
+### 0x15 — Mode Set Command (Spa/Pool) ✅
+
+Command that switches the current operating mode between Pool and Spa. Sent from the Touchscreen address (`0x0050`) as a broadcast — an external sender must impersonate the Touchscreen. Discovered and confirmed by injection testing: sending these frames switches the mode.
+
+**Pattern:** `02 00 50 FF FF 80 00 15 0D F2`
+
+**Examples:**
+
+```
+02 00 50 FF FF 80 00 15 0D F2 00 00 03   Set Spa mode
+02 00 50 FF FF 80 00 15 0D F2 01 01 03   Set Pool mode
+                              ^^ Mode: 0x00 = Spa, 0x01 = Pool
+                                 ^^ Data checksum (equals the mode byte)
+```
+
+**Data Fields:**
+
+- Byte 10: Mode (`0x00` = Spa, `0x01` = Pool)
+- Byte 11: Data checksum (equals byte 10 since it is the only data byte)
+
+**Notes:**
+
+- Uses the **same** mode encoding as the [0x14 Mode status](#0x14--mode-spapool-) (Spa=`0x00`, Pool=`0x01`) — unlike [0x2A Favourite Control](#0x2a--favourite-control-command-), whose Pool/Spa values are inverted relative to `0x14`
+- Alternative to switching mode via the Pool/Spa built-in favourites of [0x2A](#0x2a--favourite-control-command-): `0x2A` impersonates the Gateway and unicasts to the Touchscreen, whereas this command impersonates the Touchscreen and broadcasts
+- Not yet observed in normal bus traffic — whether any device emits it on its own is unknown
 
 ---
 
@@ -1152,9 +1186,9 @@ Sent by the Internet Gateway (`0x00F0`) to set a valve to a specific state direc
 
 ---
 
-### 0x2A — Mode/Favourite Control Command ✅
+### 0x2A — Favourite Control Command ✅
 
-Command sent by the Internet Gateway (`0x00F0`) to the Touchscreen (`0x0050`) to switch modes or activate a stored Favourite preset. A single data byte encodes the target mode or favourite index.
+Command sent by the Internet Gateway (`0x00F0`) to the Touchscreen (`0x0050`) to activate a favourite — the Pool and Spa built-ins, a stored user Favourite preset, All Off, or All Auto. A single data byte encodes the favourite value.
 
 **Pattern:** `02 00 F0 00 50 80 00 2A 0D F9`
 
@@ -1167,18 +1201,18 @@ Command sent by the Internet Gateway (`0x00F0`) to the Touchscreen (`0x0050`) to
 02 00 F0 00 50 80 00 2A 0D F9 80 80 03   All Off mode
 02 00 F0 00 50 80 00 2A 0D F9 81 81 03   All Auto mode
 02 00 F0 00 50 80 00 2A 0D F9 FF FF 03   None
-                              ^^ Mode/favourite byte
-                                 ^^ Data checksum (equals the mode byte)
+                              ^^ Favourite byte
+                                 ^^ Data checksum (equals the favourite byte)
 ```
 
 **Data Fields:**
 
 - Bytes 1-2: `00 F0` — Source (Internet Gateway = `0x00F0`)
 - Bytes 3-4: `00 50` — Destination (Touchscreen = `0x0050`) — **not broadcast**
-- Byte 10: Mode/favourite value (see table below)
+- Byte 10: Favourite value (see table below)
 - Byte 11: Data checksum (equals byte 10 since it is the only data byte)
 
-**Mode/Favourite Values:**
+**Favourite Values:**
 
 | Value  | Meaning       | Label register (slot `0x03`) | Enable register (slot `0x03`) |
 |--------|---------------|------------------------------|-------------------------------|
@@ -1192,11 +1226,12 @@ Command sent by the Internet Gateway (`0x00F0`) to the Touchscreen (`0x0050`) to
 | `0x07` | Favourite 6   | `0x38` — user-defined label  | `0x28` — `0x01`=enabled, `0x00`=disabled |
 | `0x80` | All Off mode  | — (no label register)        | — (always available)          |
 | `0x81` | All Auto mode | — (no label register)        | — (always available)          |
+| `0xFF` | None          | — (no label register)        | — (always available)          |
 
 **Notes:**
 
 - **Destination is Touchscreen (`0x0050`), not broadcast** — addressed specifically to the touchscreen, which holds the stored Favourite presets and applies them
-- **Command values are inverted from status values** — in status messages ([0x14 Mode](#0x14--mode-spapool-)), Spa=`0x00` and Pool=`0x01`; in this command, Pool=`0x00` and Spa=`0x01`
+- **Command values are inverted from status values** — in status messages ([0x14 Mode](#0x14--mode-spapool-)), Spa=`0x00` and Pool=`0x01`; in this command, Pool=`0x00` and Spa=`0x01`. The [0x15 Mode Set Command](#0x15--mode-set-command-spapool-), by contrast, uses the status encoding
 - The Touchscreen acknowledges each activation with an immediate [0x05 Touchscreen Activation Ack](#0x05--touchscreen-activation-ack-️) (value `0x01`) followed by the relevant mode, active-channel, and channel-status broadcasts
 - Up to 6 user Favourites are supported (`0x02`–`0x07`). The labels for all 8 slots (including the Pool and Spa built-ins) are stored in registers `0x31`–`0x38` (slot `0x03`), readable via the register protocol ([0x38](#0x38--register-data-️))
 - Each slot's enabled/disabled state is stored in registers `0x21`–`0x28` (slot `0x03`), with `0x01` = enabled and `0x00` = disabled. Pool (`0x21`) and Spa (`0x22`) are always `0x01`. All Off (`0x80`) and All Auto (`0x81`) have no corresponding enable registers and are always available
@@ -1731,8 +1766,8 @@ The register ID and slot together determine the message meaning. The slot distin
 |-----------------|--------|------------------------|--------------------------------------------------|
 | `0x08`–`0x17`  | `0x04` | Timers 1–16            | start/stop time + days bitmask (see [0x38 Timer Registers](#timer-registers-slot-0x04))   |
 | `0x20`         | `0x03` | Active Favourite       | CMD `0x2A` value of the active favourite (`0x00`=Pool … `0x07`=Favourite 6); `0xFF` = none active — see note below |
-| `0x21`–`0x28`  | `0x03` | Favourite/Mode Enable  | 1-byte flag (`0x01`=enabled, `0x00`=disabled). Maps to CMD `0x2A` values `0x00`–`0x07` in order. Pool (`0x21`) and Spa (`0x22`) are always `0x01`. |
-| `0x31`–`0x38`  | `0x03` | Favourite/Mode Labels  | Null-terminated ASCII string. Maps to CMD `0x2A` values `0x00`–`0x07` in order. `0x31`=Pool, `0x32`=Spa, `0x33`–`0x38`=user Favourites 1–6. |
+| `0x21`–`0x28`  | `0x03` | Favourite Enable       | 1-byte flag (`0x01`=enabled, `0x00`=disabled). Maps to CMD `0x2A` values `0x00`–`0x07` in order. Pool (`0x21`) and Spa (`0x22`) are always `0x01`. |
+| `0x31`–`0x38`  | `0x03` | Favourite Labels       | Null-terminated ASCII string. Maps to CMD `0x2A` values `0x00`–`0x07` in order. `0x31`=Pool, `0x32`=Spa, `0x33`–`0x38`=user Favourites 1–6. |
 | `0x64`-`0x65` ⚠️| `0x00`| Unknown                | Only `0x01` observed. Repeats ~every 8 minutes   |
 | `0x6C`–`0x73`  | `0x02` | Channel Types          | 1-byte type code (see [0x0B](#0x0b--channel-status-) channel types)    |
 | `0x7C`–`0x83`  | `0x02` | Channel Names          | Null-terminated ASCII string                     |
@@ -1769,7 +1804,7 @@ The register ID and slot together determine the message meaning. The slot distin
 - **`0xE9`/`0xEA`/`0xEB` (Heater 2 trio) — confirmed ✅**: Slot `0x00` holds the Heater 1 trio at `0xE6` (state), `0xE7` (Pool setpoint), `0xE8` (Spa setpoint), and `0xE9`/`0xEA`/`0xEB` are the analogous trio for the second heater: `0xE9` = state (`0x00`=Off, `0x01`=On), `0xEA` = Pool setpoint, `0xEB` = Spa setpoint (1-byte °C). All three are writable via the gateway register-write command (CMD `0x3A` / second-byte `0xB9`). `0xEA` was confirmed by UI capture — changing the setpoint in the UI sends a `0x3A` write to `0xEA`/slot `0x00` and the touchscreen rebroadcasts the new value via CMD `0x38` (observed 21°C `EA 00 15`, 22°C `EA 00 16`, 27°C `EA 00 1B`; the 27°C value matched the **H2** value in the heater's `0x0070` CMD `0x17` broadcast). `0xE9` and `0xEB` are confirmed as Heater 2 state and spa setpoint respectively. (On the test install the second heater is a heat pump; "Heater 2" is kept as the generic name since another install's second heater may be a different type.)
 - **Mutually exclusive broadcast**: in captures observed so far the touchscreen broadcasts *either* the `E6/E7/E8` trio *or* the `E9/EA/EB` trio in slot `0x00`, but not both — consistent with a config-dependent enable (likely [0x26](#0x26--configuration-️) byte 10 bit 3 = heater count).
 - **`0xEB` default**: when the second heater isn't plumbed to spa, `0xEB` reads `0x0A` (10°C) — an unused default at the minimum setpoint rather than a live value.
-- **`0x20` (Active Favourite) — confirmed ✅**: slot `0x03` is the Favourite/Mode slot, and `0x20` sits immediately before the Favourite Enable block (`0x21`–`0x28`). Reports which favourite/mode is currently active, using the same value space as CMD [`0x2A`](#0x2a--modefavourite-control-command-): `0x00`=Pool, `0x01`=Spa, `0x02`–`0x07`=user Favourites 1–6; `0xFF` = no favourite active. The All Off/All Auto command values (`0x80`/`0x81`) never appear here — the controller does not remember them as states: All Off reports as `0x00` (it is implemented as Pool mode with all channels off; the accompanying [0x14 Mode](#0x14--mode-spapool-) broadcast also says Pool) and All Auto reports as `0xFF`. Broadcast ~1 s after a gateway-commanded activation ([0x2A](#0x2a--modefavourite-control-command-)), when an active favourite is knocked out by a manual channel change, and in the periodic ~8-minute register dump — but **not** when a favourite is activated at the touchscreen itself (the new value then only appears in the next dump).
+- **`0x20` (Active Favourite) — confirmed ✅**: slot `0x03` is the Favourite slot, and `0x20` sits immediately before the Favourite Enable block (`0x21`–`0x28`). Reports which favourite is currently active, using the same value space as CMD [`0x2A`](#0x2a--favourite-control-command-): `0x00`=Pool, `0x01`=Spa, `0x02`–`0x07`=user Favourites 1–6; `0xFF` = no favourite active. The All Off/All Auto command values (`0x80`/`0x81`) never appear here — the controller does not remember them as states: All Off reports as `0x00` (it is implemented as Pool mode with all channels off; the accompanying [0x14 Mode](#0x14--mode-spapool-) broadcast also says Pool) and All Auto reports as `0xFF`. Broadcast ~1 s after a gateway-commanded activation ([0x2A](#0x2a--favourite-control-command-)), when an active favourite is knocked out by a manual channel change, and in the periodic ~8-minute register dump — but **not** when a favourite is activated at the touchscreen itself (the new value then only appears in the next dump).
 - **`0xF5`–`0xFC` (Channel Category) — confirmed ✅**: per-channel category code following the Channel Count register (`0xF4`): `0xF5` = Channel 1, `0xF6` = Channel 2, … `0xFC` = Channel 8. Values: `0x01` = Pool equipment, `0x02` = Light, `0x03` = Controlled Heater Power. Registers for unused channels are not broadcast (only `0xF5`–`0xFB` observed on a 7-channel system, so `0xFC` = Channel 8 is inferred from the range width of the other per-channel register blocks). This is a coarser classification than the per-channel [Channel Type](#0x0b--channel-status-) codes at `0x6C`–`0x73`.
 
 ### Examples by Register Type
