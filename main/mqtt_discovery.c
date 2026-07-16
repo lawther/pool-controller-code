@@ -1118,6 +1118,9 @@ static void publish_update_discovery(const char *device_id, const char *mac_suff
     cJSON_AddStringToObject(root, "state_topic", state_topic);
     cJSON_AddStringToObject(root, "command_topic", command_topic);
     cJSON_AddStringToObject(root, "payload_install", "INSTALL");
+    // Installable update entities conventionally live in the Configuration
+    // section (matches core UpdateEntity's default, which MQTT doesn't apply).
+    cJSON_AddStringToObject(root, "entity_category", "config");
     cJSON_AddStringToObject(root, "unique_id", uid);
     cJSON_AddStringToObject(root, "object_id", uid);
     cJSON_AddStringToObject(root, "availability_topic", avail_topic);
@@ -1134,6 +1137,41 @@ static void publish_update_discovery(const char *device_id, const char *mac_suff
     cJSON_Delete(root);
 }
 
+// Button that asks the device to check GitHub for a new release now instead
+// of waiting for the periodic check (the HA update platform has no MQTT
+// "check" command of its own).
+static void publish_update_check_discovery(const char *device_id, const char *mac_suffix)
+{
+    char avail_topic[128];
+    char command_topic[128];
+    snprintf(avail_topic, sizeof(avail_topic), "pool/%s/availability", device_id);
+    snprintf(command_topic, sizeof(command_topic), "pool/%s/update/check", device_id);
+
+    char uid[80];
+    snprintf(uid, sizeof(uid), DISCOVERY_ID_PREFIX "_%s_fw_check", mac_suffix);
+
+    cJSON *root = cJSON_CreateObject();
+    cJSON_AddStringToObject(root, "name", "Check for firmware update");
+    cJSON_AddStringToObject(root, "command_topic", command_topic);
+    cJSON_AddStringToObject(root, "icon", "mdi:update");
+    // Same section as the Firmware update entity it belongs with.
+    cJSON_AddStringToObject(root, "entity_category", "config");
+    cJSON_AddStringToObject(root, "unique_id", uid);
+    cJSON_AddStringToObject(root, "object_id", uid);
+    cJSON_AddStringToObject(root, "availability_topic", avail_topic);
+    cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
+
+    char *json_str = cJSON_PrintUnformatted(root);
+    if (!json_str) {
+        ESP_LOGE(TAG, "Failed to print update-check button discovery JSON");
+        cJSON_Delete(root);
+        return;
+    }
+    publish_discovery("button", uid, json_str);
+    cJSON_free(json_str);
+    cJSON_Delete(root);
+}
+
 void mqtt_publish_update_discovery_single(void)
 {
     char device_id[32];
@@ -1143,6 +1181,7 @@ void mqtt_publish_update_discovery_single(void)
     device_get_mac_suffix(mac_suffix, sizeof(mac_suffix));
 
     publish_update_discovery(device_id, mac_suffix);
+    publish_update_check_discovery(device_id, mac_suffix);
 }
 
 void mqtt_publish_discovery(void)
@@ -1169,8 +1208,9 @@ void mqtt_publish_discovery(void)
     // Mode
     publish_mode_discovery(device_id, mac_suffix);
 
-    // Firmware update entity (GitHub release tracking)
+    // Firmware update entity (GitHub release tracking) + check-now button
     publish_update_discovery(device_id, mac_suffix);
+    publish_update_check_discovery(device_id, mac_suffix);
 
     // Note: Channels and lights are NOT published here.
     // They are published individually when first configured (see mqtt_publish.c)

@@ -209,8 +209,10 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
             esp_mqtt_client_subscribe(s_mqtt_client, topic, 0);
         }
 
-        // Subscribe to the firmware-update install command
+        // Subscribe to the firmware-update install and check commands
         snprintf(topic, sizeof(topic), "pool/%s/update/install", device_id);
+        esp_mqtt_client_subscribe(s_mqtt_client, topic, 0);
+        snprintf(topic, sizeof(topic), "pool/%s/update/check", device_id);
         esp_mqtt_client_subscribe(s_mqtt_client, topic, 0);
 
         ESP_LOGI(TAG, "Subscribed to command topics");
@@ -238,12 +240,16 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
                  event->topic_len, event->topic,
                  event->data_len, event->data);
 
-        // The firmware-update install command is device management, not a pool
-        // bus command, so route it here rather than through mqtt_commands.c.
+        // The firmware-update commands are device management, not pool bus
+        // commands, so route them here rather than through mqtt_commands.c.
         if (event->topic_len >= 15 &&
             memcmp(event->topic + event->topic_len - 15, "/update/install", 15) == 0) {
             ESP_LOGI(TAG, "Firmware install requested via MQTT");
             firmware_update_start_install(NULL);  // HA update entity installs latest
+        } else if (event->topic_len >= 13 &&
+                   memcmp(event->topic + event->topic_len - 13, "/update/check", 13) == 0) {
+            ESP_LOGI(TAG, "Firmware update check requested via MQTT");
+            firmware_update_request_check();  // wakes the check task; runs async
         } else {
             // Handle pool control command
             mqtt_handle_command(event->topic, event->topic_len, event->data, event->data_len);

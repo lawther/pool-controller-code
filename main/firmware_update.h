@@ -52,6 +52,11 @@ void firmware_update_get_status(fw_update_status_t *out);
 // successful query. Safe to call from a web handler.
 esp_err_t firmware_update_check_now(void);
 
+// Ask the background check task to run a check as soon as possible instead
+// of waiting out its interval. Non-blocking, safe to call from any task
+// (e.g. the MQTT event handler) — the check runs in the check task.
+void firmware_update_request_check(void);
+
 // Kick off an OTA install in a background task. `tag` selects which release to
 // install and must be one of the known recent versions (see fw_update_status_t
 // versions[]); pass NULL or "" to install the latest. Returns ESP_OK if the

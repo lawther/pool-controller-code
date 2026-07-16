@@ -136,10 +136,15 @@ void firmware_update_publish_mqtt_state(void)
     // and (optionally) in_progress/update_percentage from a JSON state payload.
     cJSON *root = cJSON_CreateObject();
     cJSON_AddStringToObject(root, "installed_version", st.installed_version);
-    // Never publish an empty/unknown latest — mirror installed so HA shows
-    // "up to date" until the first successful check populates a real tag.
+    // HA compares installed/latest itself and treats an uncomparable pair
+    // (e.g. a git-describe dev build like v1.7.0-11-g<hash>-dirty vs v1.7.0)
+    // as "update available". Our semver_cmp already made that call, so only
+    // publish the real tag when an update is actually available; otherwise
+    // mirror installed so HA shows "up to date" (also covers the not-yet-
+    // checked case, where latest is still empty).
     cJSON_AddStringToObject(root, "latest_version",
-                            st.latest_version[0] ? st.latest_version : st.installed_version);
+                            (st.update_available && st.latest_version[0])
+                                ? st.latest_version : st.installed_version);
     if (st.release_url[0]) {
         cJSON_AddStringToObject(root, "release_url", st.release_url);
     }
@@ -522,12 +527,23 @@ esp_err_t firmware_update_start_install(const char *tag)
 // Background check task
 // ======================================================
 
+static TaskHandle_t s_check_task;
+
 static void check_task(void *arg)
 {
-    vTaskDelay(pdMS_TO_TICKS(FW_UPDATE_STARTUP_DELAY_MS));
+    // Notification-based waits so firmware_update_request_check() can cut
+    // the interval short (e.g. the HA "check for firmware update" button).
+    ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(FW_UPDATE_STARTUP_DELAY_MS));
     while (1) {
         firmware_update_check_now();
-        vTaskDelay(pdMS_TO_TICKS(FW_UPDATE_CHECK_INTERVAL_MS));
+        ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(FW_UPDATE_CHECK_INTERVAL_MS));
+    }
+}
+
+void firmware_update_request_check(void)
+{
+    if (s_check_task) {
+        xTaskNotifyGive(s_check_task);
     }
 }
 
@@ -542,7 +558,7 @@ void firmware_update_init(void)
     xSemaphoreGive(s_op_lock);   // binary semaphores start empty; mark available
     status_init();
 
-    if (xTaskCreate(check_task, "fw_check", FW_UPDATE_TASK_STACK, NULL, 3, NULL) != pdPASS) {
+    if (xTaskCreate(check_task, "fw_check", FW_UPDATE_TASK_STACK, NULL, 3, &s_check_task) != pdPASS) {
         ESP_LOGE(TAG, "Failed to start firmware check task");
     } else {
         ESP_LOGI(TAG, "Firmware update checker started (installed %s)",
