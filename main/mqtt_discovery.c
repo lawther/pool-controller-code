@@ -1118,6 +1118,13 @@ static void publish_update_discovery(const char *device_id, const char *mac_suff
     cJSON_AddStringToObject(root, "state_topic", state_topic);
     cJSON_AddStringToObject(root, "command_topic", command_topic);
     cJSON_AddStringToObject(root, "payload_install", "INSTALL");
+    // Shown on HA's Updates page and in the update dialog (the mdi `icon`
+    // option is ignored there). Fetched by the viewing browser, so it must
+    // be a publicly reachable URL.
+    cJSON_AddStringToObject(root, "entity_picture",
+                            "https://raw.githubusercontent.com/"
+                            FW_UPDATE_GITHUB_OWNER "/" FW_UPDATE_GITHUB_REPO
+                            "/main/main/static/favicon.png");
     // Installable update entities conventionally live in the Configuration
     // section (matches core UpdateEntity's default, which MQTT doesn't apply).
     cJSON_AddStringToObject(root, "entity_category", "config");

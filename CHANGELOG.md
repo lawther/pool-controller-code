@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- Added a logo to the Home Assistant "Firmware" update entity (shown on the Updates page and in the update dialog) by pointing its `entity_picture` at the project favicon hosted on GitHub
 ### Changed
 ### Removed
 ### Fixed
