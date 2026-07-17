@@ -160,9 +160,6 @@ static const char *MSG_TYPE_GATEWAY_STATUS =          "02 00 F0 FF FF 80 00 12 0
 static const char *MSG_TYPE_PUMP_SPEED =              "02 00 A0 FF FF 80 00 3B 0E 69";
 static const char *MSG_TYPE_PUMP_BUTTONS =            "02 00 A0 FF FF 80 00 1B 0D 48";
 
-// F0 Gateway Control Commands (Gateway -> Controller)
-static const char *MSG_TYPE_LIGHT_CONTROL_CMD =       "02 00 F0 FF FF 80 00 3A 0F B9";
-
 // ======================================================
 // Lookup tables and constants
 // ======================================================
@@ -2018,10 +2015,12 @@ static bool handle_temp_set_cmd_heaters(
 }
 
 /**
- * Handler: Light zone control command (Gateway -> Controller)
- * Pattern: "02 00 F0 FF FF 80 00 3A 0F B9"
+ * Handler: Register write command (CMD 0x3A) — source-agnostic.
+ * Sent by the Internet Gateway (0x00F0) for remote control and by the
+ * Viron Chlorinator (0x0084), whose own app issues the same writes; same
+ * {reg_id, slot, value} payload from either source.
  */
-static bool handle_light_control_cmd(
+static bool handle_register_write_request(
     const uint8_t *data, int len,
     const uint8_t *payload, int payload_len,
     const char *addr_info,
@@ -2038,33 +2037,41 @@ static bool handle_light_control_cmd(
         // Light zone state control (REG_ID_LIGHT_ZONE_STATE_0–REG_ID_LIGHT_ZONE_STATE_7, slot 0x01)
         uint8_t zone_num = reg_id - REG_ID_LIGHT_ZONE_STATE_0 + 1;
         const char *state_name = (state == 0x00) ? "Off" : (state == 0x01) ? "Auto" : (state == 0x02) ? "On" : "Unknown";
-        ESP_LOGI(TAG, "%s Gateway light control command - Zone %d -> %s (0x%02X)",
+        ESP_LOGI(TAG, "%s Light zone control command - Zone %d -> %s (0x%02X)",
                  addr_info, zone_num, state_name, state);
         if (state >= 0x03) {  // Only Off/Auto/On documented for light zone state
             record_undocumented(data, len);
         }
+    } else if (reg_id >= REG_ID_LIGHT_ZONE_COLOR_0 && reg_id <= REG_ID_LIGHT_ZONE_COLOR_7 && slot == 0x01) {
+        // Light zone color write (REG_ID_LIGHT_ZONE_COLOR_0–REG_ID_LIGHT_ZONE_COLOR_7, slot 0x01).
+        // Logged as the raw code only: the observed write values (Viron
+        // Chlorinator app) conflict with LIGHTING_COLOR_NAMES, so the color
+        // value space appears install/brand-specific — see PROTOCOL.md 0x3A.
+        uint8_t zone_num = reg_id - REG_ID_LIGHT_ZONE_COLOR_0 + 1;
+        ESP_LOGI(TAG, "%s Light zone control command - Zone %d color -> 0x%02X",
+                 addr_info, zone_num, state);
     } else if (reg_id == REG_ID_HEATER1_ONOFF && slot == 0x00) {
         // Heater 1 on/off control (REG_ID_HEATER1_ONOFF, slot 0x00)
-        ESP_LOGI(TAG, "%s Gateway heater 1 control command - Heater -> %s",
+        ESP_LOGI(TAG, "%s Heater 1 control command - Heater -> %s",
                  addr_info, state ? "On" : "Off");
         if (state >= 0x02) record_undocumented(data, len);  // documented: 0x00 Off, 0x01 On
     } else if (reg_id == REG_ID_HEATER2_ONOFF && slot == 0x00) {
         // Heater 2 on/off control (REG_ID_HEATER2_ONOFF, slot 0x00) — see PROTOCOL.md 0x3A
-        ESP_LOGI(TAG, "%s Gateway heater 2 control command - Heater -> %s",
+        ESP_LOGI(TAG, "%s Heater 2 control command - Heater -> %s",
                  addr_info, state ? "On" : "Off");
         if (state >= 0x02) record_undocumented(data, len);  // documented: 0x00 Off, 0x01 On
     } else if (reg_id == REG_ID_HEATER2_POOL_SETPOINT && slot == 0x00) {
         // Heater 2 pool setpoint write (REG_ID_HEATER2_POOL_SETPOINT, slot 0x00) — see PROTOCOL.md 0x3A
-        ESP_LOGI(TAG, "%s Gateway heater 2 pool setpoint command -> %d°C",
+        ESP_LOGI(TAG, "%s Heater 2 pool setpoint command -> %d°C",
                  addr_info, state);
     } else if (reg_id == REG_ID_HEATER2_SPA_SETPOINT && slot == 0x00) {
         // Heater 2 spa setpoint write (REG_ID_HEATER2_SPA_SETPOINT, slot 0x00) — see PROTOCOL.md 0x3A
-        ESP_LOGI(TAG, "%s Gateway heater 2 spa setpoint command -> %d°C",
+        ESP_LOGI(TAG, "%s Heater 2 spa setpoint command -> %d°C",
                  addr_info, state);
     } else {
         // Recognised 0x3A frame, but this (register, slot) write target is not
         // in the documented set (PROTOCOL.md 0x3A).
-        ESP_LOGW(TAG, "%s Gateway register write command - Unknown Reg=0x%02X, Slot=0x%02X, State=0x%02X",
+        ESP_LOGW(TAG, "%s Register write command - Unknown Reg=0x%02X, Slot=0x%02X, State=0x%02X",
                  addr_info, reg_id, slot, state);
         record_undocumented(data, len);
     }
@@ -3556,11 +3563,13 @@ static bool dispatch_message(
     const char *addr_info,
     message_decoder_context_t *ctx)
 {
+    uint8_t cmd = data[7];
+
     // Firmware version (CMD 0x0A) — universal across sources; payload layout
     // is identical regardless of which device is broadcasting, so dispatched
     // by command byte rather than per-source pattern. See PROTOCOL.md
     // command `0x0A` section and the Known Command Bytes "Firmware version" row.
-    if (data[7] == 0x0A) {
+    if (cmd == 0x0A) {
         return handle_firmware_version(data, len, payload, payload_len, addr_info, ctx);
     }
 
@@ -3569,20 +3578,20 @@ static bool dispatch_message(
     // Connect 8/10 controller (0x0062) when a channel button is pressed on
     // the controller itself; same 1-byte channel-index payload from either
     // source.
-    if (data[7] == 0x10) {
+    if (cmd == 0x10) {
         return handle_channel_toggle_cmd(data, len, payload, payload_len, addr_info, ctx);
     }
 
     // Water temperature reading — CMD 0x16 (canonical) and CMD 0x31 (alt/
     // log-only) share the same {temp1, temp2} layout and are routed through
     // the same handler. See PROTOCOL.md commands `0x16` and `0x31`.
-    if (data[7] == 0x16 || data[7] == 0x31) {
+    if (cmd == 0x16 || cmd == 0x31) {
         return handle_temp_reading(data, len, payload, payload_len, addr_info, ctx);
     }
 
     // Pump speed command (CMD 0x18) — master speed preset command from
     // controller (Touchscreen 0x0050 or Viron Chlorinator 0x0084).
-    if (data[7] == 0x18) {
+    if (cmd == 0x18) {
         return handle_pump_speed_cmd(data, len, payload, payload_len, addr_info, ctx);
     }
 
@@ -3590,7 +3599,7 @@ static bool dispatch_message(
     // the slot byte (payload[0]): 0x01/0x02 = Pool/Spa setpoint (3-byte
     // payload, Gateway-sourced); 0x03 = heater pair setpoint (5-byte payload
     // in °C + °F, Touchscreen-sourced to 0x007F).
-    if (data[7] == 0x19 && payload_len >= 1) {
+    if (cmd == 0x19 && payload_len >= 1) {
         if (payload[0] == 0x01 || payload[0] == 0x02) {
             return handle_temp_set_cmd_pool_spa(data, len, payload, payload_len, addr_info, ctx);
         }
@@ -3604,7 +3613,7 @@ static bool dispatch_message(
     // 0x0084 Viron, only the source address (and resulting checksum1 byte)
     // differs. Dispatched by CMD byte and routed by the channel byte
     // (payload[0]): 0x01=pH, 0x02=ORP.
-    if (data[7] == 0x1D && payload_len >= 1) {
+    if (cmd == 0x1D && payload_len >= 1) {
         if (payload[0] == 0x00) {
             return handle_chlor_output_level(data, len, payload, payload_len, addr_info, ctx);
         }
@@ -3615,7 +3624,7 @@ static bool dispatch_message(
             return handle_chlor_orp_setpoint(data, len, payload, payload_len, addr_info, ctx);
         }
     }
-    if (data[7] == 0x1F && payload_len >= 1) {
+    if (cmd == 0x1F && payload_len >= 1) {
         if (payload[0] == 0x01) {
             return handle_chlor_ph_reading(data, len, payload, payload_len, addr_info, ctx);
         }
@@ -3628,14 +3637,14 @@ static bool dispatch_message(
     // Touchscreen by the Gateway (0x00F0) for remote activations and by the
     // Connect 8/10 controller (0x0062) for activations made at the controller
     // itself; same 1-byte favourite-value payload from either source.
-    if (data[7] == 0x2A) {
+    if (cmd == 0x2A) {
         return handle_favourite_control_cmd(data, len, payload, payload_len, addr_info, ctx);
     }
 
     // Register read request (CMD 0x39) — source-agnostic. Observed from the
     // Internet Gateway (0x00F0) and the Genus Heater (0x0070); same
     // `{reg_id, slot_id}` payload from either source.
-    if (data[7] == 0x39) {
+    if (cmd == 0x39) {
         return handle_register_read_request(data, len, payload, payload_len, addr_info, ctx);
     }
 
@@ -3643,7 +3652,7 @@ static bool dispatch_message(
     // via REGISTER_HANDLERS. The Touchscreen (0x0050) is the canonical
     // responder to gateway 0x39 reads, but the same payload shape is used
     // wherever 0x38 originates.
-    if (data[7] == 0x38) {
+    if (cmd == 0x38) {
         // Extract register ID and slot
         if (payload_len < 2) {
             ESP_LOGW(TAG, "%s Register message - Payload too short", addr_info);
@@ -3685,6 +3694,14 @@ static bool dispatch_message(
                  addr_info, reg_id, slot, payload_len, payload_hex);
         free(payload_hex);
         return false;
+    }
+
+    // Register write command (CMD 0x3A) — source-agnostic. Sent by the
+    // Internet Gateway (0x00F0) for remote control and by the Viron
+    // Chlorinator (0x0084), whose own app issues the same writes; same
+    // {reg_id, slot, value} payload from either source.
+    if (cmd == 0x3A) {
+        return handle_register_write_request(data, len, payload, payload_len, addr_info, ctx);
     }
 
     // Configuration messages
@@ -3775,11 +3792,6 @@ static bool dispatch_message(
 
     if (match_pattern(data, len, MSG_TYPE_GATEWAY_STATUS)) {
         return handle_gateway_status(data, len, payload, payload_len, addr_info, ctx);
-    }
-
-    // Gateway control commands
-    if (match_pattern(data, len, MSG_TYPE_LIGHT_CONTROL_CMD)) {
-        return handle_light_control_cmd(data, len, payload, payload_len, addr_info, ctx);
     }
 
     // Controller info messages

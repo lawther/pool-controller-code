@@ -605,6 +605,81 @@ void test_decode_channel_toggle_controller(void)
 }
 
 /**
+ * Test: Register write command from the Internet Gateway (CMD 0x3A) —
+ * light zone 2 state -> On
+ * Real message: 02 00 F0 FF FF 80 00 3A 0F B9 C1 01 02 C4 03
+ */
+void test_decode_register_write_gateway(void)
+{
+    init_test_context();
+
+    uint8_t msg[] = {
+        0x02, 0x00, 0xF0, 0xFF, 0xFF, 0x80, 0x00,
+        0x3A, 0x0F,  // Command / length (15)
+        0xB9,        // Header checksum
+        0xC1,        // Register 0xC1 (Light Zone 2 state)
+        0x01,        // Slot 0x01
+        0x02,        // Value (On)
+        0xC4,        // Data checksum
+        0x03
+    };
+
+    bool decoded = decode_message(msg, sizeof(msg), &test_ctx);
+
+    TEST_ASSERT(decoded, "Gateway register write should be decoded");
+}
+
+/**
+ * Test: Register write command from the Viron Chlorinator (CMD 0x3A) —
+ * light zone 1 state -> On, sent by the chlorinator's own app
+ * Real message: 02 00 84 FF FF 80 00 3A 0F 4D C0 01 02 C3 03
+ */
+void test_decode_register_write_chlorinator(void)
+{
+    init_test_context();
+
+    uint8_t msg[] = {
+        0x02, 0x00, 0x84, 0xFF, 0xFF, 0x80, 0x00,
+        0x3A, 0x0F,  // Command / length (15)
+        0x4D,        // Header checksum
+        0xC0,        // Register 0xC0 (Light Zone 1 state)
+        0x01,        // Slot 0x01
+        0x02,        // Value (On)
+        0xC3,        // Data checksum
+        0x03
+    };
+
+    bool decoded = decode_message(msg, sizeof(msg), &test_ctx);
+
+    TEST_ASSERT(decoded, "Chlorinator register write should be decoded");
+}
+
+/**
+ * Test: Register write command from the Viron Chlorinator (CMD 0x3A) —
+ * light zone 1 color write
+ * Real message: 02 00 84 FF FF 80 00 3A 0F 4D D0 01 0D DE 03
+ */
+void test_decode_register_write_light_color(void)
+{
+    init_test_context();
+
+    uint8_t msg[] = {
+        0x02, 0x00, 0x84, 0xFF, 0xFF, 0x80, 0x00,
+        0x3A, 0x0F,  // Command / length (15)
+        0x4D,        // Header checksum
+        0xD0,        // Register 0xD0 (Light Zone 1 color)
+        0x01,        // Slot 0x01
+        0x0D,        // Color code
+        0xDE,        // Data checksum
+        0x03
+    };
+
+    bool decoded = decode_message(msg, sizeof(msg), &test_ctx);
+
+    TEST_ASSERT(decoded, "Light zone color write should be decoded");
+}
+
+/**
  * Test: Chlorinator pH setpoint
  * Real message: 02 00 90 FF FF 80 00 1D 0F 3C 01 4E 00 4F 03
  * pH setpoint = UINT16_LE(payload[1..2]) = 0x004E = 78 (= 7.8 pH)
@@ -1147,6 +1222,9 @@ int main(void)
     test_decode_channel_status_multispeed_pump();
     test_decode_channel_toggle_gateway();
     test_decode_channel_toggle_controller();
+    test_decode_register_write_gateway();
+    test_decode_register_write_chlorinator();
+    test_decode_register_write_light_color();
 
     // Chlorinator tests
     printf("\n--- Chlorinator Tests ---\n");
