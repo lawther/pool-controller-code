@@ -24,7 +24,7 @@ This document describes the proprietary serial protocol used by the Connect 10 p
   - [0x17 — Temperature Settings ✅](#0x17--temperature-settings-)
   - [0x18 — Pump Speed Command ✅](#0x18--pump-speed-command-)
   - [0x19 — Temperature Setpoint Command ✅](#0x19--temperature-setpoint-command-)
-  - [0x1B — Pump Button Activity ⚠️](#0x1b--pump-button-activity-️)
+  - [0x1B — Pump Button Activity ✅](#0x1b--pump-button-activity-)
   - [0x1D — Chlorinator Setpoint ✅](#0x1d--chlorinator-setpoint-)
   - [0x1F — Chlorinator Reading ✅](#0x1f--chlorinator-reading-)
   - [0x25 — Valve Sync ✅](#0x25--valve-sync-)
@@ -525,7 +525,7 @@ Observed status values:
 | `0x02` | 0     | 0     | 1     | 0     | Off, water flow (pump running) |
 | `0x03` | 0     | 0     | 1     | 1     | Setpoint reached (on, not calling for heat) |
 | `0x07` | 0     | 1     | 1     | 1     | Starting up? — bit 2 is Gas Valve on the gas heaters; its meaning for a heat pump is unconfirmed |
-| `0x13` | 1     | 0     | 1     | 1     | Heating? — observed ~360 ms after the Gateway's [Heater Control](#heater-control-register-0xe6-slot-0x00) On write, so bit 4 is believed to mean actively heating (compressor running), **not** the gas heaters' Locked Out; unconfirmed |
+| `0x13` | 1     | 0     | 1     | 1     | Heating? — observed ~360 ms after the Gateway's [Heater Control](#heater-control-register-0xe6-slot-0x00-) On write, so bit 4 is believed to mean actively heating (compressor running), **not** the gas heaters' Locked Out; unconfirmed |
 
 Notes:
 - Bit 3 (Flame on the gas heaters) has never been observed set — consistent with a heat pump having no burner.
@@ -856,7 +856,7 @@ Both setpoints are carried in a single broadcast; these heaters never send them 
 
 #### Register-based Temperature Setpoints
 
-The controller also broadcasts pool and spa setpoints as individual register messages (one per message, Celsius only) using CMD `0x38` — see [0x38 Register Data](#0x38--register-data-response) and [Appendix A](#appendix-a-register-dispatch-table) for the full register dispatch system.
+The controller also broadcasts pool and spa setpoints as individual register messages (one per message, Celsius only) using CMD `0x38` — see [0x38 Register Data](#0x38--register-data-️) and [Appendix A](#appendix-a-register-dispatch-table) for the full register dispatch system.
 
 Pattern: `02 00 50 FF FF 80 00 38 0F 17`
 
@@ -1367,9 +1367,9 @@ Broadcast by the Internet Gateway (`0x00F0`) reporting gateway-level information
 
 | LENGTH | Variant                                                           | Purpose                       |
 |--------|-------------------------------------------------------------------|-------------------------------|
-| `0x11` | [Serial Number](#serial-number-len-0x11-)                         | Gateway module serial         |
-| `0x15` | [Network Config](#network-config-len-0x15-)                       | IP address + WiFi signal      |
-| `0x0F` | [Communications Status](#communications-status-len-0x0f-)         | Internet connection state     |
+| `0x11` | [Serial Number](#serial-number-len-0x11-️)                         | Gateway module serial         |
+| `0x15` | [Network Config](#network-config-len-0x15-️)                       | IP address + WiFi signal      |
+| `0x0F` | [Communications Status](#communications-status-len-0x0f-️)         | Internet connection state     |
 
 ---
 
@@ -1656,9 +1656,9 @@ Writes a single controller register. This is the write counterpart to the [0x39 
 
 | Register   | Slot   | Purpose                | Sub-section                                                 |
 |------------|--------|------------------------|-------------------------------------------------------------|
-| `0xC0`–`0xC7` | `0x01` | Light Zone state    | [Light Zone Control](#light-zone-control-register-0xc00xc7-slot-0x01) |
+| `0xC0`–`0xC7` | `0x01` | Light Zone state    | [Light Zone Control](#light-zone-control-register-0xc00xc7-slot-0x01-) |
 | `0xD0`–`0xD7` | `0x01` | Light Zone color    | [Light Zone Color Control](#light-zone-color-control-register-0xd00xd7-slot-0x01-️) |
-| `0xE6`     | `0x00` | Heater 1 on/off        | [Heater Control](#heater-control-register-0xe6-slot-0x00)   |
+| `0xE6`     | `0x00` | Heater 1 on/off        | [Heater Control](#heater-control-register-0xe6-slot-0x00-)   |
 | `0xE9`     | `0x00` | Heater 2 on/off        | [Appendix A](#appendix-a-register-dispatch-table) Heater 2 trio note |
 | `0xEA`     | `0x00` | Heater 2 pool setpoint | [Appendix A](#appendix-a-register-dispatch-table) Heater 2 trio note |
 | `0xEB`     | `0x00` | Heater 2 spa setpoint  | [Appendix A](#appendix-a-register-dispatch-table) Heater 2 trio note |
@@ -1822,7 +1822,7 @@ Speed telemetry broadcast by the Viron XT Variable Speed Pump (`0x00A0`). Emitte
 - Encoding is **big-endian** (most-significant byte first), unlike the little-endian convention used elsewhere in this protocol. This likely reflects the pump's own native encoding.
 - Published to MQTT as `pool/{device_id}/pump/state` with JSON payload `{"speed_rpm": <value>}`.
 - Decoded in code by `handle_pump_speed`; speed value stored in `pool_state.pump_speed` / `pool_state.pump_speed_valid`.
-- When buttons are pressed on the pump panel, [CMD `0x1B`](#0x1b--pump-button-activity-️) bursts are emitted first; the next `0x3B` after the ~60 s interval reflects the newly committed speed.
+- When buttons are pressed on the pump panel, [CMD `0x1B`](#0x1b--pump-button-activity-) bursts are emitted first; the next `0x3B` after the ~60 s interval reflects the newly committed speed.
 
 ---
 
@@ -1880,7 +1880,7 @@ The register ID and slot together determine the message meaning. The slot distin
 | `0x8C`–`0x93`  | `0x02` | Channel State          | 1-byte value (0=Off, 1=Auto, 2=On) — read-only; writes ignored by controller |
 | `0xA0`–`0xA7`  | `0x01` | Light Zone Multicolor  | 1-byte flag (`0x00`=No, `0x01`=Yes)              |
 | `0xAC`-`0xAF` ⚠️| `0x0D`| Unknown                | Only `0xFF` observed. Repeats ~every 8 minutes   |
-| `0xB0`–`0xB7`  | `0x01` | Light Zone Name        | 1-byte preset name code (see [name codes table](#light-zone-name-codes)) |
+| `0xB0`–`0xB7`  | `0x01` | Light Zone Name        | 1-byte preset name code (see [name codes table](#examples-by-register-type)) |
 | `0xB0`–`0xB3` ⚠️| `0x0D` | Unknown               | Only `0xFF` observed. Repeats ~every 8 minutes   |
 | `0xB8`–`0xB9` ⚠️| `0x0B` | Unknown               | Only `0x00` observed. Repeats ~every 8 minutes   |
 | `0xBC`–`0xBF` ⚠️| `0x0D` | Unknown               | Only `0x00` observed. Repeats ~every 8 minutes   |
