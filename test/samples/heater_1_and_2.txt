@@ -1,0 +1,16 @@
+
+Heater 1 on
+I (05:04:06.739) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E6 00 01 E7 03
+I (05:04:06.741) MSG_DECODER: [Touch Screen -> Broadcast] Heater 1 state - On (0x01)
+
+Heater 1 off
+I (05:04:25.069) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E6 00 00 E6 03
+I (05:04:25.071) MSG_DECODER: [Touch Screen -> Broadcast] Heater 1 state - Off (0x00)
+
+Heater 2 on
+I (05:04:38.379) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E9 00 01 EA 03
+I (05:04:38.381) MSG_DECODER: [Touch Screen -> Broadcast] Heater 2 state - On (0x01)
+
+Heater 2 off
+I (05:04:55.399) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E9 00 00 E9 03
+I (05:04:55.401) MSG_DECODER: [Touch Screen -> Broadcast] Heater 2 state - Off (0x00)

@@ -110,6 +110,7 @@ static const char *MSG_TYPE_VALVE_STATE =           "02 00 50 FF FF 80 00 27 13 
 
 // 62 Connect 8/10 Controller
 static const char *MSG_TYPE_HEATER =                "02 00 62 FF FF 80 00 12 0F 03";
+static const char *MSG_TYPE_CONTROLLER_UNKNOWN2B =  "02 00 62 00 50 80 00 2B 0E 6D";
 
 // 70 Genus Heater (Active i25 Evo)
 static const char *MSG_TYPE_GENUS_HEATER_TEMP_SETTING = "02 00 70 FF FF 80 00 17 0E 15";
@@ -266,6 +267,7 @@ static const cmd_name_entry_t CMD_NAME_TABLE[] = {
     {0x26, "Configuration"},
     {0x27, "Valve State"},
     {0x2A, "Favourite Cmd"},
+    {0x2B, "Controller Heartbeat"},
     {0x31, "Temperature Reading (alt)"},
     {0x37, "Gateway Info Req/Resp"},
     {0x38, "Register Response"},
@@ -1137,8 +1139,24 @@ static bool handle_heater(
 {
     if (payload_len < 2) return false;
 
-    uint8_t heater_state = payload[1];
-    ESP_LOGI(TAG, "%s Heater - %s", addr_info, heater_state ? "On" : "Off");
+    uint8_t status = payload[1];
+    bool heater_on    = (status & 0x01) != 0;
+    bool service_mode = (status & 0x02) != 0;
+    ESP_LOGI(TAG, "%s Heater - %s, Service mode - %s",
+             addr_info, heater_on ? "On" : "Off", service_mode ? "On" : "Off");
+
+    // Flag undocumented field values for protocol research (PROTOCOL.md 0x12,
+    // Connect 8/10 variant). Byte 10 is documented padding (always 0x00), byte
+    // 11 a status bitfield (bit 0 heater, bit 1 service mode; higher bits
+    // unseen), and byte 12 an unknown "maybe bitmask/interlock?" field observed
+    // constant at 0x08. Any deviation from these is surfaced for capture.
+    bool undocumented = (payload[0] != 0x00) || (status & ~0x03) != 0;
+    if (payload_len >= 3 && payload[2] != 0x08) {
+        undocumented = true;
+    }
+    if (undocumented) {
+        record_undocumented(data, len);
+    }
 
     // Update state and publish
     pool_state_t snapshot;
@@ -1146,14 +1164,17 @@ static bool handle_heater(
         ESP_LOGW(TAG, "Failed to acquire mutex for heater");
         return true;
     }
-    ctx->pool_state->heaters[0].on = (heater_state != 0);
+    ctx->pool_state->heaters[0].on = heater_on;
     ctx->pool_state->heaters[0].valid = true;
+    ctx->pool_state->service_mode = service_mode;
+    ctx->pool_state->service_mode_valid = true;
     ctx->pool_state->last_update_ms = xTaskGetTickCount() * portTICK_PERIOD_MS;
     snapshot = *ctx->pool_state;
     xSemaphoreGive(ctx->state_mutex);
 
     if (ctx->enable_mqtt) {
         mqtt_publish_heater(&snapshot, 0);
+        mqtt_publish_service_mode(&snapshot);
     }
 
     return true;
@@ -1315,7 +1336,20 @@ static bool handle_config(
         xSemaphoreGive(ctx->state_mutex);
     }
 
-    return false;  // Intentionally return false to match original behavior
+    // Flag anomalous config bytes for protocol research (e.g. a service-mode
+    // signal hiding in an undocumented bit; see PROTOCOL.md 0x26 byte 10).
+    // Documented bits are the low five (mask 0x1F): bit 0 (0x01) is documented
+    // as always 1, bits 1-4 carry the fields decoded above. Bits 5-7 (0xE0) are
+    // reserved/unknown. Record — outside the state lock, per record_undocumented's
+    // contract — if any reserved bit is set, or if the "always 1" bit 0 is
+    // unexpectedly clear. Called only on anomalies so normal frames don't flood
+    // the Unknown Messages page.
+    if ((config_byte & 0xE0) != 0 || (config_byte & 0x01) == 0) {
+        ESP_LOGW(TAG, "%s Undocumented config bits: 0x%02X", addr_info, config_byte);
+        record_undocumented(data, len);
+    }
+
+    return true;
 }
 
 /**
@@ -1523,8 +1557,15 @@ static bool handle_touchscreen_unknown2(
     const char *addr_info,
     message_decoder_context_t *ctx)
 {
-    // Short form of valve state broadcast (startup / no valve state available)
-    ESP_LOGI(TAG, "%s Valve state broadcast (startup form)", addr_info);
+    // Short form of valve state broadcast (startup / no valve state available).
+    // PROTOCOL.md 0x27 short form always carries a single 0x00 data byte.
+    if (payload_len >= 1 && payload[0] != 0x00) {
+        ESP_LOGW(TAG, "%s Valve state broadcast (startup form) - unexpected data byte: 0x%02X (expected 0x00)",
+                 addr_info, payload[0]);
+        record_undocumented(data, len);
+    } else {
+        ESP_LOGI(TAG, "%s Valve state broadcast (startup form)", addr_info);
+    }
     return true;
 }
 
@@ -1539,8 +1580,16 @@ static bool handle_touchscreen_unknown3(
     const char *addr_info,
     message_decoder_context_t *ctx)
 {
-    ESP_LOGI(TAG, "%s Touchscreen unknown (CMD 0x05): 0x%02X", addr_info,
-             payload_len > 0 ? payload[0] : 0);
+    uint8_t ack = (payload_len > 0) ? payload[0] : 0;
+    // PROTOCOL.md 0x05: byte 10 is observed only as 0x00 or 0x01. Flag anything
+    // else (unconfirmed whether it is a fixed ack sentinel or a flags field).
+    if (payload_len > 0 && ack > 0x01) {
+        ESP_LOGW(TAG, "%s Touchscreen unknown (CMD 0x05) - UNEXPECTED VALUE: 0x%02X (expected 0x00|0x01)",
+                 addr_info, ack);
+        record_undocumented(data, len);
+    } else {
+        ESP_LOGI(TAG, "%s Touchscreen unknown (CMD 0x05): 0x%02X", addr_info, ack);
+    }
     return true;
 }
 
@@ -1705,6 +1754,14 @@ static bool handle_gateway_comms(
     const char *status_text = get_gateway_comms_status_text(comms_status);
 
     ESP_LOGI(TAG, "%s Internet Gateway comms status - %u (%s)", addr_info, comms_status, status_text);
+
+    // Flag research-worthy anomalies (PROTOCOL.md 0x37 comms variant): byte 10
+    // is observed constant at 0x02, and a status code absent from
+    // GATEWAY_COMMS_STATUS is a newly-seen value worth capturing (the table
+    // notes "Add more status codes here as they are discovered").
+    if (payload[0] != 0x02 || strcmp(status_text, "Unknown") == 0) {
+        record_undocumented(data, len);
+    }
 
     // Update state only (no MQTT publishing)
     if (ctx->state_mutex && xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) == pdTRUE) {
@@ -2015,8 +2072,20 @@ static bool handle_chlor_output_level(
     uint8_t level = payload[1];
     ESP_LOGI(TAG, "%s Chlorine output level - %d", addr_info, level);
 
+    bool undocumented = false;
     if (level == 0 || level > 8) {
         ESP_LOGW(TAG, "%s Chlorine output level out of expected range 1-8: %d", addr_info, level);
+        undocumented = true;
+    }
+    // PROTOCOL.md 0x1D slot 0x00: byte 12 is observed as 0x00 in normal
+    // operation but may carry LOW SALT / NO FLOW warning bits — capture any
+    // non-zero value for verification.
+    if (payload_len >= 3 && payload[2] != 0x00) {
+        ESP_LOGW(TAG, "%s Chlorine output level - byte 12 non-zero (possible warning flags): 0x%02X",
+                 addr_info, payload[2]);
+        undocumented = true;
+    }
+    if (undocumented) {
         record_undocumented(data, len);
     }
 
@@ -2302,31 +2371,41 @@ static bool handle_light_config(
     uint8_t zone_idx  = payload[0];
     uint8_t light_on  = payload[1];
 
-    if (zone_idx <= 3) {
-        ESP_LOGI(TAG, "%s Lighting zone %d - %s", addr_info, zone_idx + 1, light_on ? "On" : "Off");
+    if (zone_idx > 3) {  // PROTOCOL.md 0x06: zones 1-4 map to index 0-3 only
+        ESP_LOGW(TAG, "%s Lighting zone config - zone index out of range 0-3: %d", addr_info, zone_idx);
+        record_undocumented(data, len);
+        return true;
+    }
 
-        pool_state_t state_snapshot;
-        bool newly_configured = false;
+    if (light_on > 0x01) {  // documented status values: 0x00 off, 0x01 on
+        ESP_LOGW(TAG, "%s Lighting zone %d - undocumented status byte: 0x%02X",
+                 addr_info, zone_idx + 1, light_on);
+        record_undocumented(data, len);
+    }
 
-        if (!ctx->state_mutex || xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
-            ESP_LOGW(TAG, "Failed to acquire mutex for light config");
-            return true;
-        }
-        newly_configured = !ctx->pool_state->lighting[zone_idx].configured;
-        ctx->pool_state->lighting[zone_idx].zone       = zone_idx + 1;
-        ctx->pool_state->lighting[zone_idx].configured = true;
-        ctx->pool_state->lighting[zone_idx].active     = (light_on != 0);
-        ctx->pool_state->last_update_ms = xTaskGetTickCount() * portTICK_PERIOD_MS;
-        state_snapshot = *ctx->pool_state;
-        xSemaphoreGive(ctx->state_mutex);
+    ESP_LOGI(TAG, "%s Lighting zone %d - %s", addr_info, zone_idx + 1, light_on ? "On" : "Off");
 
-        if (newly_configured) {
-            register_requester_notify();
-        }
+    pool_state_t state_snapshot;
+    bool newly_configured = false;
 
-        if (ctx->enable_mqtt) {
-            mqtt_publish_light(&state_snapshot, zone_idx + 1);
-        }
+    if (!ctx->state_mutex || xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGW(TAG, "Failed to acquire mutex for light config");
+        return true;
+    }
+    newly_configured = !ctx->pool_state->lighting[zone_idx].configured;
+    ctx->pool_state->lighting[zone_idx].zone       = zone_idx + 1;
+    ctx->pool_state->lighting[zone_idx].configured = true;
+    ctx->pool_state->lighting[zone_idx].active     = (light_on != 0);
+    ctx->pool_state->last_update_ms = xTaskGetTickCount() * portTICK_PERIOD_MS;
+    state_snapshot = *ctx->pool_state;
+    xSemaphoreGive(ctx->state_mutex);
+
+    if (newly_configured) {
+        register_requester_notify();
+    }
+
+    if (ctx->enable_mqtt) {
+        mqtt_publish_light(&state_snapshot, zone_idx + 1);
     }
 
     return true;
@@ -2394,6 +2473,12 @@ static bool handle_timer(
             pos += snprintf(&extra_hex[pos], sizeof(extra_hex) - pos, "%02X ", payload[i]);
         }
         ESP_LOGW(TAG, "%s Timer %d - %d extra unknown byte(s): %s", addr_info, timer_num, extra, extra_hex);
+        record_undocumented(data, len);
+    }
+
+    // PROTOCOL.md 0x38 timers: only day bits 0-6 (Mon-Sun) are documented.
+    if (days & 0x80) {
+        ESP_LOGW(TAG, "%s Timer %d - undocumented day bit 7 set (days=0x%02X)", addr_info, timer_num, days);
         record_undocumented(data, len);
     }
 
@@ -3026,6 +3111,11 @@ static bool handle_favourite_enable(
     ESP_LOGI(TAG, "%s Favourite %d (0x%02X) - %s", addr_info, index, reg_id,
              enabled ? "enabled" : "disabled");
 
+    if (payload[2] > 0x01) {  // documented: 0x00 disabled, 0x01 enabled
+        ESP_LOGW(TAG, "%s Favourite %d - undocumented enable value: 0x%02X", addr_info, index, payload[2]);
+        record_undocumented(data, len);
+    }
+
     if (!ctx->state_mutex || xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
         ESP_LOGW(TAG, "Failed to acquire mutex for favourite enable");
         return true;
@@ -3255,6 +3345,39 @@ static bool handle_pump_buttons(
     if (payload_len >= 1 && activity > 0x02) {
         record_undocumented(data, len);
     }
+    return true;
+}
+
+/**
+ * Handler: Connect 8/10 Controller -> Touchscreen heartbeat (CMD 0x2B)
+ * Pattern: "02 00 62 00 50 80 00 2B 0E 6D"
+ *
+ * Unicast from the controller (0x0062) directly to the Touchscreen (0x0050)
+ * roughly every 60 s. Purpose unknown; the 2-byte payload is 02 00 in every
+ * observed capture. Log-only, but flag any deviation: this is one of only two
+ * message types the controller sends straight to the touchscreen, making it a
+ * prime candidate carrier for a controller-originated state signal (e.g.
+ * service mode). See PROTOCOL.md command 0x2B.
+ */
+static bool handle_controller_heartbeat(
+    const uint8_t *data, int len,
+    const uint8_t *payload, int payload_len,
+    const char *addr_info,
+    message_decoder_context_t *ctx)
+{
+    if (payload_len < 2) return false;
+
+    uint8_t b1 = payload[0];
+    uint8_t b2 = payload[1];
+
+    if (b1 != 0x02 || b2 != 0x00) {
+        ESP_LOGW(TAG, "%s Controller heartbeat (CMD 0x2B) - UNEXPECTED VALUE: 0x%02X 0x%02X (expected 0x02 0x00)",
+                 addr_info, b1, b2);
+        record_undocumented(data, len);
+    } else {
+        ESP_LOGI(TAG, "%s Controller heartbeat (CMD 0x2B): 0x%02X 0x%02X", addr_info, b1, b2);
+    }
+
     return true;
 }
 
@@ -3518,6 +3641,10 @@ static bool dispatch_message(
 
     if (match_pattern(data, len, MSG_TYPE_HEATER)) {
         return handle_heater(data, len, payload, payload_len, addr_info, ctx);
+    }
+
+    if (match_pattern(data, len, MSG_TYPE_CONTROLLER_UNKNOWN2B)) {
+        return handle_controller_heartbeat(data, len, payload, payload_len, addr_info, ctx);
     }
 
     // Heater temperature setting messages

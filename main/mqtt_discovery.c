@@ -886,6 +886,37 @@ static void publish_pump_discovery(const char *device_id, const char *mac_suffix
     cJSON_Delete(root);
 }
 
+static void publish_service_mode_discovery(const char *device_id, const char *mac_suffix)
+{
+    char avail_topic[128];
+    char state_topic[128];
+    snprintf(avail_topic, sizeof(avail_topic), "pool/%s/availability", device_id);
+    snprintf(state_topic, sizeof(state_topic), "pool/%s/service_mode/state", device_id);
+
+    char uid[64];
+    snprintf(uid, sizeof(uid), DISCOVERY_ID_PREFIX "_%s_service_mode", mac_suffix);
+
+    cJSON *root = cJSON_CreateObject();
+    cJSON_AddStringToObject(root, "name", "Service Mode");
+    cJSON_AddStringToObject(root, "state_topic", state_topic);
+    cJSON_AddStringToObject(root, "icon", "mdi:wrench");
+    cJSON_AddStringToObject(root, "unique_id", uid);
+    cJSON_AddStringToObject(root, "object_id", uid);
+    cJSON_AddStringToObject(root, "availability_topic", avail_topic);
+    cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
+
+    char *json_str = cJSON_PrintUnformatted(root);
+    if (!json_str) {
+        ESP_LOGE(TAG, "Failed to print service mode discovery JSON");
+        cJSON_Delete(root);
+        return;
+    }
+    ESP_LOGI(TAG, "Publishing service mode discovery: %s", json_str);
+    publish_discovery("binary_sensor", uid, json_str);
+    cJSON_free(json_str);
+    cJSON_Delete(root);
+}
+
 // ======================================================
 // Individual Discovery Functions (called when items first configured)
 // ======================================================
@@ -908,6 +939,7 @@ void mqtt_publish_ph_setpoint_discovery_single(void)       { publish_single(publ
 void mqtt_publish_orp_setpoint_discovery_single(void)      { publish_single(publish_orp_setpoint_discovery); }
 void mqtt_publish_chlor_output_level_discovery_single(void) { publish_single(publish_chlor_output_level_discovery); }
 void mqtt_publish_pump_discovery_single(void)              { publish_single(publish_pump_discovery); }
+void mqtt_publish_service_mode_discovery_single(void)      { publish_single(publish_service_mode_discovery); }
 
 void mqtt_publish_channel_discovery_single(int channel_num, const char *channel_name)
 {
@@ -1233,10 +1265,11 @@ void mqtt_publish_discovery(void)
         publish_favourite_discovery(device_id, mac_suffix, &snapshot);
     }
 
-    // Note: Chemistry (pH/ORP readings and setpoints, chlorine output level)
-    // and pump speed are NOT published here. Each entity is published
-    // individually on its first valid reading (see mqtt_publish_chlorinator
-    // and mqtt_publish_pump in mqtt_publish.c), so systems without a
+    // Note: Chemistry (pH/ORP readings and setpoints, chlorine output level),
+    // pump speed, and service mode are NOT published here. Each entity is
+    // published individually on its first valid reading (see
+    // mqtt_publish_chlorinator, mqtt_publish_pump, and
+    // mqtt_publish_service_mode in mqtt_publish.c), so systems without a
     // chlorinator or variable-speed pump never create the HA entities.
 
     ESP_LOGI(TAG, "Discovery messages published");

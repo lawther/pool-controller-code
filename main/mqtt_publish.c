@@ -29,6 +29,7 @@ static struct {
     bool orp_setpoint;
     bool chlor_output_level;
     bool pump;
+    bool service_mode;
 } s_discovery_published = {0};
 
 // ======================================================
@@ -606,6 +607,40 @@ void mqtt_publish_pump(const pool_state_t *current_state)
     s_last_published_state.pump_speed_valid = current_state->pump_speed_valid;
 
     ESP_LOGI(TAG, "Published pump: speed_rpm=%d", current_state->pump_speed);
+}
+
+// ======================================================
+// Service Mode Publishing
+// ======================================================
+
+void mqtt_publish_service_mode(const pool_state_t *current_state)
+{
+    // Check if anything changed
+    if (s_last_published_state.service_mode_valid == current_state->service_mode_valid &&
+        s_last_published_state.service_mode == current_state->service_mode) {
+        return;  // No change, skip publish
+    }
+
+    // Publish discovery on first valid reading
+    if (current_state->service_mode_valid && !s_discovery_published.service_mode) {
+        mqtt_publish_service_mode_discovery_single();
+        s_discovery_published.service_mode = true;
+    }
+
+    char device_id[32];
+    mqtt_get_device_id(device_id, sizeof(device_id));
+
+    char topic[128];
+    snprintf(topic, sizeof(topic), "pool/%s/service_mode/state", device_id);
+
+    const char *payload = current_state->service_mode ? "ON" : "OFF";
+    mqtt_publish(topic, payload, 0, true);
+
+    // Update last published state
+    s_last_published_state.service_mode = current_state->service_mode;
+    s_last_published_state.service_mode_valid = current_state->service_mode_valid;
+
+    ESP_LOGI(TAG, "Published service mode: %s", payload);
 }
 
 // ======================================================

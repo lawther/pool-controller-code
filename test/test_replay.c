@@ -51,6 +51,7 @@ void mqtt_publish_heater_setpoints(const pool_state_t *s, int i) { (void)s; (voi
 void mqtt_publish_temperature_reading(const pool_state_t *s, int d, uint8_t i) { (void)s; (void)d; (void)i; }
 void mqtt_publish_favourite(const pool_state_t *s) { (void)s; }
 void mqtt_publish_pump(const pool_state_t *s) { (void)s; }
+void mqtt_publish_service_mode(const pool_state_t *s) { (void)s; }
 
 void register_requester_notify(void) {}
 

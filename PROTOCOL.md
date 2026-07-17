@@ -142,7 +142,7 @@ Click any CMD in the first column to jump to the full section in [Commands](#com
 | [`0x27`](#0x27--valve-state-broadcast-)                        | Valve State Broadcast               | `0x0050` → Broadcast                                                   | Two LEN variants: `0x0D` (short) and `0x13` (full)                                          | Yes (both variants)     |
 | [`0x28`](#0x28--valve-control-command-)                        | Valve Control Command               | `0x00F0` Gateway → Broadcast                                           |                                                                                             | **No (doc only)**       |
 | [`0x2A`](#0x2a--favourite-control-command-)                    | Favourite Control Command           | `0x00F0` Gateway, `0x0062` Connect 8/10 → `0x0050` Touchscreen         | Unicast; dispatched on CMD byte alone (source-agnostic)                                     | Yes (unified handler)   |
-| [`0x2B`](#0x2b--unknown-️)                                     | Unknown                             | `0x0062` Connect 8/10 → `0x0050` Touchscreen                          | Unicast; payload `[02 00]` observed; meaning unknown                                        | **No (doc only)**       |
+| [`0x2B`](#0x2b--unknown-️)                                     | Unknown (heartbeat)                 | `0x0062` Connect 8/10 → `0x0050` Touchscreen                          | Unicast ~60 s; payload `[02 00]` observed; meaning unknown. Handler flags any deviation      | Yes (log-only + flag)   |
 | [`0x31`](#0x31--water-temperature-reading-alt-)                | Water Temperature Reading (alt)     | `0x0062` → Broadcast                                                   | Same `{temp1, temp2}` field layout as `0x16`; different disconnected encoding (`>= 0xA0` vs `0x00`); shared handler, log-only | Yes (unified handler)   |
 | [`0x37`](#0x37--internet-gateway-info-️)                       | Internet Gateway Info               | `0x00F0` → Broadcast                                                   | LEN distinguishes serial (`0x11`), network config (`0x15`), comms status (`0x0F`) variants  | Yes (3 handlers)        |
 | [`0x38`](#0x38--register-data-️)                               | Register Data (Response)            | `0x0050` Touchscreen → Broadcast                                       | Universal register system — sub-dispatched by register + slot (see [Appendix A](#appendix-a-register-dispatch-table)); dispatched on CMD byte alone | Yes (unified handler)   |
@@ -184,7 +184,7 @@ Single-byte broadcast emitted by the Touchscreen (`0x0050`) immediately after a 
 
 **Notes:**
 
-- Decoded in code by `handle_touchscreen_unknown3` — log-only, no `pool_state` update.
+- Decoded in code by `handle_touchscreen_unknown3` — log-only, no `pool_state` update. Any byte-10 value other than `0x00`/`0x01` is recorded as an "undocumented" entry on the Unknown Messages page.
 - Triggered by [0x2A Favourite Control Command](#0x2a--favourite-control-command-); see that section for the full activation sequence.
 - Status ⚠️ because the meaning of the constants `0x00` and `0x01` is unconfirmed — it could be a fixed "ack" sentinel or a single-value-observed flags field.
 
@@ -424,7 +424,7 @@ Status broadcast emitted by multiple devices. The CMD byte is shared but the **p
 | Source                          | LENGTH | Payload shape                            | Status | Handler                       |
 |---------------------------------|--------|------------------------------------------|--------|-------------------------------|
 | `0x0050` Touchscreen            | `0x0E` | 2 bytes — always `01 00` or `05 00` observed        | ⚠️     | `handle_touchscreen_unknown1` |
-| `0x0062` Connect 8/10 Controller| `0x0F` | 3 bytes — heater state + unknowns        | ⚠️     | `handle_heater`               |
+| `0x0062` Connect 8/10 Controller| `0x0F` | 3 bytes — heater state + service mode + unknowns | ⚠️     | `handle_heater`               |
 | `0x0074` ICI Gas Heater         | `0x10` | 4 bytes — `{00, status, 00, 00}`         | ✅     | `handle_ici_heater_status`    |
 | `0x0081` VX 11S v3 Salt Chlorinator | `0x0D` | 2 bytes — always `00 00` observed   | ⚠️     | **No (doc only)**             |
 | `0x0084` Viron / `0x0090` RolaChem Chlorinator | `0x0D` | 1 byte — operational mode | ⚠️     | `handle_chlor_status`         |
@@ -450,7 +450,7 @@ Part of the regular touchscreen status sequence.
 
 #### Connect 8/10 Controller (`0x0062`) ⚠️
 
-Broadcast by the main controller (`0x0062`) reporting the inbuilt heater's on/off state.
+Broadcast by the main controller (`0x0062`) reporting the inbuilt heater's on/off state and the controller's service mode.
 
 Pattern: `02 00 62 FF FF 80 00 12 0F 03`
 
@@ -459,14 +459,20 @@ Examples:
 ```
 02 00 62 FF FF 80 00 12 0F 03 00 01 08 09 03   Heater On
 02 00 62 FF FF 80 00 12 0F 03 00 00 08 08 03   Heater Off
-                                 ^^ Heater state (0x00 = Off, 0x01 = On)
+02 00 62 FF FF 80 00 12 0F 03 00 02 08 0A 03   Service Mode (heater off)
+                                 ^^ Status bitfield
                                     ^^ Unknown (always 0x08 observed)
 ```
 
 Data fields:
-- Byte 10: Padding/unused
-- Byte 11: Heater state (`0x00` = Off, `0x01` = On)
-- Byte 12: Unknown (maybe bitmask or interlock?)
+- Byte 10: Padding/unused (always `0x00` observed)
+- Byte 11: Status bitfield:
+  - Bit 0: Heater state (`0` = Off, `1` = On)
+  - Bit 1: Service mode (`0` = Off, `1` = On)
+  - Bits 2–7: Unknown (always `0` observed)
+- Byte 12: Unknown (maybe bitmask or interlock?) — always `0x08` observed
+
+`handle_heater` monitors this frame for deviations from the observed constants: byte 10 ≠ `0x00`, byte 11 with any bit above bit 1 set, or byte 12 ≠ `0x08` is recorded as an "undocumented" entry on the Unknown Messages page.
 
 ---
 
@@ -958,7 +964,7 @@ Setpoint broadcasts from chlorinator devices. The slot byte (byte 10) selects wh
 
 - Byte 10: `0x00` in all observed captures.
 - Byte 11: Chlorine output level (integer 1–8; matches the 8 physical LEDs on the device)
-- Byte 12: `0x00` in all observed captures (normal operation). This could potentially carry warning flags — the device has two warnings lights (LOW SALT, NO FLOW) that may be encoded here as bits. ⚠️ Unconfirmed: capture a message while a warning is active to verify.
+- Byte 12: `0x00` in all observed captures (normal operation). This could potentially carry warning flags — the device has two warnings lights (LOW SALT, NO FLOW) that may be encoded here as bits. ⚠️ Unconfirmed: capture a message while a warning is active to verify. `handle_chlor_output_level` now records any non-zero byte 12 as an "undocumented" entry on the Unknown Messages page to catch exactly this case.
 
 **Notes (VX 11S v3 Salt Chlorinator):**
 
@@ -1264,7 +1270,7 @@ Unicast message sent by the Connect 8/10 Controller (`0x0062`) directly to the T
 
 - Payload `02 00` is the only value observed across all captures.
 - Sent approximately every 60 seconds.
-- Not decoded in firmware — logged as unhandled.
+- Decoded in code by `handle_controller_heartbeat` — log-only for the expected `02 00`, but any deviation is recorded as an "undocumented" entry on the Unknown Messages page. As one of only two message types the controller sends directly to the touchscreen (the other being [0x2A](#0x2a--favourite-control-command-)), this heartbeat is a prime candidate carrier for a controller-originated state signal (e.g. a service-mode flag), so a payload change is surfaced rather than lost in per-cycle noise.
 
 ---
 
