@@ -1139,16 +1139,18 @@ static bool handle_heater(
 {
     if (payload_len < 2) return false;
 
-    uint8_t heater_state = payload[1];
-    ESP_LOGI(TAG, "%s Heater - %s", addr_info, heater_state ? "On" : "Off");
+    uint8_t status = payload[1];
+    bool heater_on    = (status & 0x01) != 0;
+    bool service_mode = (status & 0x02) != 0;
+    ESP_LOGI(TAG, "%s Heater - %s, Service mode - %s",
+             addr_info, heater_on ? "On" : "Off", service_mode ? "On" : "Off");
 
     // Flag undocumented field values for protocol research (PROTOCOL.md 0x12,
     // Connect 8/10 variant). Byte 10 is documented padding (always 0x00), byte
-    // 11 the heater state (only 0x00/0x01 documented), and byte 12 an unknown
-    // "maybe bitmask/interlock?" field observed constant at 0x08. Byte 12 is a
-    // prime spot for a controller-originated signal (e.g. service mode), so any
-    // deviation from these observed constants is surfaced for capture.
-    bool undocumented = (payload[0] != 0x00) || (heater_state > 0x01);
+    // 11 a status bitfield (bit 0 heater, bit 1 service mode; higher bits
+    // unseen), and byte 12 an unknown "maybe bitmask/interlock?" field observed
+    // constant at 0x08. Any deviation from these is surfaced for capture.
+    bool undocumented = (payload[0] != 0x00) || (status & ~0x03) != 0;
     if (payload_len >= 3 && payload[2] != 0x08) {
         undocumented = true;
     }
@@ -1162,14 +1164,17 @@ static bool handle_heater(
         ESP_LOGW(TAG, "Failed to acquire mutex for heater");
         return true;
     }
-    ctx->pool_state->heaters[0].on = (heater_state != 0);
+    ctx->pool_state->heaters[0].on = heater_on;
     ctx->pool_state->heaters[0].valid = true;
+    ctx->pool_state->service_mode = service_mode;
+    ctx->pool_state->service_mode_valid = true;
     ctx->pool_state->last_update_ms = xTaskGetTickCount() * portTICK_PERIOD_MS;
     snapshot = *ctx->pool_state;
     xSemaphoreGive(ctx->state_mutex);
 
     if (ctx->enable_mqtt) {
         mqtt_publish_heater(&snapshot, 0);
+        mqtt_publish_service_mode(&snapshot);
     }
 
     return true;

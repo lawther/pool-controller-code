@@ -746,6 +746,13 @@ static esp_err_t status_get_handler(httpd_req_t *req)
         cJSON_AddNullToObject(root, "mode");
     }
 
+    // Controller service mode (CMD 0x12 status bitfield, bit 1)
+    if (state.service_mode_valid) {
+        cJSON_AddBoolToObject(root, "service_mode", state.service_mode);
+    } else {
+        cJSON_AddNullToObject(root, "service_mode");
+    }
+
     // Channels (excludes heater and light-zone channels — those appear in their own sections)
     cJSON *channels = cJSON_CreateArray();
     for (int i = 0; i < MAX_CHANNELS; i++) {

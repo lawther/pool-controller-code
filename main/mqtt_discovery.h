@@ -51,5 +51,6 @@ void mqtt_publish_ph_setpoint_discovery_single(void);
 void mqtt_publish_orp_setpoint_discovery_single(void);
 void mqtt_publish_chlor_output_level_discovery_single(void);
 void mqtt_publish_pump_discovery_single(void);
+void mqtt_publish_service_mode_discovery_single(void);
 
 #endif // MQTT_DISCOVERY_H

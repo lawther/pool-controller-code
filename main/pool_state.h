@@ -255,6 +255,10 @@ typedef struct {
     uint8_t controller_version_minor;
     bool controller_version_valid;
 
+    // Controller service mode (CMD 0x12 status bitfield, bit 1)
+    bool service_mode;
+    bool service_mode_valid;
+
     // Seen devices (one slot per distinct source address observed)
     seen_device_t seen_devices[MAX_SEEN_DEVICES];
     uint8_t num_seen_devices;

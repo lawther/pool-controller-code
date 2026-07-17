@@ -44,4 +44,7 @@ void mqtt_publish_valve(const pool_state_t *current_state, uint8_t valve_num);
 // Publish favourite select state; re-triggers discovery if options changed
 void mqtt_publish_favourite(const pool_state_t *state);
 
+// Publish controller service mode (ON/OFF) from pool state
+void mqtt_publish_service_mode(const pool_state_t *current_state);
+
 #endif // MQTT_PUBLISH_H

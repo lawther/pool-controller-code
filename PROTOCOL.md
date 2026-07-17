@@ -424,7 +424,7 @@ Status broadcast emitted by multiple devices. The CMD byte is shared but the **p
 | Source                          | LENGTH | Payload shape                            | Status | Handler                       |
 |---------------------------------|--------|------------------------------------------|--------|-------------------------------|
 | `0x0050` Touchscreen            | `0x0E` | 2 bytes — always `01 00` or `05 00` observed        | ⚠️     | `handle_touchscreen_unknown1` |
-| `0x0062` Connect 8/10 Controller| `0x0F` | 3 bytes — heater state + unknowns        | ⚠️     | `handle_heater`               |
+| `0x0062` Connect 8/10 Controller| `0x0F` | 3 bytes — heater state + service mode + unknowns | ⚠️     | `handle_heater`               |
 | `0x0074` ICI Gas Heater         | `0x10` | 4 bytes — `{00, status, 00, 00}`         | ✅     | `handle_ici_heater_status`    |
 | `0x0081` VX 11S v3 Salt Chlorinator | `0x0D` | 2 bytes — always `00 00` observed   | ⚠️     | **No (doc only)**             |
 | `0x0084` Viron / `0x0090` RolaChem Chlorinator | `0x0D` | 1 byte — operational mode | ⚠️     | `handle_chlor_status`         |
@@ -450,7 +450,7 @@ Part of the regular touchscreen status sequence.
 
 #### Connect 8/10 Controller (`0x0062`) ⚠️
 
-Broadcast by the main controller (`0x0062`) reporting the inbuilt heater's on/off state.
+Broadcast by the main controller (`0x0062`) reporting the inbuilt heater's on/off state and the controller's service mode.
 
 Pattern: `02 00 62 FF FF 80 00 12 0F 03`
 
@@ -459,16 +459,20 @@ Examples:
 ```
 02 00 62 FF FF 80 00 12 0F 03 00 01 08 09 03   Heater On
 02 00 62 FF FF 80 00 12 0F 03 00 00 08 08 03   Heater Off
-                                 ^^ Heater state (0x00 = Off, 0x01 = On)
+02 00 62 FF FF 80 00 12 0F 03 00 02 08 0A 03   Service Mode (heater off)
+                                 ^^ Status bitfield
                                     ^^ Unknown (always 0x08 observed)
 ```
 
 Data fields:
 - Byte 10: Padding/unused (always `0x00` observed)
-- Byte 11: Heater state (`0x00` = Off, `0x01` = On)
+- Byte 11: Status bitfield:
+  - Bit 0: Heater state (`0` = Off, `1` = On)
+  - Bit 1: Service mode (`0` = Off, `1` = On)
+  - Bits 2–7: Unknown (always `0` observed)
 - Byte 12: Unknown (maybe bitmask or interlock?) — always `0x08` observed
 
-`handle_heater` monitors this frame for deviations from the observed constants: byte 10 ≠ `0x00`, byte 11 > `0x01`, or byte 12 ≠ `0x08` is recorded as an "undocumented" entry on the Unknown Messages page. Byte 12 in particular is a candidate carrier for a controller-originated state signal (e.g. service mode).
+`handle_heater` monitors this frame for deviations from the observed constants: byte 10 ≠ `0x00`, byte 11 with any bit above bit 1 set, or byte 12 ≠ `0x08` is recorded as an "undocumented" entry on the Unknown Messages page.
 
 ---
 
