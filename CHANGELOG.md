@@ -15,20 +15,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+### Changed
+### Removed
+### Fixed
+### Deprecated
+### Security
+
+## [1.9.0] - 2026-07-17
+### Added
 - Decoded the CMD 0x2B controller heartbeat — a ~60 s unicast from the Connect 10 controller (0x0062) directly to the Touchscreen (0x0050), payload `02 00` in every capture, previously logged as an unhandled frame each cycle. Now handled log-only by `handle_controller_heartbeat`, which records any deviation from `02 00` as an "undocumented" entry on the Unknown Messages page. As one of only two message types the controller sends straight to the touchscreen, it is a prime candidate carrier for a controller-originated state signal such as service mode (documented in PROTOCOL.md)
 - Decoded Service Mode: byte 11 of the Connect 10 controller's CMD 0x12 status is a bitfield (bit 0 = heater on/off, bit 1 = service mode), confirmed by a service-mode capture — documented in PROTOCOL.md and surfaced as a new Home Assistant "Service Mode" binary sensor (published on first status frame) and a `service_mode` field in the `/status` JSON
 - Decoded the Genus Heater's (Active i25 Evo heat pump, 0x0070) CMD 0x12 device status, previously logged as unhandled: same 4-byte payload shape as the gas heaters with matching heater-on and water-flow bits, but a heat-pump-specific upper-bit set (0x13 observed immediately after a Gateway heater-on command, so bit 4 is read as actively heating rather than the gas heaters' lockout); heater on/off feeds the Heater 1 state in Home Assistant, and any status value outside the observed set — or a non-zero padding byte — is recorded as an "undocumented" entry on the Unknown Messages page — documented in PROTOCOL.md with the tentative bits flagged unconfirmed
 ### Changed
 - Extended undocumented-payload flagging (`record_undocumented()`) across more decoders as protocol-research groundwork toward service-mode detection, so a novel byte value is surfaced on the Unknown Messages page instead of being silently absorbed: CMD 0x26 Configuration (reserved bits 5–7 set, or the documented always-1 bit 0 clear), the Connect 10 controller's own CMD 0x12 status (padding byte 10, state byte 11, and the unknown byte 12 — a likely service/interlock carrier), CMD 0x05 touchscreen ack, CMD 0x37 gateway comms status (codes absent from the known table), the VX 11S v3 chlorine-output byte 12 (to catch a LOW SALT / NO FLOW warning capture), CMD 0x06 light config (out-of-range zone index / undocumented status byte), the CMD 0x27 short-form valve data byte, CMD 0x38 timer day-bitmask bit 7, and the favourite-enable register — documented in PROTOCOL.md
-### Removed
 ### Fixed
 - Fixed register writes made from the Viron Chlorinator's app (light zone on/off and color picks) being logged as unhandled: the chlorinator broadcasts the same CMD 0x3A Register Write the Gateway uses, so the command is now dispatched on its CMD byte regardless of source (handler renamed to `handle_register_write_request`), with the newly observed light-zone-color write target (0xD0–0xD7/slot 0x01) and its app color codes documented in PROTOCOL.md — flagged as an install-specific enumeration since the codes conflict with the reference system's color values
 - Fixed channel toggles made at the Connect 10 controller's physical buttons being logged as unhandled: the controller broadcasts the same CMD 0x10 Channel Toggle Command the Gateway uses for remote toggles (same 1-byte channel-index payload), so the command is now dispatched on its CMD byte regardless of source — controller-sourced examples (channel indexes 0x04–0x07) documented in PROTOCOL.md
 - Fixed favourite activations made at the Connect 10 controller itself (e.g. All Auto) being logged as unhandled: the controller unicasts the same CMD 0x2A Favourite Control Command to the Touchscreen as the Gateway does for remote activations, so the command is now dispatched on its CMD byte regardless of source and updates the active favourite in Home Assistant — both sources documented in PROTOCOL.md
 - Fixed CMD 0x26 Configuration broadcasts being counted as unknown/unhandled on every cycle: the handler returned `false` unconditionally, routing each normal config frame into the Unknown Messages buffer. It now decodes the frame, returns decoded, and records only genuine anomalies (see above), so the unknown-message counter and page reflect real unknowns
 - Fixed the inbuilt heater wrongly reporting On while the controller is in service mode with the heater off: the CMD 0x12 status byte was treated as a boolean (any non-zero value = On), so the service-mode value 0x02 read as heater on; the heater state now comes from bit 0 only
-### Deprecated
-### Security
+
 
 ## [1.8.2] - 2026-07-16
 ### Changed
