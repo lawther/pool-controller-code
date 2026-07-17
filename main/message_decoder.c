@@ -113,6 +113,7 @@ static const char *MSG_TYPE_HEATER =                "02 00 62 FF FF 80 00 12 0F 
 static const char *MSG_TYPE_CONTROLLER_UNKNOWN2B =  "02 00 62 00 50 80 00 2B 0E 6D";
 
 // 70 Genus Heater (Active i25 Evo)
+static const char *MSG_TYPE_GENUS_HEATER_STATUS =       "02 00 70 FF FF 80 00 12 10 12";
 static const char *MSG_TYPE_GENUS_HEATER_TEMP_SETTING = "02 00 70 FF FF 80 00 17 0E 15";
 
 // 72 AstralPool HiNRG Gas Heater
@@ -1086,6 +1087,74 @@ static bool handle_gas_heater_status(
 
     if (ctx->enable_mqtt) {
         mqtt_publish_gas_heater(&snapshot, 0);
+    }
+
+    return true;
+}
+
+/**
+ * Handler: Genus Heater (Active i25 Evo heat pump) device status (CMD 0x12)
+ * Pattern: "02 00 70 FF FF 80 00 12 10 12"
+ *
+ * Same four-byte payload shape as the gas heaters ({00, status, 00, 00}; the
+ * data checksum equals the status byte) and the same bit 0 (heater on) /
+ * bit 1 (water flow) semantics, but the upper status bits do not follow the
+ * gas-heater table — a heat pump has no gas valve or flame. 0x13 is broadcast
+ * while the unit heats normally (observed ~360 ms after a Gateway heater-on
+ * register write), so bit 4 is believed to mean "actively heating" here, not
+ * the gas heaters' lockout. Only the observed value set is accepted; anything
+ * else — including non-zero padding bytes — is recorded as undocumented.
+ */
+static bool handle_genus_heater_status(
+    const uint8_t *data, int len,
+    const uint8_t *payload, int payload_len,
+    const char *addr_info,
+    message_decoder_context_t *ctx)
+{
+    if (payload_len < 4) return false;
+
+    const uint8_t status = payload[1];
+    const char *status_name;
+
+    switch (status) {
+        case 0x00: status_name = "Off (no water flow)"; break;
+        case 0x02: status_name = "Off (water flow)"; break;
+        case 0x03: status_name = "Setpoint Reached"; break;
+        case 0x07: status_name = "Starting Up (unconfirmed)"; break;
+        case 0x13: status_name = "Heating (unconfirmed)"; break;
+        default:
+            // Recognised Genus heater frame, but this status value is not in
+            // the documented set (PROTOCOL.md 0x12, Genus Heater variant).
+            ESP_LOGW(TAG, "%s Undocumented Genus heater status: 0x%02X", addr_info, status);
+            record_undocumented(data, len);
+            return true;
+    }
+
+    // Bytes 10, 12 and 13 are always 0x00 in observed captures.
+    if (payload[0] != 0x00 || payload[2] != 0x00 || payload[3] != 0x00) {
+        record_undocumented(data, len);
+    }
+
+    const bool heater_on = (status & GAS_HEATER_BITMASK_HEATER_ON) != 0;
+
+    ESP_LOGI(TAG, "%s Genus heater raw status - [%02X %02X %02X %02X], decoded status - \"%s\"",
+             addr_info, payload[0], payload[1], payload[2], payload[3], status_name);
+
+    // Update state and publish. The Genus is Heater 1 on systems that carry
+    // it (the Gateway drives it via register 0xE6, Heater 1 On/Off).
+    pool_state_t snapshot;
+    if (!ctx->state_mutex || xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
+        ESP_LOGW(TAG, "Failed to acquire mutex for heater");
+        return true;
+    }
+    ctx->pool_state->heaters[0].on = heater_on;
+    ctx->pool_state->heaters[0].valid = true;
+    ctx->pool_state->last_update_ms = xTaskGetTickCount() * portTICK_PERIOD_MS;
+    snapshot = *ctx->pool_state;
+    xSemaphoreGive(ctx->state_mutex);
+
+    if (ctx->enable_mqtt) {
+        mqtt_publish_heater(&snapshot, 0);
     }
 
     return true;
@@ -3668,6 +3737,11 @@ static bool dispatch_message(
     if (match_pattern(data, len, MSG_TYPE_HINRG_HEATER_STATUS) ||
         match_pattern(data, len, MSG_TYPE_ICI_HEATER_STATUS)) {
         return handle_gas_heater_status(data, len, payload, payload_len, addr_info, ctx);
+    }
+
+    // Genus heat pump device status (CMD 0x12) — 0x0070
+    if (match_pattern(data, len, MSG_TYPE_GENUS_HEATER_STATUS)) {
+        return handle_genus_heater_status(data, len, payload, payload_len, addr_info, ctx);
     }
 
     // Chlorinator status broadcast (§32) — both 0x0090 and 0x0084 variants

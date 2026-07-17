@@ -1017,6 +1017,103 @@ void test_gas_heater_hinrg_heating(void)
     TEST_ASSERT(h->burner_state == BURNER_ALIGHT,      "HiNRG 0x0F: burner alight");
 }
 
+// ======================================================
+// Genus Heater Status Tests (CMD 0x12)
+//
+// Genus frame: 02 00 70 FF FF 80 00 12 10 12 00 SS 00 00 SS 03
+// Same shape as the gas heaters but heat-pump semantics: only the
+// observed status set {0x00, 0x02, 0x03, 0x07, 0x13} is accepted,
+// and only heater on/off (bit 0) feeds pool state (heaters[0]).
+// ======================================================
+
+static void build_genus_heater_msg(uint8_t status_byte, uint8_t *buf)
+{
+    buf[0]  = 0x02; buf[1]  = 0x00; buf[2]  = 0x70;
+    buf[3]  = 0xFF; buf[4]  = 0xFF; buf[5]  = 0x80;
+    buf[6]  = 0x00; buf[7]  = 0x12; buf[8]  = 0x10;
+    buf[9]  = 0x12; // header checksum
+    buf[10] = 0x00; buf[11] = status_byte;
+    buf[12] = 0x00; buf[13] = 0x00;
+    buf[14] = status_byte; // data checksum = sum of payload bytes
+    buf[15] = 0x03;
+}
+
+void test_genus_heater_off(void)
+{
+    init_test_context();
+    uint8_t msg[16];
+    build_genus_heater_msg(0x00, msg);
+    bool decoded = decode_message(msg, sizeof(msg), &test_ctx);
+    const pool_heater_t *h = &test_pool_state.heaters[0];
+    TEST_ASSERT(decoded,                               "Genus 0x00: should decode");
+    TEST_ASSERT(h->valid,                              "Genus 0x00: heater valid");
+    TEST_ASSERT(!h->on,                                "Genus 0x00: on=false");
+    TEST_ASSERT(!h->gas_heater_valid,                  "Genus 0x00: gas fields not claimed");
+}
+
+void test_genus_heater_off_with_flow(void)
+{
+    init_test_context();
+    uint8_t msg[16];
+    build_genus_heater_msg(0x02, msg);
+    bool decoded = decode_message(msg, sizeof(msg), &test_ctx);
+    const pool_heater_t *h = &test_pool_state.heaters[0];
+    TEST_ASSERT(decoded,                               "Genus 0x02: should decode");
+    TEST_ASSERT(h->valid,                              "Genus 0x02: heater valid");
+    TEST_ASSERT(!h->on,                                "Genus 0x02: on=false");
+}
+
+void test_genus_heater_setpoint_reached(void)
+{
+    init_test_context();
+    uint8_t msg[16];
+    build_genus_heater_msg(0x03, msg);
+    bool decoded = decode_message(msg, sizeof(msg), &test_ctx);
+    const pool_heater_t *h = &test_pool_state.heaters[0];
+    TEST_ASSERT(decoded,                               "Genus 0x03: should decode");
+    TEST_ASSERT(h->valid,                              "Genus 0x03: heater valid");
+    TEST_ASSERT(h->on,                                 "Genus 0x03: on=true");
+}
+
+void test_genus_heater_starting_up(void)
+{
+    init_test_context();
+    uint8_t msg[16];
+    build_genus_heater_msg(0x07, msg);
+    bool decoded = decode_message(msg, sizeof(msg), &test_ctx);
+    const pool_heater_t *h = &test_pool_state.heaters[0];
+    TEST_ASSERT(decoded,                               "Genus 0x07: should decode");
+    TEST_ASSERT(h->valid,                              "Genus 0x07: heater valid");
+    TEST_ASSERT(h->on,                                 "Genus 0x07: on=true");
+}
+
+void test_genus_heater_heating(void)
+{
+    init_test_context();
+    uint8_t msg[16];
+    build_genus_heater_msg(0x13, msg);
+    bool decoded = decode_message(msg, sizeof(msg), &test_ctx);
+    const pool_heater_t *h = &test_pool_state.heaters[0];
+    TEST_ASSERT(decoded,                               "Genus 0x13: should decode");
+    TEST_ASSERT(h->valid,                              "Genus 0x13: heater valid");
+    TEST_ASSERT(h->on,                                 "Genus 0x13: on=true");
+    TEST_ASSERT(!h->gas_heater_valid,                  "Genus 0x13: not treated as gas lockout");
+    TEST_ASSERT(!h->locked_out,                        "Genus 0x13: not locked out");
+}
+
+void test_genus_heater_undocumented_status(void)
+{
+    // 0x0F is a valid gas-heater value (Heating) but has never been observed
+    // from the Genus — it must be flagged as undocumented, not decoded.
+    init_test_context();
+    uint8_t msg[16];
+    build_genus_heater_msg(0x0F, msg);
+    bool decoded = decode_message(msg, sizeof(msg), &test_ctx);
+    const pool_heater_t *h = &test_pool_state.heaters[0];
+    TEST_ASSERT(decoded,                               "Genus 0x0F: consumed (recorded as undocumented)");
+    TEST_ASSERT(!h->valid,                             "Genus 0x0F: heater state not updated");
+}
+
 /**
  * Run all tests
  */
@@ -1078,6 +1175,15 @@ int main(void)
     test_gas_heater_ici_cooldown();
     test_gas_heater_ici_locked_out();
     test_gas_heater_hinrg_heating();
+
+    // Genus heater status tests (CMD 0x12)
+    printf("\n--- Genus Heater Status Tests ---\n");
+    test_genus_heater_off();
+    test_genus_heater_off_with_flow();
+    test_genus_heater_setpoint_reached();
+    test_genus_heater_starting_up();
+    test_genus_heater_heating();
+    test_genus_heater_undocumented_status();
 
     // Malformed message tests
     printf("\n--- Malformed Message Tests ---\n");

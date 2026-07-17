@@ -127,7 +127,7 @@ Click any CMD in the first column to jump to the full section in [Commands](#com
 | [`0x0D`](#0x0d--active-channels-bitmask-)                      | Active Channels Bitmask             | `0x0050` → `0x006F` Internal Channels                                  | Unicast                                                                                     | Yes                     |
 | [`0x0F`](#0x0f--chlorinator-set-pump-speed-)                | Chlorinator Set Pump Speed     | `0x0084` → `0x0050`                                                            | The Chlorinator requests the Touch Screen to set pump speed (Off/Auto/Manual/Low/Medium/High)                                                               | Yes                     |
 | [`0x10`](#0x10--channel-toggle-command-️)                      | Channel Toggle Command              | `0x00F0`, `0x0062` → Broadcast                                         | Same 1-byte channel-index payload from either source; dispatched on CMD byte alone         | Yes (unified handler)   |
-| [`0x12`](#0x12--device-status-️)                               | Device Status                       | `0x0050`, `0x0062`, `0x0074`, `0x0081`, `0x0084`, `0x0090`, `0x00F0` → Broadcast | Payload layout differs per source                                                           | Yes (per-source)        |
+| [`0x12`](#0x12--device-status-️)                               | Device Status                       | `0x0050`, `0x0062`, `0x0070`, `0x0074`, `0x0081`, `0x0084`, `0x0090`, `0x00F0` → Broadcast | Payload layout differs per source                                                           | Yes (per-source)        |
 | [`0x14`](#0x14--mode-spapool-)                                 | Mode (Spa/Pool)                     | `0x0050` → Broadcast                                                   |                                                                                             | Yes                     |
 | [`0x15`](#0x15--mode-set-command-spapool-)                     | Mode Set Command (Spa/Pool)         | `0x0050` → Broadcast                                                   | Sets the mode; same encoding as the `0x14` status (Spa=`0x00`, Pool=`0x01`)                 | Yes                     |
 | [`0x16`](#0x16--water-temperature-reading-)                    | Water Temperature Reading           | `0x0062` (LEN `0x0E`), `0x0070`/`0x0072`/`0x0074` (LEN `0x0D`) → Broadcast | Payload length differs by source: LEN `0x0E` = `{temp1, temp2}`, LEN `0x0D` = `{temp1}`; dispatched on CMD byte alone | Yes (unified handler)   |
@@ -443,7 +443,8 @@ Status broadcast emitted by multiple devices. The CMD byte is shared but the **p
 |---------------------------------|--------|------------------------------------------|--------|-------------------------------|
 | `0x0050` Touchscreen            | `0x0E` | 2 bytes — always `01 00` or `05 00` observed        | ⚠️     | `handle_touchscreen_unknown1` |
 | `0x0062` Connect 8/10 Controller| `0x0F` | 3 bytes — heater state + service mode + unknowns | ⚠️     | `handle_heater`               |
-| `0x0074` ICI Gas Heater         | `0x10` | 4 bytes — `{00, status, 00, 00}`         | ✅     | `handle_ici_heater_status`    |
+| `0x0070` Genus Heater           | `0x10` | 4 bytes — `{00, status, 00, 00}`         | ⚠️     | `handle_genus_heater_status`  |
+| `0x0072` HiNRG / `0x0074` ICI Gas Heater | `0x10` | 4 bytes — `{00, status, 00, 00}` | ✅     | `handle_gas_heater_status`    |
 | `0x0081` VX 11S v3 Salt Chlorinator | `0x0D` | 2 bytes — always `00 00` observed   | ⚠️     | **No (doc only)**             |
 | `0x0084` Viron / `0x0090` RolaChem Chlorinator | `0x0D` | 1 byte — operational mode | ⚠️     | `handle_chlor_status`         |
 | `0x00F0` Internet Gateway       | `0x0F` | 3 bytes — `{major, minor, checksum}`     | ✅     | `handle_gateway_status`       |
@@ -491,6 +492,45 @@ Data fields:
 - Byte 12: Unknown (maybe bitmask or interlock?) — always `0x08` observed
 
 `handle_heater` monitors this frame for deviations from the observed constants: byte 10 ≠ `0x00`, byte 11 with any bit above bit 1 set, or byte 12 ≠ `0x08` is recorded as an "undocumented" entry on the Unknown Messages page.
+
+---
+
+#### Genus Heater (`0x0070`) ⚠️
+
+Status broadcast from the Active i25 Evo (Genus) heat pump. Same LENGTH and payload shape as the gas heaters below — byte 11 is the only varying byte, and the data checksum (byte 14) equals it — and bits 0 (Heater On) and 1 (Pressure / Flow) carry the same meaning. The upper status bits do **not** follow the gas-heater table: a heat pump has no gas valve or flame, and the observed values suggest bit 4 plays a different role here (see below).
+
+Pattern: `02 00 70 FF FF 80 00 12 10 12`
+
+Examples:
+
+```
+02 00 70 FF FF 80 00 12 10 12 00 00 00 00 00 03   Off, no water flow
+02 00 70 FF FF 80 00 12 10 12 00 02 00 00 02 03   Off, water flow (pump running)
+02 00 70 FF FF 80 00 12 10 12 00 03 00 00 03 03   On, setpoint reached
+02 00 70 FF FF 80 00 12 10 12 00 07 00 00 07 03   On, starting up? (unconfirmed)
+02 00 70 FF FF 80 00 12 10 12 00 13 00 00 13 03   On, heating? (unconfirmed)
+                                 ^^ Status byte
+```
+
+Data fields:
+- Byte 10: Always `0x00` in all observed samples
+- Byte 11: Status byte — see table below
+- Bytes 12–13: Always `0x00` in all observed samples
+
+Observed status values:
+
+| Value  | Bit 4 | Bit 2 | Bit 1 <br> Pressure / Flow | Bit 0 <br> Heater On | Meaning |
+|--------|-------|-------|-------|-------|---------|
+| `0x00` | 0     | 0     | 0     | 0     | Off, no water flow |
+| `0x02` | 0     | 0     | 1     | 0     | Off, water flow (pump running) |
+| `0x03` | 0     | 0     | 1     | 1     | Setpoint reached (on, not calling for heat) |
+| `0x07` | 0     | 1     | 1     | 1     | Starting up? — bit 2 is Gas Valve on the gas heaters; its meaning for a heat pump is unconfirmed |
+| `0x13` | 1     | 0     | 1     | 1     | Heating? — observed ~360 ms after the Gateway's [Heater Control](#heater-control-register-0xe6-slot-0x00) On write, so bit 4 is believed to mean actively heating (compressor running), **not** the gas heaters' Locked Out; unconfirmed |
+
+Notes:
+- Bit 3 (Flame on the gas heaters) has never been observed set — consistent with a heat pump having no burner.
+- `handle_genus_heater_status` accepts only the observed value set; any other status byte, or a non-zero byte 10/12/13, is recorded as an "undocumented" entry on the Unknown Messages page.
+- Bit 0 updates Heater 1 state (the Gateway drives the Genus via register `0xE6`, Heater 1 On/Off).
 
 ---
 
