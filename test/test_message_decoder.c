@@ -41,6 +41,7 @@ void mqtt_publish_heater(const pool_state_t *state, int index) {}
 void mqtt_publish_gas_heater(const pool_state_t *state, int index) {}
 void mqtt_publish_chlorinator(const pool_state_t *state) {}
 void mqtt_publish_pump(const pool_state_t *state) {}
+void mqtt_publish_service_mode(const pool_state_t *state) {}
 void mqtt_publish_light(const pool_state_t *state, uint8_t zone) {}
 void mqtt_publish_channel(const pool_state_t *state, uint8_t channel) {}
 void mqtt_publish_valve(const pool_state_t *state, uint8_t valve_num) {}
