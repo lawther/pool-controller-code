@@ -560,6 +560,51 @@ void test_decode_channel_status_multispeed_pump(void)
 }
 
 /**
+ * Test: Channel toggle command from the Internet Gateway (CMD 0x10)
+ * Real message: 02 00 F0 FF FF 80 00 10 0D 8D 04 04 03
+ */
+void test_decode_channel_toggle_gateway(void)
+{
+    init_test_context();
+
+    uint8_t msg[] = {
+        0x02, 0x00, 0xF0, 0xFF, 0xFF, 0x80, 0x00,
+        0x10, 0x0D,  // Command / length (13)
+        0x8D,        // Header checksum
+        0x04,        // Channel index 4 (Channel 5)
+        0x04,        // Data checksum
+        0x03
+    };
+
+    bool decoded = decode_message(msg, sizeof(msg), &test_ctx);
+
+    TEST_ASSERT(decoded, "Gateway channel toggle should be decoded");
+}
+
+/**
+ * Test: Channel toggle command broadcast by the Connect 10 controller
+ * when a channel button is pressed on the controller itself (CMD 0x10)
+ * Real message: 02 00 62 FF FF 80 00 10 0D FF 07 07 03
+ */
+void test_decode_channel_toggle_controller(void)
+{
+    init_test_context();
+
+    uint8_t msg[] = {
+        0x02, 0x00, 0x62, 0xFF, 0xFF, 0x80, 0x00,
+        0x10, 0x0D,  // Command / length (13)
+        0xFF,        // Header checksum
+        0x07,        // Channel index 7 (Channel 8)
+        0x07,        // Data checksum
+        0x03
+    };
+
+    bool decoded = decode_message(msg, sizeof(msg), &test_ctx);
+
+    TEST_ASSERT(decoded, "Controller channel toggle should be decoded");
+}
+
+/**
  * Test: Chlorinator pH setpoint
  * Real message: 02 00 90 FF FF 80 00 1D 0F 3C 01 4E 00 4F 03
  * pH setpoint = UINT16_LE(payload[1..2]) = 0x004E = 78 (= 7.8 pH)
@@ -1003,6 +1048,8 @@ int main(void)
     test_decode_channel_status_all_off();
     test_decode_channel_status_lights_active();
     test_decode_channel_status_multispeed_pump();
+    test_decode_channel_toggle_gateway();
+    test_decode_channel_toggle_controller();
 
     // Chlorinator tests
     printf("\n--- Chlorinator Tests ---\n");

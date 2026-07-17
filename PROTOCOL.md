@@ -126,7 +126,7 @@ Click any CMD in the first column to jump to the full section in [Commands](#com
 | [`0x0B`](#0x0b--channel-status-)                               | Channel Status                      | `0x0050` → Broadcast                                                   |                                                                                             | Yes                     |
 | [`0x0D`](#0x0d--active-channels-bitmask-)                      | Active Channels Bitmask             | `0x0050` → `0x006F` Internal Channels                                  | Unicast                                                                                     | Yes                     |
 | [`0x0F`](#0x0f--chlorinator-set-pump-speed-)                | Chlorinator Set Pump Speed     | `0x0084` → `0x0050`                                                            | The Chlorinator requests the Touch Screen to set pump speed (Off/Auto/Manual/Low/Medium/High)                                                               | Yes                     |
-| [`0x10`](#0x10--channel-toggle-command-️)                      | Channel Toggle Command              | `0x00F0` Gateway → Broadcast                                           |                                                                                             | Yes                     |
+| [`0x10`](#0x10--channel-toggle-command-️)                      | Channel Toggle Command              | `0x00F0`, `0x0062` → Broadcast                                         | Same 1-byte channel-index payload from either source; dispatched on CMD byte alone         | Yes (unified handler)   |
 | [`0x12`](#0x12--device-status-️)                               | Device Status                       | `0x0050`, `0x0062`, `0x0074`, `0x0081`, `0x0084`, `0x0090`, `0x00F0` → Broadcast | Payload layout differs per source                                                           | Yes (per-source)        |
 | [`0x14`](#0x14--mode-spapool-)                                 | Mode (Spa/Pool)                     | `0x0050` → Broadcast                                                   |                                                                                             | Yes                     |
 | [`0x15`](#0x15--mode-set-command-spapool-)                     | Mode Set Command (Spa/Pool)         | `0x0050` → Broadcast                                                   | Sets the mode; same encoding as the `0x14` status (Spa=`0x00`, Pool=`0x01`)                 | Yes                     |
@@ -370,11 +370,14 @@ Inter-device unicast from the Viron Chlorinator (`0x0084`) to the Touchscreen (`
 
 ### 0x10 — Channel Toggle Command ⚠️
 
-Command from the Internet Gateway (`0x00F0`) to cycle a channel through its available states (Auto → On → Off, or On → Off depending on channel type).
+Cycles a channel through its available states (Auto → On → Off, or On → Off depending on channel type). Sent by the Internet Gateway (`0x00F0`) for remote toggles, and broadcast by the Connect 8/10 controller (`0x0062`) when a channel button is pressed on the controller itself. The payload is identical from either source — a single channel-index byte.
 
-**Pattern:** `02 00 F0 FF FF 80 00 10 0D 8D`
+**Patterns:**
 
-**Examples:**
+- Gateway: `02 00 F0 FF FF 80 00 10 0D 8D`
+- Connect 8/10 controller: `02 00 62 FF FF 80 00 10 0D FF`
+
+**Examples (Gateway-sourced):**
 
 | Channel    | Index | Command                                   | States        |
 | ---------- | ----- | ----------------------------------------- | ------------- |
@@ -385,6 +388,15 @@ Command from the Internet Gateway (`0x00F0`) to cycle a channel through its avai
 | Jets       | 0x04  | `02 00 F0 FF FF 80 00 10 0D 8D 04 04 03`  | On, Off       |
 | Blower     | 0x05  | `02 00 F0 FF FF 80 00 10 0D 8D 05 05 03`  | On, Off       |
 
+**Examples (controller-sourced, channel buttons pressed on the Connect 10):**
+
+| Channel   | Index | Command                                   |
+| --------- | ----- | ----------------------------------------- |
+| Channel 5 | 0x04  | `02 00 62 FF FF 80 00 10 0D FF 04 04 03`  |
+| Channel 6 | 0x05  | `02 00 62 FF FF 80 00 10 0D FF 05 05 03`  |
+| Channel 7 | 0x06  | `02 00 62 FF FF 80 00 10 0D FF 06 06 03`  |
+| Channel 8 | 0x07  | `02 00 62 FF FF 80 00 10 0D FF 07 07 03`  |
+
 **Data Fields:**
 
 - Byte 10: Channel index (0-based)
@@ -392,12 +404,16 @@ Command from the Internet Gateway (`0x00F0`) to cycle a channel through its avai
 
 **Channel Index Mapping:**
 
+Index `N` is channel `N+1` (`0x00`–`0x07` = Channels 1–8). Channel functions are per-installation configuration; the names below are from the reference system:
+
 - `0x00`: Channel 1 (Filter)
 - `0x01`: Channel 2 (Cleaning)
 - `0x02`: Channel 3 (Pool Light)
 - `0x03`: Channel 4 (Spa Light)
 - `0x04`: Channel 5 (Jets)
 - `0x05`: Channel 6 (Blower)
+- `0x06`: Channel 7
+- `0x07`: Channel 8
 
 **Behaviour:**
 
@@ -411,6 +427,8 @@ Command from the Internet Gateway (`0x00F0`) to cycle a channel through its avai
 - Sending this command always advances the state — there is no direct way to set a specific state.
 - The controller will respond with an updated [Channel Status message (0x0B)](#0x0b--channel-status-).
 - Channel index is 0-based and corresponds to the channel's position in the controller configuration.
+- The controller-sourced broadcast informs other bus devices (Gateway, Touchscreen) of toggles made at the controller's physical buttons; it is followed by the usual [Channel Status (0x0B)](#0x0b--channel-status-) update.
+- Decoded in code by `handle_channel_toggle_cmd` — dispatched on the CMD byte alone (source-agnostic), log-only, no `pool_state` update (state comes from the follow-up `0x0B`).
 - ⚠️ Multi-speed pump channels report extended states `0x03`–`0x05` (On at Low/Med/High — see [Channel States](#0x0b--channel-status-)), but how this command cycles through them has not been captured. Status is ⚠️ pending characterisation of how multi-speed channels respond to this command.
 
 ---
