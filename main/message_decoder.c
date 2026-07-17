@@ -160,7 +160,6 @@ static const char *MSG_TYPE_PUMP_SPEED =              "02 00 A0 FF FF 80 00 3B 0
 static const char *MSG_TYPE_PUMP_BUTTONS =            "02 00 A0 FF FF 80 00 1B 0D 48";
 
 // F0 Gateway Control Commands (Gateway -> Controller)
-static const char *MSG_TYPE_CHANNEL_TOGGLE_CMD =      "02 00 F0 FF FF 80 00 10 0D 8D";
 static const char *MSG_TYPE_LIGHT_CONTROL_CMD =       "02 00 F0 FF FF 80 00 3A 0F B9";
 
 // ======================================================
@@ -1852,8 +1851,10 @@ static bool handle_register_read_request(
 }
 
 /**
- * Handler: Channel toggle command (Gateway -> Controller)
- * Pattern: "02 00 F0 FF FF 80 00 10 0D 8D"
+ * Handler: Channel toggle command (CMD 0x10) — source-agnostic.
+ * Sent by the Internet Gateway (0x00F0) for remote toggles and broadcast by
+ * the Connect 8/10 controller (0x0062) when a channel button is pressed on
+ * the controller itself.
  */
 static bool handle_channel_toggle_cmd(
     const uint8_t *data, int len,
@@ -1876,10 +1877,10 @@ static bool handle_channel_toggle_cmd(
     }
 
     if (channel_name[0] != '\0') {
-        ESP_LOGI(TAG, "%s Gateway channel toggle command - Channel %d (%s)",
+        ESP_LOGI(TAG, "%s Channel toggle command - Channel %d (%s)",
                  addr_info, channel_num, channel_name);
     } else {
-        ESP_LOGI(TAG, "%s Gateway channel toggle command - Channel %d (index 0x%02X, name unknown)",
+        ESP_LOGI(TAG, "%s Channel toggle command - Channel %d (index 0x%02X, name unknown)",
                  addr_info, channel_num, channel_idx);
     }
 
@@ -3494,6 +3495,15 @@ static bool dispatch_message(
         return handle_firmware_version(data, len, payload, payload_len, addr_info, ctx);
     }
 
+    // Channel toggle command (CMD 0x10) — source-agnostic. Sent by the
+    // Internet Gateway (0x00F0) for remote toggles and broadcast by the
+    // Connect 8/10 controller (0x0062) when a channel button is pressed on
+    // the controller itself; same 1-byte channel-index payload from either
+    // source.
+    if (data[7] == 0x10) {
+        return handle_channel_toggle_cmd(data, len, payload, payload_len, addr_info, ctx);
+    }
+
     // Water temperature reading — CMD 0x16 (canonical) and CMD 0x31 (alt/
     // log-only) share the same {temp1, temp2} layout and are routed through
     // the same handler. See PROTOCOL.md commands `0x16` and `0x31`.
@@ -3694,10 +3704,6 @@ static bool dispatch_message(
     }
 
     // Gateway control commands
-    if (match_pattern(data, len, MSG_TYPE_CHANNEL_TOGGLE_CMD)) {
-        return handle_channel_toggle_cmd(data, len, payload, payload_len, addr_info, ctx);
-    }
-
     if (match_pattern(data, len, MSG_TYPE_LIGHT_CONTROL_CMD)) {
         return handle_light_control_cmd(data, len, payload, payload_len, addr_info, ctx);
     }
