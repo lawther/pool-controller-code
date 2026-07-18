@@ -1878,6 +1878,7 @@ The register ID and slot together determine the message meaning. The slot distin
 | `0x6C`–`0x73`  | `0x02` | Channel Types          | 1-byte type code (see [0x0B](#0x0b--channel-status-) channel types)    |
 | `0x7C`–`0x83`  | `0x02` | Channel Names          | Null-terminated ASCII string                     |
 | `0x8C`–`0x93`  | `0x02` | Channel State          | 1-byte value (0=Off, 1=Auto, 2=On) — read-only; writes ignored by controller |
+| `0x90`–`0x97`  | `0x01` | Light Zone Enabled     | 1-byte flag (`0x01`=zone configured, `0x00`=not configured) — see note below |
 | `0xA0`–`0xA7`  | `0x01` | Light Zone Multicolor  | 1-byte flag (`0x00`=No, `0x01`=Yes)              |
 | `0xAC`-`0xAF` ⚠️| `0x0D`| Unknown                | Only `0xFF` observed. Repeats ~every 8 minutes   |
 | `0xB0`–`0xB7`  | `0x01` | Light Zone Name        | 1-byte preset name code (see [name codes table](#examples-by-register-type)) |
@@ -1911,6 +1912,7 @@ The register ID and slot together determine the message meaning. The slot distin
 - **Mutually exclusive broadcast**: in captures observed so far the touchscreen broadcasts *either* the `E6/E7/E8` trio *or* the `E9/EA/EB` trio in slot `0x00`, but not both — consistent with a config-dependent enable (likely [0x26](#0x26--configuration-️) byte 10 bit 3 = heater count).
 - **`0xEB` default**: when the second heater isn't plumbed to spa, `0xEB` reads `0x0A` (10°C) — an unused default at the minimum setpoint rather than a live value.
 - **`0x20` (Active Favourite) — confirmed ✅**: slot `0x03` is the Favourite slot, and `0x20` sits immediately before the Favourite Enable block (`0x21`–`0x28`). Reports which favourite is currently active, using the same value space as CMD [`0x2A`](#0x2a--favourite-control-command-): `0x00`=Pool, `0x01`=Spa, `0x02`–`0x07`=user Favourites 1–6; `0xFF` = no favourite active. The All Off/All Auto command values (`0x80`/`0x81`) never appear here — the controller does not remember them as states: All Off reports as `0x00` (it is implemented as Pool mode with all channels off; the accompanying [0x14 Mode](#0x14--mode-spapool-) broadcast also says Pool) and All Auto reports as `0xFF`. Broadcast ~1 s after a gateway-commanded activation ([0x2A](#0x2a--favourite-control-command-)), when an active favourite is knocked out by a manual channel change, and in the periodic ~8-minute register dump — but **not** when a favourite is activated at the touchscreen itself (the new value then only appears in the next dump).
+- **`0x90`–`0x97` (Light Zone Enabled)**: 1-byte flag reporting whether the light zone is configured in the controller: `0x01` = configured/present, `0x00` = not configured. Sits in the same slot-`0x01` per-zone register family as the other light-zone blocks (`0xA0` multicolor, `0xB0` name, `0xC0` state, `0xD0` color, `0xE0` active). Enabled zones are rebroadcast regularly; disabled zones are only broadcast at startup or after a configuration change. Only `0x90`–`0x93` (zones 1–4) observed; `0x94`–`0x97` inferred from the 8-wide sibling blocks. `0x90`–`0x93` overlaps the slot-`0x02` Channel State range — distinguished by slot as usual.
 - **`0xF5`–`0xFC` (Channel Category) — confirmed ✅**: per-channel category code following the Channel Count register (`0xF4`): `0xF5` = Channel 1, `0xF6` = Channel 2, … `0xFC` = Channel 8. Values: `0x01` = Pool equipment, `0x02` = Light, `0x03` = Controlled Heater Power. Registers for unused channels are not broadcast (only `0xF5`–`0xFB` observed on a 7-channel system, so `0xFC` = Channel 8 is inferred from the range width of the other per-channel register blocks). This is a coarser classification than the per-channel [Channel Type](#0x0b--channel-status-) codes at `0x6C`–`0x73`.
 
 ### Examples by Register Type
@@ -1956,6 +1958,22 @@ State values: `0x00` = Off, `0x01` = Auto, `0x02` = On
 ```
 
 Category codes: `0x01` = Pool equipment, `0x02` = Light, `0x03` = Controlled Heater Power. Registers for unused channels are not broadcast.
+
+**Light Zone Enabled (`0x90`–`0x97`, Slot `0x01`):**
+
+```
+02 00 50 FF FF 80 00 38 0F 17 90 01 01 92 03
+                              ^^ Light Zone 1 (0x90)
+                                 ^^ Slot 0x01 (Enabled)
+                                    ^^ Value: 0x01 = zone configured
+
+02 00 50 FF FF 80 00 38 0F 17 92 01 00 93 03
+                              ^^ Light Zone 3 (0x92)
+                                 ^^ Slot 0x01 (Enabled)
+                                    ^^ Value: 0x00 = zone not configured
+```
+
+Configured zones are rebroadcast regularly; unconfigured zones are only broadcast at startup or after a configuration change.
 
 **Light Zone State (`0xC0`–`0xC7`, Slot `0x01`):**
 

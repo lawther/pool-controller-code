@@ -620,6 +620,7 @@ static bool handle_timer(const uint8_t *data, int len, const uint8_t *payload, i
 static bool handle_channel_type(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 static bool handle_channel_name(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 static bool handle_channel_state(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
+static bool handle_light_zone_enabled(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 static bool handle_light_zone_state(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 static bool handle_light_zone_color(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 static bool handle_light_zone_active(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
@@ -652,6 +653,7 @@ static const register_handler_t REGISTER_HANDLERS[] = {
     {REG_ID_CHANNEL_STATE_0,         REG_ID_CHANNEL_STATE_7,         0x02, handle_channel_state,         "Channel State"},
 
     // Lighting zones — reg_end capped at index 3 (MAX_LIGHT_ZONES - 1)
+    {REG_ID_LIGHT_ZONE_ENABLED_0,    REG_ID_LIGHT_ZONE_ENABLED_3,    0x01, handle_light_zone_enabled,    "Light Zone Enabled"},
     {REG_ID_LIGHT_ZONE_MULTICOLOR_0, REG_ID_LIGHT_ZONE_MULTICOLOR_3, 0x01, handle_light_zone_multicolor, "Light Zone Multicolor"},
     {REG_ID_LIGHT_ZONE_NAME_0,       REG_ID_LIGHT_ZONE_NAME_3,       0x01, handle_light_zone_name,       "Light Zone Name"},
     {REG_ID_LIGHT_ZONE_STATE_0,      REG_ID_LIGHT_ZONE_STATE_3,      0x01, handle_light_zone_state,      "Light Zone State"},
@@ -2754,6 +2756,65 @@ static bool handle_channel_category(
         ctx->pool_state->channels[ch_num - 1].configured = true;
         ctx->pool_state->last_update_ms = xTaskGetTickCount() * portTICK_PERIOD_MS;
         xSemaphoreGive(ctx->state_mutex);
+    }
+
+    return true;
+}
+
+/**
+ * Handler: Lighting zone enabled flag
+ * Register range: 0x90-0x97, Slot: 0x01
+ *
+ * 0x01 = zone is configured in the controller, 0x00 = not configured.
+ * Enabled zones are rebroadcast regularly; disabled zones only appear at
+ * startup or after a configuration change.
+ */
+static bool handle_light_zone_enabled(
+    const uint8_t *data, int len,
+    const uint8_t *payload, int payload_len,
+    const char *addr_info,
+    message_decoder_context_t *ctx)
+{
+    if (payload_len < 3) return false;
+
+    uint8_t reg_id = payload[0];
+    uint8_t enabled = payload[2];
+    uint8_t zone_idx = reg_id - REG_ID_LIGHT_ZONE_ENABLED_0;
+
+    if (zone_idx >= MAX_LIGHT_ZONES) {
+        ESP_LOGW(TAG, "%s Lighting zone enabled: zone_idx %d out of range (max %d)", addr_info, zone_idx, MAX_LIGHT_ZONES);
+        record_undocumented(data, len);
+        return true;  // captured as undocumented; don't fall through to UNHANDLED
+    }
+
+    if (enabled >= 0x02) {
+        ESP_LOGW(TAG, "%s Lighting zone enabled out of expected range 0x00-0x01: 0x%02X", addr_info, enabled);
+        record_undocumented(data, len);
+    }
+
+    ESP_LOGI(TAG, "%s Lighting zone %d enabled - %s", addr_info, zone_idx + 1, enabled ? "Yes" : "No");
+
+    bool newly_configured = false;
+    bool should_publish = false;
+    pool_state_t state_snapshot;
+
+    if (ctx->state_mutex && xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) == pdTRUE) {
+        newly_configured = enabled && !ctx->pool_state->lighting[zone_idx].configured;
+        ctx->pool_state->lighting[zone_idx].zone       = zone_idx + 1;
+        ctx->pool_state->lighting[zone_idx].configured = (enabled != 0);
+        ctx->pool_state->last_update_ms = xTaskGetTickCount() * portTICK_PERIOD_MS;
+
+        should_publish = (enabled != 0);
+        state_snapshot = *ctx->pool_state;
+        xSemaphoreGive(ctx->state_mutex);
+    }
+
+    if (newly_configured) {
+        register_requester_notify();
+    }
+
+    if (should_publish && ctx->enable_mqtt) {
+        mqtt_publish_light(&state_snapshot, zone_idx + 1);
     }
 
     return true;

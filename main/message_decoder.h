@@ -130,6 +130,10 @@ typedef enum {
     REG_ID_CHANNEL_STATE_0         = 0x8C,  // Channel 0 state (0–7 → 0x8C–0x93, slot 0x02)
     REG_ID_CHANNEL_STATE_7         = 0x93,  // Channel 7 state (last)
 
+    REG_ID_LIGHT_ZONE_ENABLED_0    = 0x90,  // Zone 0 enabled flag (0–7 → 0x90–0x97, slot 0x01; 0x90–0x93 shares range with REG_ID_CHANNEL_STATE_[4-7], slot 0x02)
+    REG_ID_LIGHT_ZONE_ENABLED_3    = 0x93,  // Zone 3 enabled    (usable max; capped by MAX_LIGHT_ZONES)
+    REG_ID_LIGHT_ZONE_ENABLED_7    = 0x97,  // Zone 7 enabled    (protocol max)
+
     REG_ID_LIGHT_ZONE_MULTICOLOR_0 = 0xA0,  // Zone 0 multicolor (0–7 → 0xA0–0xA7, slot 0x01)
     REG_ID_LIGHT_ZONE_MULTICOLOR_3 = 0xA3,  // Zone 3 multicolor (usable max; capped by MAX_LIGHT_ZONES)
     REG_ID_LIGHT_ZONE_MULTICOLOR_7 = 0xA7,  // Zone 7 multicolor (protocol max)
