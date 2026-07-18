@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- Decoded CMD 0x07 as the Lighting Zone Color Broadcast, previously logged as unhandled every ~10 s on installs with a multicolor light: the color companion to the CMD 0x06 light config broadcast ({zone_idx, color} payload), emitted only for multicolor-capable zones, with the color byte mirroring the zone's Light Zone Color register (0xD0+zone, slot 0x01) — handled log-only since the register broadcast remains the state source, with out-of-range zone indexes recorded as "undocumented" entries on the Unknown Messages page; documented in PROTOCOL.md with the color enumeration flagged install-specific
 - Decoded the Light Zone Enabled registers (0x90–0x93, slot 0x01), previously logged as unhandled: a 1-byte per-zone flag reporting whether each light zone is configured in the controller (0x01 = configured, 0x00 = not), completing the slot-0x01 per-zone register family alongside multicolor/name/state/color/active. Configured zones are rebroadcast regularly while unconfigured ones only appear at startup or after a configuration change; the flag now drives the zone's configured state (a newly seen zone wakes the register requester to poll its name/color, and an unconfigured zone stops publishing to Home Assistant) — documented in PROTOCOL.md
 ### Changed
 ### Removed

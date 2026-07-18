@@ -12,6 +12,7 @@ This document describes the proprietary serial protocol used by the Connect 10 p
 - [Commands](#commands)
   - [0x05 — Touchscreen Activation Ack ⚠️](#0x05--touchscreen-activation-ack-️)
   - [0x06 — Lighting Zone Configuration ✅](#0x06--lighting-zone-configuration-)
+  - [0x07 — Lighting Zone Color Broadcast ⚠️](#0x07--lighting-zone-color-broadcast-️)
   - [0x0A — Firmware Version ✅](#0x0a--firmware-version-)
   - [0x0B — Channel Status ✅](#0x0b--channel-status-)
   - [0x0D — Active Channels Bitmask ✅](#0x0d--active-channels-bitmask-)
@@ -122,6 +123,7 @@ Click any CMD in the first column to jump to the full section in [Commands](#com
 |----------------------------------------------------------------|-------------------------------------|------------------------------------------------------------------------|---------------------------------------------------------------------------------------------|-------------------------|
 | [`0x05`](#0x05--touchscreen-activation-ack-️)                  | Touchscreen Activation Ack          | `0x0050` → Broadcast                                                   | 1-byte payload `0x01`; sent after favourite changes                                    | Yes (log-only)          |
 | [`0x06`](#0x06--lighting-zone-configuration-)                  | Lighting Zone Configuration         | `0x0050` → Broadcast                                                   |                                                                                             | Yes                     |
+| [`0x07`](#0x07--lighting-zone-color-broadcast-️)               | Lighting Zone Color Broadcast       | `0x0050` → Broadcast                                                   | `{zone_idx, color}`; only emitted for multicolor-capable zones; color codes install-specific | Yes (log-only)          |
 | [`0x0A`](#0x0a--firmware-version-)                             | Firmware Version                    | `0x0050`, `0x0062`, `0x0070`, `0x0081`, `0x0084`, `0x00A0`, `0x00F0` → Broadcast | Same `{major, minor}` payload across all sources; dispatched on CMD byte alone              | Yes (unified handler)   |
 | [`0x0B`](#0x0b--channel-status-)                               | Channel Status                      | `0x0050` → Broadcast                                                   |                                                                                             | Yes                     |
 | [`0x0D`](#0x0d--active-channels-bitmask-)                      | Active Channels Bitmask             | `0x0050` → `0x006F` Internal Channels                                  | Unicast                                                                                     | Yes                     |
@@ -208,6 +210,33 @@ Indicates which lighting zones are installed and their current on/off state. Bro
 
 - Byte 10: Zone index (`0x00` to `0x03` for zones 1-4)
 - Byte 11: Light status (`0x00` off, `0x01` on)
+
+---
+
+### 0x07 — Lighting Zone Color Broadcast ⚠️
+
+Reports a lighting zone's current color — the CMD companion to [0x06 Lighting Zone Configuration](#0x06--lighting-zone-configuration-), with the same frame shape. Broadcast by the Touchscreen (`0x0050`), but only for multicolor-capable zones (those with the [Light Zone Multicolor register](#appendix-a-register-dispatch-table) `0xA0`+/slot `0x01` set to `0x01`); zones without multicolor never emit this CMD even though their Light Zone Color register still broadcasts a static value.
+
+**Pattern:** `02 00 50 FF FF 80 00 07 0E E5`
+
+**Example:**
+
+```
+02 00 50 FF FF 80 00 07 0E E5 00 05 05 03
+                              ^^ Zone index (0-3 for zones 1-4)
+                                 ^^ Color code (0x05 here)
+```
+
+**Data Fields:**
+
+- Byte 10: Zone index (`0x00` to `0x03` for zones 1-4)
+- Byte 11: Color code — same value and enumeration as the zone's Light Zone Color register (`0xD0`+zone, slot `0x01`)
+
+**Notes:**
+
+- The color byte tracks the zone's `0xD0`+/slot `0x01` register exactly: in a capture where the zone-1 color was changed from the Viron Chlorinator's app, the `0x07` payload flipped `00 05` → `00 01` within 120 ms of the `0xD0` register rebroadcasting `0x01` (Red).
+- The color enumeration is install/light-brand-specific — see [Light Zone Color Control](#light-zone-color-control-register-0xd00xd7-slot-0x01-️).
+- ⚠️ Only zone index `0x00` has been observed (the only multicolor-configured zone on the observed install), so the zone-index reading of byte 10 is inferred from the CMD `0x06` layout rather than confirmed across zones.
 
 ---
 

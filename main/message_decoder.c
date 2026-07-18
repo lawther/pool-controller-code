@@ -96,6 +96,7 @@ static const char *MSG_TYPE_MODE_SET_CMD =          "02 00 50 FF FF 80 00 15 0D 
 static const char *MSG_TYPE_CHANNELS =              "02 00 50 00 6F 80 00 0D 0D 5B";
 static const char *MSG_TYPE_CHANNEL_STATUS =        "02 00 50 FF FF 80 00 0B 25 00";
 static const char *MSG_TYPE_LIGHT_CONFIG =          "02 00 50 FF FF 80 00 06 0E E4";
+static const char *MSG_TYPE_LIGHT_COLOR =           "02 00 50 FF FF 80 00 07 0E E5";
 static const char *MSG_TYPE_CONTROLLER_TIME =       "02 00 50 FF FF 80 00 FD 0F DC";
 static const char *MSG_TYPE_TOUCHSCREEN_UNKNOWN1 =  "02 00 50 FF FF 80 00 12 0E F0";
 static const char *MSG_TYPE_TOUCHSCREEN_UNKNOWN2 =  "02 00 50 FF FF 80 00 27 0D 04";
@@ -246,6 +247,7 @@ typedef struct {
 static const cmd_name_entry_t CMD_NAME_TABLE[] = {
     {0x05, "Touchscreen Unknown 3"},
     {0x06, "Lighting Zone Config"},
+    {0x07, "Lighting Zone Color"},
     {0x0A, "Firmware Version"},
     {0x0B, "Channel Status"},
     {0x0D, "Active Channels Bitmask"},
@@ -2490,6 +2492,37 @@ static bool handle_light_config(
     return true;
 }
 
+/**
+ * Handler: Lighting zone color broadcast (CMD 0x07) — log-only
+ * Pattern: "02 00 50 FF FF 80 00 07 0E E5"
+ *
+ * Color companion to the CMD 0x06 light config broadcast; only emitted for
+ * multicolor-capable zones. The color byte mirrors the zone's Light Zone
+ * Color register (0xD0+zone, slot 0x01), which is the state source that
+ * updates pool_state — so this handler just logs.
+ */
+static bool handle_light_color(
+    const uint8_t *data, int len,
+    const uint8_t *payload, int payload_len,
+    const char *addr_info,
+    message_decoder_context_t *ctx)
+{
+    if (payload_len < 2) return false;
+
+    uint8_t zone_idx = payload[0];
+    uint8_t color    = payload[1];
+
+    if (zone_idx > 3) {  // PROTOCOL.md 0x07: zones 1-4 map to index 0-3 only
+        ESP_LOGW(TAG, "%s Lighting zone color - zone index out of range 0-3: %d", addr_info, zone_idx);
+        record_undocumented(data, len);
+        return true;
+    }
+
+    ESP_LOGI(TAG, "%s Lighting zone %d color - 0x%02X", addr_info, zone_idx + 1, color);
+
+    return true;
+}
+
 // ======================================================
 // Register message handlers (dispatched by register range and slot)
 // ======================================================
@@ -3768,6 +3801,10 @@ static bool dispatch_message(
     // Configuration messages
     if (match_pattern(data, len, MSG_TYPE_LIGHT_CONFIG)) {
         return handle_light_config(data, len, payload, payload_len, addr_info, ctx);
+    }
+
+    if (match_pattern(data, len, MSG_TYPE_LIGHT_COLOR)) {
+        return handle_light_color(data, len, payload, payload_len, addr_info, ctx);
     }
 
     if (match_pattern(data, len, MSG_TYPE_CONFIG)) {
