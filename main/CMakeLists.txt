@@ -12,6 +12,7 @@ idf_component_register(
         "web_handlers.c"
         "tcp_bridge.c"
         "framing.c"
+        "lighting_colors.c"
         "message_decoder.c"
         "register_requester.c"
         "unknown_buffer.c"
