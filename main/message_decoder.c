@@ -266,6 +266,8 @@ static const cmd_name_entry_t CMD_NAME_TABLE[] = {
     {0x27, "Valve State"},
     {0x2A, "Favourite Cmd"},
     {0x2B, "Controller Heartbeat"},
+    {0x2C, "Solar Status"},
+    {0x2D, "Solar Setpoint"},
     {0x31, "Temperature Reading (alt)"},
     {0x37, "Gateway Info Req/Resp"},
     {0x38, "Register Response"},
@@ -615,6 +617,7 @@ static bool handle_favourite_label(const uint8_t *data, int len, const uint8_t *
 static bool handle_favourite_enable(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 static bool handle_active_favourite(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 static bool handle_temp_setpoint(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
+static bool handle_solar_setpoint(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 static bool handle_multicolor_light_type(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 static bool handle_channel_count(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 static bool handle_channel_category(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
@@ -656,6 +659,9 @@ static const register_handler_t REGISTER_HANDLERS[] = {
 
     // Favourite labels (slot 0x03, registers 0x31-0x38 = Pool,Spa,Fav1-6)
     {REG_ID_FAVOURITE_LABEL_0,       REG_ID_FAVOURITE_LABEL_7,       0x03, handle_favourite_label,       "Favourite Label"},
+
+    // Solar setpoint (slot 0x01, register 0x3A)
+    {REG_ID_SOLAR_SETPOINT,          REG_ID_SOLAR_SETPOINT,         0x01, handle_solar_setpoint,        "Solar Setpoint"},
 
     // Heater 1 state (slot 0x00, register 0xE6) — touchscreen register-response broadcast.
     // The CMD 0x12 broadcast from 0x0062 is the authoritative state source that updates
@@ -863,6 +869,25 @@ static bool handle_temp_setpoint(
     if (ctx->enable_mqtt) {
         mqtt_publish_heater_setpoints(&state_snapshot, heater_idx);
     }
+
+    return true;
+}
+
+/**
+ * Handler: Solar temperature setpoint
+ * Register 0x3A, Slot 0x01, 1-byte °C value. Log-only — not yet surfaced in
+ * pool_state or MQTT.
+ */
+static bool handle_solar_setpoint(
+    const uint8_t *data, int len,
+    const uint8_t *payload, int payload_len,
+    const char *addr_info,
+    message_decoder_context_t *ctx)
+{
+    if (payload_len < 3) return false;
+
+    uint8_t temp_c = payload[2];
+    ESP_LOGI(TAG, "%s Solar setpoint - %d°C", addr_info, temp_c);
 
     return true;
 }
@@ -2590,6 +2615,59 @@ static bool handle_light_refresh(
     return true;
 }
 
+/**
+ * Handler: Solar setpoint broadcast (CMD 0x2D) — log-only
+ * Dispatched on the CMD byte alone (source-agnostic).
+ *
+ * Broadcast by the Touchscreen when the solar setpoint is changed; carries the
+ * setpoint as a single °C byte. The same value lives in the solar setpoint
+ * register (0x3A/slot 0x01, handle_solar_setpoint).
+ */
+static bool handle_solar_setpoint_broadcast(
+    const uint8_t *data, int len,
+    const uint8_t *payload, int payload_len,
+    const char *addr_info,
+    message_decoder_context_t *ctx)
+{
+    if (payload_len < 1) return false;
+
+    ESP_LOGI(TAG, "%s Solar setpoint broadcast - %d°C", addr_info, payload[0]);
+
+    return true;
+}
+
+/**
+ * Handler: Solar status broadcast (CMD 0x2C) — log-only
+ * Dispatched on the CMD byte alone (source-agnostic).
+ *
+ * Solar config block from the Touchscreen: config bitmask (season, flush
+ * daily, filter pump required), mode, two temperature readings (likely pool
+ * water / roof, byte order unconfirmed) and the temperature differential.
+ * See PROTOCOL.md 0x2C for the payload layout and remaining unknowns.
+ */
+static bool handle_solar_status_broadcast(
+    const uint8_t *data, int len,
+    const uint8_t *payload, int payload_len,
+    const char *addr_info,
+    message_decoder_context_t *ctx)
+{
+    if (payload_len < 6) return false;
+
+    uint8_t flags = payload[0];
+    uint8_t mode  = payload[1];
+    const char *mode_name = (mode == 0x00) ? "Off" : (mode == 0x01) ? "Auto" : (mode == 0x02) ? "On" : "Unknown";
+
+    ESP_LOGI(TAG, "%s Solar status - Mode: %s, Season: %s, Flush daily: %s, "
+             "Filter pump required: %s, Differential: %d°C, Temps: %d°C/%d°C",
+             addr_info, mode_name,
+             (flags & 0x20) ? "Summer" : "Winter",
+             (flags & 0x02) ? "on" : "off",
+             (flags & 0x08) ? "yes" : "no",
+             payload[5], payload[2], payload[3]);
+
+    return true;
+}
+
 // ======================================================
 // Register message handlers (dispatched by register range and slot)
 // ======================================================
@@ -3875,6 +3953,18 @@ static bool dispatch_message(
     // only the Touchscreen (0x0050) observed sending it so far
     if (cmd == 0x3C) {
         return handle_light_refresh(data, len, payload, payload_len, addr_info, ctx);
+    }
+
+    // Solar setpoint broadcast (CMD 0x2D) — dispatched on the CMD byte alone;
+    // only the Touchscreen (0x0050) observed sending it so far
+    if (cmd == 0x2D) {
+        return handle_solar_setpoint_broadcast(data, len, payload, payload_len, addr_info, ctx);
+    }
+
+    // Solar status broadcast (CMD 0x2C) — dispatched on the CMD byte alone;
+    // only the Touchscreen (0x0050) observed sending it so far
+    if (cmd == 0x2C) {
+        return handle_solar_status_broadcast(data, len, payload, payload_len, addr_info, ctx);
     }
 
     // Configuration messages

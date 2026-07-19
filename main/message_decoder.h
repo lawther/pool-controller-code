@@ -143,6 +143,8 @@ typedef enum {
     REG_ID_FAVOURITE_LABEL_0       = 0x31,  // Fav label index 0   (0–7 → 0x31–0x38, slot 0x03)
     REG_ID_FAVOURITE_LABEL_7       = 0x38,  // Fav label index 7 (last)
 
+    REG_ID_SOLAR_SETPOINT          = 0x3A,  // Solar temperature setpoint in °C (slot 0x01)
+
     REG_ID_CHANNEL_TYPE_0          = 0x6C,  // Channel 0 type  (0–7 → 0x6C–0x73, slot 0x02)
     REG_ID_CHANNEL_TYPE_7          = 0x73,  // Channel 7 type (last)
 

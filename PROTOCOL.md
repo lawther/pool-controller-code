@@ -34,6 +34,8 @@ This document describes the proprietary serial protocol used by the Connect 10 p
   - [0x28 — Valve Control Command ✅](#0x28--valve-control-command-)
   - [0x2A — Favourite Control Command ✅](#0x2a--favourite-control-command-)
   - [0x2B — Unknown ⚠️](#0x2b--unknown-️)
+  - [0x2C — Solar Status Broadcast ⚠️](#0x2c--solar-status-broadcast-️)
+  - [0x2D — Solar Setpoint Broadcast ✅](#0x2d--solar-setpoint-broadcast-)
   - [0x31 — Water Temperature Reading (alt) ✅](#0x31--water-temperature-reading-alt-)
   - [0x37 — Internet Gateway Info ⚠️](#0x37--internet-gateway-info-️)
   - [0x38 — Register Data ⚠️](#0x38--register-data-️)
@@ -146,6 +148,8 @@ Click any CMD in the first column to jump to the full section in [Commands](#com
 | [`0x28`](#0x28--valve-control-command-)                        | Valve Control Command               | `0x00F0` Gateway → Broadcast                                           |                                                                                             | **No (doc only)**       |
 | [`0x2A`](#0x2a--favourite-control-command-)                    | Favourite Control Command           | `0x00F0` Gateway, `0x0062` Connect 8/10 → `0x0050` Touchscreen         | Unicast; dispatched on CMD byte alone (source-agnostic)                                     | Yes (unified handler)   |
 | [`0x2B`](#0x2b--unknown-️)                                     | Unknown (heartbeat)                 | `0x0062` Connect 8/10 → `0x0050` Touchscreen                          | Unicast ~60 s; payload `[02 00]` observed; meaning unknown. Handler flags any deviation      | Yes (log-only + flag)   |
+| [`0x2C`](#0x2c--solar-status-broadcast-️)                      | Solar Status Broadcast              | `0x0050` Touchscreen → Broadcast                                       | Byte 11 = solar mode (Off/Auto/On); byte 10 bit 5 = Winter/Summer; byte 15 = temperature differential °C; dispatched on CMD byte alone | Yes (log-only)          |
+| [`0x2D`](#0x2d--solar-setpoint-broadcast-)                     | Solar Setpoint Broadcast            | `0x0050` Touchscreen → Broadcast                                       | Fired when the solar setpoint is changed; 1-byte °C value; dispatched on CMD byte alone     | Yes (log-only)          |
 | [`0x31`](#0x31--water-temperature-reading-alt-)                | Water Temperature Reading (alt)     | `0x0062` → Broadcast                                                   | Same `{temp1, temp2}` field layout as `0x16`; different disconnected encoding (`>= 0xA0` vs `0x00`); shared handler, log-only | Yes (unified handler)   |
 | [`0x37`](#0x37--internet-gateway-info-️)                       | Internet Gateway Info               | `0x00F0` → Broadcast                                                   | LEN distinguishes serial (`0x11`), network config (`0x15`), comms status (`0x0F`) variants  | Yes (3 handlers)        |
 | [`0x38`](#0x38--register-data-️)                               | Register Data (Response)            | `0x0050` Touchscreen → Broadcast                                       | Universal register system — sub-dispatched by register + slot (see [Appendix A](#appendix-a-register-dispatch-table)); dispatched on CMD byte alone | Yes (unified handler)   |
@@ -1363,6 +1367,73 @@ Unicast message sent by the Connect 8/10 Controller (`0x0062`) directly to the T
 
 ---
 
+### 0x2C — Solar Status Broadcast ⚠️
+
+Broadcast from the Touchscreen (`0x0050`) carrying the solar mode and further, not yet decoded, solar fields. Like [0x2D](#0x2d--solar-setpoint-broadcast-), it only appears on systems where the solar configuration has been touched.
+
+**Pattern:** `02 00 50 FF FF 80 00 2C 12 0E`
+
+**Examples:**
+
+```
+02 00 50 FF FF 80 00 2C 12 0E 23 00 00 00 04 07 2E 03   Solar mode Off
+02 00 50 FF FF 80 00 2C 12 0E 23 01 00 00 04 07 2F 03   Solar mode Auto
+02 00 50 FF FF 80 00 2C 12 0E 23 02 00 00 04 07 30 03   Solar mode On
+                                 ^^ Solar mode
+02 00 50 FF FF 80 00 2C 12 0E 03 00 00 00 04 07 0E 03   Winter (byte 10 bit 5 clear)
+02 00 50 FF FF 80 00 2C 12 0E 23 00 00 00 04 07 2E 03   Summer (byte 10 bit 5 set)
+                              ^^ Season/config bitmask
+02 00 50 FF FF 80 00 2C 12 0E 21 00 00 00 03 06 2A 03   Temperature differential 6°C
+                                             ^^ Temperature differential
+02 00 50 FF FF 80 00 2C 12 0E 2B 00 00 00 03 06 34 03   Filter pump required for solar (byte 10 bit 3 set)
+```
+
+**Data Fields:**
+
+- Byte 10: Configuration bitmask
+  - Bit 5: `0` = Winter, `1` = Summer
+  - Bit 3: Filter pump required for solar (`0` = no, `1` = yes)
+  - Bit 1: Flush daily (`0` = disabled, `1` = enabled)
+  - Bit 0: Unknown — always `1` in observed samples
+  - Other bits: `0` in observed samples
+- Byte 11: Solar mode (`0x00`=Off, `0x01`=Auto, `0x02`=On — same encoding as channel state)
+- Bytes 12–13: Likely the two solar temperature readings the touchscreen shows as "Pool water was" and "Roof temperature" (°C) — both read 0 on the observed system, matching the constant `0x00 0x00`. Which byte is which (and the confirmation itself) needs a capture with live solar sensors reporting non-zero values.
+- Byte 14: Unknown — has tracked byte 15 at (differential − 3) in all observed samples (`04`/`07`, `03`/`06`)
+- Byte 15: Temperature differential in °C
+- Byte 16: Data checksum
+
+**Notes:**
+
+- Decoded in code by `handle_solar_status_broadcast` — log-only, no `pool_state` update.
+
+---
+
+### 0x2D — Solar Setpoint Broadcast ✅
+
+Broadcast from the Touchscreen (`0x0050`) when the solar temperature setpoint is changed, carrying the setpoint as a single byte. The same value lives in the [Solar Setpoint register](#appendix-a-register-dispatch-table) (`0x3A`/slot `0x01`), which the Gateway polls — this CMD is the push notification of a change, mirroring how the heater setpoints have both register and dedicated-CMD representations.
+
+**Pattern:** `02 00 50 FF FF 80 00 2D 0D 0A`
+
+**Example:**
+
+```
+02 00 50 FF FF 80 00 2D 0D 0A 19 19 03   Solar setpoint 25°C
+                              ^^ Setpoint °C
+                                 ^^ Data checksum (equals byte 10, the only data byte)
+```
+
+**Data Fields:**
+
+- Byte 10: Solar setpoint in °C
+- Byte 11: Data checksum (equals byte 10)
+
+**Notes:**
+
+- Fired on a solar setpoint change at the touchscreen. Never seen in captures from systems where the solar config was untouched.
+- Decoded in code by `handle_solar_setpoint_broadcast` — log-only, no `pool_state` update.
+
+---
+
 ### 0x31 — Water Temperature Reading (alt) ✅
 
 Second water-temperature variant broadcast by the Connect 8/10 Controller (`0x0062`), in parallel to the [0x16](#0x16--water-temperature-reading-) reading. The two CMDs carry the same `{temp1, temp2}` field layout; the only practical difference is the **disconnected-sensor encoding**:
@@ -1947,6 +2018,7 @@ The register ID and slot together determine the message meaning. The slot distin
 | `0x20`         | `0x03` | Active Favourite       | CMD `0x2A` value of the active favourite (`0x00`=Pool … `0x07`=Favourite 6); `0xFF` = none active — see note below |
 | `0x21`–`0x28`  | `0x03` | Favourite Enable       | 1-byte flag (`0x01`=enabled, `0x00`=disabled). Maps to CMD `0x2A` values `0x00`–`0x07` in order. Pool (`0x21`) and Spa (`0x22`) are always `0x01`. |
 | `0x31`–`0x38`  | `0x03` | Favourite Labels       | Null-terminated ASCII string. Maps to CMD `0x2A` values `0x00`–`0x07` in order. `0x31`=Pool, `0x32`=Spa, `0x33`–`0x38`=user Favourites 1–6. |
+| `0x3A`         | `0x01` | Solar Setpoint         | 1-byte °C value — see note below                 |
 | `0x64`-`0x65` ⚠️| `0x00`| Unknown                | Only `0x01` observed. Repeats ~every 8 minutes   |
 | `0x6C`–`0x73`  | `0x02` | Channel Types          | 1-byte type code (see [0x0B](#0x0b--channel-status-) channel types)    |
 | `0x7C`–`0x83`  | `0x02` | Channel Names          | Null-terminated ASCII string                     |
@@ -1981,6 +2053,7 @@ The register ID and slot together determine the message meaning. The slot distin
 - Register ranges can overlap (e.g., `0xD0`–`0xD7`) but are distinguished by the slot value
 - The same slot value (e.g., `0x02`) can represent different data formats depending on the register
 - Slot values appear to be context-dependent rather than globally defining a data type
+- **`0x3A` (Solar Setpoint) — confirmed ✅**: 1-byte solar temperature setpoint in °C. Confirmed by UI experiment: changing the solar setpoint to 23°C rebroadcast `3A 01 17`. Polled by the Internet Gateway every cycle via [0x39](#0x39--register-read-request-) (never appears in the touchscreen's spontaneous ~8-minute dump); on installs where the setting is untouched it reads the `0x19` (25°C) default. Setpoint changes are also announced via the dedicated [0x2D Solar Setpoint Broadcast](#0x2d--solar-setpoint-broadcast-).
 - **`0xE9`/`0xEA`/`0xEB` (Heater 2 trio) — confirmed ✅**: Slot `0x00` holds the Heater 1 trio at `0xE6` (state), `0xE7` (Pool setpoint), `0xE8` (Spa setpoint), and `0xE9`/`0xEA`/`0xEB` are the analogous trio for the second heater: `0xE9` = state (`0x00`=Off, `0x01`=On), `0xEA` = Pool setpoint, `0xEB` = Spa setpoint (1-byte °C). All three are writable via the gateway register-write command (CMD `0x3A` / second-byte `0xB9`). `0xEA` was confirmed by UI capture — changing the setpoint in the UI sends a `0x3A` write to `0xEA`/slot `0x00` and the touchscreen rebroadcasts the new value via CMD `0x38` (observed 21°C `EA 00 15`, 22°C `EA 00 16`, 27°C `EA 00 1B`; the 27°C value matched the **H2** value in the heater's `0x0070` CMD `0x17` broadcast). `0xE9` and `0xEB` are confirmed as Heater 2 state and spa setpoint respectively. (On the test install the second heater is a heat pump; "Heater 2" is kept as the generic name since another install's second heater may be a different type.)
 - **Mutually exclusive broadcast**: in captures observed so far the touchscreen broadcasts *either* the `E6/E7/E8` trio *or* the `E9/EA/EB` trio in slot `0x00`, but not both — consistent with a config-dependent enable (likely [0x26](#0x26--configuration-️) byte 10 bit 3 = heater count).
 - **`0xEB` default**: when the second heater isn't plumbed to spa, `0xEB` reads `0x0A` (10°C) — an unused default at the minimum setpoint rather than a live value.
