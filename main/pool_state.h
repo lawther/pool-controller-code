@@ -162,6 +162,11 @@ typedef struct {
 #define FAVOURITE_ALL_AUTO 0x81
 #define FAVOURITE_NONE     0xFF  // no favourite active (register 0x20, slot 0x03)
 
+// Multicolor light type selection (register 0xF0, slot 0x01) — system-wide light model
+#define MULTICOLOR_LIGHT_TYPE_SLX   0x00
+#define MULTICOLOR_LIGHT_TYPE_DELTA 0x01
+#define MULTICOLOR_LIGHT_TYPE_NONE  0xFF  // no multicolor light configured
+
 typedef struct {
     char name[32];        // Label from register 0x31+index, slot 0x03
     bool enabled;         // Enable flag from register 0x21+index, slot 0x03
@@ -191,6 +196,10 @@ typedef struct {
 
     // Lighting (up to MAX_LIGHT_ZONES)
     lighting_state_t lighting[MAX_LIGHT_ZONES];
+
+    // System-wide multicolor light type selection (register 0xF0, slot 0x01): MULTICOLOR_LIGHT_TYPE_*
+    uint8_t multicolor_light_type;
+    bool multicolor_light_type_valid;
 
     // Register labels (general storage for register names like favourites, etc.)
     register_label_t register_labels[MAX_REGISTER_LABELS];

@@ -263,6 +263,7 @@ static esp_err_t home_get_handler(httpd_req_t *req)
         "data.lighting.forEach(lt=>{"
         "let s=lt.state;if(lt.active&&lt.color)s+=': '+lt.color;"
         "rows.push(['Lighting zone '+lt.zone,s]);});"
+        "if(data.multicolor_light_type)rows.push(['Multicolor Light Type',data.multicolor_light_type]);"
         "const c=data.chlorinator;"
         "if(c.ph_reading!==null)rows.push(['pH',c.ph_reading+' (setpoint '+c.ph_setpoint+')']);"
         "if(c.orp_reading!==null)rows.push(['ORP',c.orp_reading+'mV (setpoint '+c.orp_setpoint+'mV)']);"
@@ -800,6 +801,15 @@ static esp_err_t status_get_handler(httpd_req_t *req)
         cJSON_AddItemToArray(lighting, zone);
     }
     cJSON_AddItemToObject(root, "lighting", lighting);
+
+    // Multicolor light type (register 0xF0, slot 0x01)
+    if (state.multicolor_light_type_valid) {
+        char type_buf[16];
+        cJSON_AddStringToObject(root, "multicolor_light_type",
+                                multicolor_light_type_name(state.multicolor_light_type, type_buf, sizeof(type_buf)));
+    } else {
+        cJSON_AddNullToObject(root, "multicolor_light_type");
+    }
 
     // Valves
     cJSON *valves = cJSON_CreateArray();

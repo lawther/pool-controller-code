@@ -296,6 +296,17 @@ static const char* get_cmd_name(uint8_t cmd, char *fallback_buf, size_t buf_size
     return fallback_buf;
 }
 
+const char* multicolor_light_type_name(uint8_t type, char *fallback_buf, size_t buf_size) {
+    switch (type) {
+        case MULTICOLOR_LIGHT_TYPE_NONE:  return "None";
+        case MULTICOLOR_LIGHT_TYPE_SLX:   return "SLX";
+        case MULTICOLOR_LIGHT_TYPE_DELTA: return "Delta";
+        default:
+            snprintf(fallback_buf, buf_size, "Unknown (0x%02X)", type);
+            return fallback_buf;
+    }
+}
+
 // Channel state names
 const char *CHANNEL_STATE_NAMES[] = {
     "Off",          // 0
@@ -633,6 +644,7 @@ static bool handle_favourite_label(const uint8_t *data, int len, const uint8_t *
 static bool handle_favourite_enable(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 static bool handle_active_favourite(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 static bool handle_temp_setpoint(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
+static bool handle_multicolor_light_type(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 static bool handle_channel_count(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 static bool handle_channel_category(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 static bool handle_valve_state(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
@@ -688,6 +700,8 @@ static const register_handler_t REGISTER_HANDLERS[] = {
 
     // Heater 2 setpoints (slot 0x00, registers 0xEA=Pool, 0xEB=Spa)
     {REG_ID_HEATER2_POOL_SETPOINT, REG_ID_HEATER2_SPA_SETPOINT, 0x00, handle_temp_setpoint,          "Heater 2 Setpoint"},
+
+    {REG_ID_MULTICOLOR_LIGHT_TYPE, REG_ID_MULTICOLOR_LIGHT_TYPE, 0x01, handle_multicolor_light_type, "Multicolor Light Type"},
 
     {REG_ID_CHANNEL_COUNT,         REG_ID_CHANNEL_COUNT,         0x01, handle_channel_count,         "Channel Count"},
 
@@ -944,6 +958,43 @@ static bool handle_heater2_state(
 
     if (ctx->enable_mqtt) {
         mqtt_publish_heater(&snapshot, 1);
+    }
+
+    return true;
+}
+
+/**
+ * Handler: Multicolor light type selection
+ * Register 0xF0, Slot 0x01
+ * System-wide light model selected in the touchscreen's light setup:
+ * 0x00=SLX, 0x01=Delta, 0xFF=no multicolor light configured. A value outside
+ * the known set is a new model index worth capturing.
+ */
+static bool handle_multicolor_light_type(
+    const uint8_t *data, int len,
+    const uint8_t *payload, int payload_len,
+    const char *addr_info,
+    message_decoder_context_t *ctx)
+{
+    if (payload_len < 3) return false;
+
+    uint8_t type = payload[2];
+    char name_buf[16];
+    const char *name = multicolor_light_type_name(type, name_buf, sizeof(name_buf));
+
+    ESP_LOGI(TAG, "%s Multicolor light type - %s", addr_info, name);
+
+    if (type != MULTICOLOR_LIGHT_TYPE_NONE &&
+        type != MULTICOLOR_LIGHT_TYPE_SLX &&
+        type != MULTICOLOR_LIGHT_TYPE_DELTA) {
+        record_undocumented(data, len);
+    }
+
+    if (ctx->state_mutex && xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) == pdTRUE) {
+        ctx->pool_state->multicolor_light_type = type;
+        ctx->pool_state->multicolor_light_type_valid = true;
+        ctx->pool_state->last_update_ms = xTaskGetTickCount() * portTICK_PERIOD_MS;
+        xSemaphoreGive(ctx->state_mutex);
     }
 
     return true;
