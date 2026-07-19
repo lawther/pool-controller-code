@@ -1304,19 +1304,20 @@ static esp_err_t update_get_handler(httpd_req_t *req)
         "<button type='button' id='ghInstall' hidden data-variant='success'>Install selected version</button>"
         "</div>"
         "<script>"
-        // Shared by the GitHub and manual-upload flows: count down while the
-        // device reboots, then reload so the page shows the new firmware.
-        "function rebootReload(el){"
+        // Shared by the GitHub, manual-upload and reboot flows: count down
+        // while the device reboots, then reload the page.
+        "function rebootReload(el,msg){"
+        "msg=msg||'Update successful!';"
         "el.setAttribute('data-variant','success');"
         "let countdown=15;"
-        "el.textContent='Update successful! Rebooting... reload in '+countdown+' seconds';"
+        "el.textContent=msg+' Rebooting... reload in '+countdown+' seconds';"
         "const timer=setInterval(function(){"
         "countdown--;"
         "if(countdown>0){"
-        "el.textContent='Update successful! Rebooting... reload in '+countdown+' seconds';"
+        "el.textContent=msg+' Rebooting... reload in '+countdown+' seconds';"
         "}else{"
         "clearInterval(timer);"
-        "el.textContent='Update successful! Rebooting... reloading now...';"
+        "el.textContent=msg+' Rebooting... reloading now...';"
         "window.location.reload();"
         "}},1000);}"
         "(function(){"
@@ -1438,6 +1439,24 @@ static esp_err_t update_get_handler(httpd_req_t *req)
         "xhr.timeout=120000;"
         "xhr.setRequestHeader('Content-Type','application/octet-stream');"
         "xhr.send(file);"
+        "});"
+        "</script>"
+
+        // ---- Reboot --------------------------------------------------------
+        "<h2 class='mt-4'>Reboot</h2>"
+        "<p>Restart the device without changing the firmware.</p>"
+        "<button type='button' id='rebootBtn' data-variant='danger'>Reboot device</button>"
+        "<div id='rebootStatus' role='alert' hidden class='mt-4'></div>"
+        "<script>"
+        "document.getElementById('rebootBtn').addEventListener('click',function(){"
+        "if(!confirm('Reboot the device now?'))return;"
+        "const s=document.getElementById('rebootStatus');"
+        "s.removeAttribute('hidden');"
+        // A network error means the device restarted before the response
+        // arrived, so treat it the same as success.
+        "fetch('/reboot',{method:'POST'}).then(r=>r.json()).then(function(d){"
+        "rebootReload(s,'Reboot requested.');"
+        "}).catch(function(){rebootReload(s,'Reboot requested.');});"
         "});"
         "</script>";
 
@@ -1690,6 +1709,21 @@ static esp_err_t update_github_post_handler(httpd_req_t *req)
             "{\"success\":false,\"message\":\"No release available or an update is already running\"}",
             HTTPD_RESP_USE_STRLEN);
     }
+    return ESP_OK;
+}
+
+// POST /reboot — restart the device.
+static esp_err_t reboot_post_handler(httpd_req_t *req)
+{
+    ESP_LOGI(TAG, "Reboot requested via web UI");
+
+    const char *resp = "{\"success\":true,\"message\":\"Rebooting...\"}";
+    httpd_resp_set_type(req, "application/json; charset=UTF-8");
+    httpd_resp_send(req, resp, HTTPD_RESP_USE_STRLEN);
+
+    vTaskDelay(pdMS_TO_TICKS(TASK_DELAY_MS));
+    esp_restart();
+
     return ESP_OK;
 }
 
@@ -2098,6 +2132,12 @@ static const httpd_uri_t update_github_uri = {
     .handler = update_github_post_handler
 };
 
+static const httpd_uri_t reboot_post_uri = {
+    .uri = "/reboot",
+    .method = HTTP_POST,
+    .handler = reboot_post_handler
+};
+
 static const httpd_uri_t test_decode_uri = {
     .uri = "/api/test_decode",
     .method = HTTP_POST,
@@ -2285,6 +2325,7 @@ esp_err_t web_handlers_register(httpd_handle_t server)
     httpd_register_uri_handler(server, &update_post_uri);
     httpd_register_uri_handler(server, &update_check_uri);
     httpd_register_uri_handler(server, &update_github_uri);
+    httpd_register_uri_handler(server, &reboot_post_uri);
     httpd_register_uri_handler(server, &test_decode_uri);
     httpd_register_uri_handler(server, &unknown_msgs_json_uri);
     httpd_register_uri_handler(server, &unknown_msgs_clear_uri);

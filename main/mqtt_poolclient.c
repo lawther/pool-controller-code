@@ -1,7 +1,10 @@
 #include "mqtt_poolclient.h"
 #include "config.h"
 #include "esp_log.h"
+#include "esp_system.h"
 #include "esp_wifi.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #include "nvs_flash.h"
 #include "nvs.h"
 #include <string.h>
@@ -217,6 +220,10 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
         snprintf(topic, sizeof(topic), "pool/%s/update/check", device_id);
         esp_mqtt_client_subscribe(s_mqtt_client, topic, 0);
 
+        // Subscribe to the reboot command
+        snprintf(topic, sizeof(topic), "pool/%s/reboot", device_id);
+        esp_mqtt_client_subscribe(s_mqtt_client, topic, 0);
+
         ESP_LOGI(TAG, "Subscribed to command topics");
 
         // Publish Home Assistant discovery messages
@@ -252,6 +259,11 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
                    memcmp(event->topic + event->topic_len - 13, "/update/check", 13) == 0) {
             ESP_LOGI(TAG, "Firmware update check requested via MQTT");
             firmware_update_request_check();  // wakes the check task; runs async
+        } else if (event->topic_len >= 7 &&
+                   memcmp(event->topic + event->topic_len - 7, "/reboot", 7) == 0) {
+            ESP_LOGI(TAG, "Reboot requested via MQTT");
+            vTaskDelay(pdMS_TO_TICKS(TASK_DELAY_MS));  // let the log flush
+            esp_restart();
         } else {
             // Handle pool control command
             mqtt_handle_command(event->topic, event->topic_len, event->data, event->data_len);

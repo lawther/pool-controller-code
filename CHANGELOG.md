@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- Added a device reboot control: a Reboot button on the firmware-update web page (with confirmation and auto-reload countdown) backed by a new `/reboot` endpoint, and a matching Home Assistant Reboot button via MQTT (`pool/<device_id>/reboot`)
 ### Changed
 ### Removed
 ### Fixed
