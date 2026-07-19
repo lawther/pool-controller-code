@@ -307,6 +307,29 @@ const char* multicolor_light_type_name(uint8_t type, char *fallback_buf, size_t 
     }
 }
 
+// Per-model color code subsets of the shared color value space (indexes into
+// LIGHTING_COLOR_NAMES) — see PROTOCOL.md, Light Zone Color Control.
+static const uint8_t SLX_COLOR_CODES[] = {
+    0x01, 0x02, 0x04, 0x05, 0x07, 0x08, 0x0A, 0x0D, 0x0E, 0x0F, 0x10, 0x11
+};
+static const uint8_t DELTA_COLOR_CODES[] = {
+    0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C
+};
+
+const uint8_t* multicolor_light_color_codes(uint8_t light_type, int *count) {
+    switch (light_type) {
+        case MULTICOLOR_LIGHT_TYPE_SLX:
+            *count = sizeof(SLX_COLOR_CODES);
+            return SLX_COLOR_CODES;
+        case MULTICOLOR_LIGHT_TYPE_DELTA:
+            *count = sizeof(DELTA_COLOR_CODES);
+            return DELTA_COLOR_CODES;
+        default:
+            *count = 0;
+            return NULL;
+    }
+}
+
 // Channel state names
 const char *CHANNEL_STATE_NAMES[] = {
     "Off",          // 0
@@ -990,11 +1013,27 @@ static bool handle_multicolor_light_type(
         record_undocumented(data, len);
     }
 
+    bool type_changed = false;
+    pool_state_t state_snapshot;
+
     if (ctx->state_mutex && xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) == pdTRUE) {
+        type_changed = !ctx->pool_state->multicolor_light_type_valid ||
+                       ctx->pool_state->multicolor_light_type != type;
         ctx->pool_state->multicolor_light_type = type;
         ctx->pool_state->multicolor_light_type_valid = true;
         ctx->pool_state->last_update_ms = xTaskGetTickCount() * portTICK_PERIOD_MS;
+        state_snapshot = *ctx->pool_state;
         xSemaphoreGive(ctx->state_mutex);
+    }
+
+    // The type selects the color effect list on the HA light entities, so
+    // re-publish configured zones when it changes (refreshes their discovery)
+    if (type_changed && ctx->enable_mqtt) {
+        for (int i = 0; i < MAX_LIGHT_ZONES; i++) {
+            if (state_snapshot.lighting[i].configured) {
+                mqtt_publish_light(&state_snapshot, state_snapshot.lighting[i].zone);
+            }
+        }
     }
 
     return true;

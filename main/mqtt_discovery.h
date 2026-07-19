@@ -16,7 +16,9 @@ void mqtt_publish_update_discovery_single(void);
 void mqtt_publish_channel_discovery_single(int channel_num, const char *channel_name);
 
 // Publish individual light discovery (called when light first configured or name changes)
-void mqtt_publish_light_discovery_single(int zone_num, const char *zone_name);
+// multicolor_light_type: MULTICOLOR_LIGHT_TYPE_* — pass MULTICOLOR_LIGHT_TYPE_NONE
+// for non-multicolor zones; a known type adds the color effect list to the entity
+void mqtt_publish_light_discovery_single(int zone_num, const char *zone_name, uint8_t multicolor_light_type);
 
 // Publish individual valve discovery (called when valve first configured or name changes)
 void mqtt_publish_valve_discovery_single(int valve_num, const char *valve_name);

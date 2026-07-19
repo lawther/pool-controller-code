@@ -107,6 +107,16 @@ const char* get_channel_type_name(uint8_t type_code);
  */
 const char* multicolor_light_type_name(uint8_t type, char *fallback_buf, size_t buf_size);
 
+/**
+ * Get the color codes available on a multicolor light model
+ * Returns the model's subset of the shared color value space (each code is an
+ * index into LIGHTING_COLOR_NAMES) — see PROTOCOL.md, Light Zone Color Control.
+ * @param light_type Multicolor light type index from register 0xF0, slot 0x01
+ * @param count Out: number of codes (0 if the type is unknown or None)
+ * @return Pointer to the code array, or NULL if the type has no color table
+ */
+const uint8_t* multicolor_light_color_codes(uint8_t light_type, int *count);
+
 // Special channel type markers
 #define CHANNEL_UNUSED          0x00  // Unused/unconfigured channel
 #define CHANNEL_TYPE_HEATER     0xFD  // Channel is a heater (handled separately)

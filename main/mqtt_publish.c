@@ -32,6 +32,11 @@ static struct {
     bool service_mode;
 } s_discovery_published = {0};
 
+// Effective multicolor light type each zone's discovery was last published with
+// (drives the color effect list); only meaningful while the zone's
+// s_discovery_published.lights flag is set
+static uint8_t s_light_discovery_type[MAX_LIGHT_ZONES];
+
 // ======================================================
 // Setpoint and Temperature Publishing
 // ======================================================
@@ -365,17 +370,26 @@ void mqtt_publish_light(const pool_state_t *current_state, uint8_t zone)
     const char *zone_name = (light->name_valid && light->name_id < LIGHT_ZONE_NAME_COUNT) ?
                             LIGHT_ZONE_NAME_TABLE[light->name_id] : NULL;
 
-    // Re-publish discovery if the zone name has changed since last publish
+    // Multicolor light type in effect for this zone: the system-wide model
+    // selection, but only once the zone is known multicolor-capable
+    uint8_t effective_light_type =
+        (light->multicolor_valid && light->multicolor && current_state->multicolor_light_type_valid) ?
+        current_state->multicolor_light_type : MULTICOLOR_LIGHT_TYPE_NONE;
+
+    // Re-publish discovery if the zone name or the effective light type
+    // (drives the color effect list) changed since last publish
     if (s_discovery_published.lights[idx] &&
         (s_last_published_state.lighting[idx].name_id != light->name_id ||
-         s_last_published_state.lighting[idx].name_valid != light->name_valid)) {
+         s_last_published_state.lighting[idx].name_valid != light->name_valid ||
+         s_light_discovery_type[idx] != effective_light_type)) {
         s_discovery_published.lights[idx] = false;
     }
 
-    // Publish discovery if this is the first time seeing this light zone (or name changed)
+    // Publish discovery if this is the first time seeing this light zone (or config changed)
     if (!s_discovery_published.lights[idx]) {
-        mqtt_publish_light_discovery_single(zone, zone_name);
+        mqtt_publish_light_discovery_single(zone, zone_name, effective_light_type);
         s_discovery_published.lights[idx] = true;
+        s_light_discovery_type[idx] = effective_light_type;
     }
 
     // Check if anything changed
@@ -400,12 +414,10 @@ void mqtt_publish_light(const pool_state_t *current_state, uint8_t zone)
     static const char *STATE_NAMES[] = {"Off", "Auto", "On"};
     const char *state_name = (light->state < 3) ? STATE_NAMES[light->state] : "Unknown";
 
-    // Color names (subset - full list is in main.c)
-    static const char *COLOR_NAMES[] = {
-        "Unknown", "Red", "Orange", "Yellow", "Green", "Blue", "Purple", "White",
-        "User1", "User2", "Disco", "Smooth", "Fade", "Magenta", "Cyan"
-    };
-    const char *color_name = (light->color < 15) ? COLOR_NAMES[light->color] : "Unknown";
+    // Color names from the shared color table — must match the discovery
+    // effect_list entries so HA can bind the current effect
+    const char *color_name = (light->color < LIGHTING_COLOR_COUNT) ?
+                             LIGHTING_COLOR_NAMES[light->color] : "Unknown";
 
     char fallback_name[24];
     if (!zone_name) {

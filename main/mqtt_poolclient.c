@@ -179,9 +179,11 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
             esp_mqtt_client_subscribe(s_mqtt_client, topic, 0);
         }
 
-        // Subscribe to light commands (zones 1-MAX_LIGHT_ZONES)
+        // Subscribe to light commands (zones 1-MAX_LIGHT_ZONES): state and color
         for (int i = 1; i <= MAX_LIGHT_ZONES; i++) {
             snprintf(topic, sizeof(topic), "pool/%s/light/%d/set", device_id, i);
+            esp_mqtt_client_subscribe(s_mqtt_client, topic, 0);
+            snprintf(topic, sizeof(topic), "pool/%s/light/%d/color/set", device_id, i);
             esp_mqtt_client_subscribe(s_mqtt_client, topic, 0);
         }
 

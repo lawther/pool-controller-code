@@ -103,6 +103,50 @@ static void handle_light_command(int zone, const char *payload, int payload_len)
     send_uart_command(cmd, sizeof(cmd));
 }
 
+static void handle_light_color_command(int zone, const char *payload, int payload_len)
+{
+    ESP_LOGI(TAG, "Light zone %d color command: %.*s", zone, payload_len, payload);
+
+    // Map the color name (an HA effect_list entry) back to its code in the
+    // shared color table; the discovery effect list constrains what HA offers
+    uint8_t color = 0;
+    for (int i = 1; i < LIGHTING_COLOR_COUNT; i++) {
+        if ((int)strlen(LIGHTING_COLOR_NAMES[i]) == payload_len &&
+            strncmp(payload, LIGHTING_COLOR_NAMES[i], payload_len) == 0) {
+            color = (uint8_t)i;
+            break;
+        }
+    }
+    if (color == 0) {
+        ESP_LOGE(TAG, "Unknown light color: %.*s", payload_len, payload);
+        return;
+    }
+
+    uint8_t reg_id = REG_ID_LIGHT_ZONE_COLOR_0 + (zone - 1);
+
+    // Build UART command
+    // Pattern: 02 00 F0 FF FF 80 00 3A 0F B9 [REG_ID] 01 [COLOR] [CHECKSUM] 03
+    uint8_t cmd[] = {
+        0x02,       // START
+        0x00, 0xF0, // SOURCE: Internet Gateway
+        0xFF, 0xFF, // DEST: Broadcast
+        0x80, 0x00, // CONTROL
+        0x3A, 0x0F, 0xB9, // Command pattern
+        reg_id,     // Register ID (light zone color)
+        0x01,       // Slot ID
+        color,      // Color code (shared color table)
+        0x00,       // Checksum (calculated below)
+        0x03        // END
+    };
+
+    // Calculate checksum (sum of bytes 10-12)
+    cmd[13] = (reg_id + 0x01 + color) & 0xFF;
+
+    ESP_LOGI(TAG, "Sending light zone %d color %s (0x%02X) command", zone,
+             LIGHTING_COLOR_NAMES[color], color);
+    send_uart_command(cmd, sizeof(cmd));
+}
+
 // ======================================================
 // Heater Control
 // ======================================================
@@ -446,17 +490,24 @@ void mqtt_handle_command(const char *topic, int topic_len, const char *data, int
         }
     }
     else if (strncmp(cmd_topic, "light/", 6) == 0 && cmd_topic_len > 10) {
-        // Extract zone number (format: "light/N/set")
+        // Extract zone number (formats: "light/N/set", "light/N/color/set")
         char *endptr;
         int zone = (int)strtol(cmd_topic + 6, &endptr, 10);
         if (endptr == cmd_topic + 6 || *endptr != '/') {
             ESP_LOGE(TAG, "Invalid light topic format: %s", cmd_topic);
             return;
         }
-        if (zone >= 1 && zone <= MAX_LIGHT_ZONES) {
-            handle_light_command(zone, data, data_len);
-        } else {
+        if (zone < 1 || zone > MAX_LIGHT_ZONES) {
             ESP_LOGE(TAG, "Invalid light zone: %d", zone);
+            return;
+        }
+        int suffix_len = cmd_topic_len - (int)(endptr - cmd_topic);
+        if (suffix_len == 4 && strncmp(endptr, "/set", 4) == 0) {
+            handle_light_command(zone, data, data_len);
+        } else if (suffix_len == 10 && strncmp(endptr, "/color/set", 10) == 0) {
+            handle_light_color_command(zone, data, data_len);
+        } else {
+            ESP_LOGE(TAG, "Invalid light topic format: %s", cmd_topic);
         }
     }
     else if (strncmp(cmd_topic, "valve/", 6) == 0 && cmd_topic_len > 8) {
