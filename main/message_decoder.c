@@ -97,6 +97,7 @@ static const char *MSG_TYPE_CHANNELS =              "02 00 50 00 6F 80 00 0D 0D 
 static const char *MSG_TYPE_CHANNEL_STATUS =        "02 00 50 FF FF 80 00 0B 25 00";
 static const char *MSG_TYPE_LIGHT_CONFIG =          "02 00 50 FF FF 80 00 06 0E E4";
 static const char *MSG_TYPE_LIGHT_COLOR =           "02 00 50 FF FF 80 00 07 0E E5";
+static const char *MSG_TYPE_LIGHT_REFRESH =         "02 00 50 FF FF 80 00 3C 0D 19";
 static const char *MSG_TYPE_CONTROLLER_TIME =       "02 00 50 FF FF 80 00 FD 0F DC";
 static const char *MSG_TYPE_TOUCHSCREEN_UNKNOWN1 =  "02 00 50 FF FF 80 00 12 0E F0";
 static const char *MSG_TYPE_TOUCHSCREEN_UNKNOWN2 =  "02 00 50 FF FF 80 00 27 0D 04";
@@ -272,6 +273,7 @@ static const cmd_name_entry_t CMD_NAME_TABLE[] = {
     {0x38, "Register Response"},
     {0x39, "Register Request"},
     {0x3A, "Light Zone Control Cmd"},
+    {0x3C, "Light Refresh Cmd"},
     {0xFD, "Controller Day/Time"},
 };
 
@@ -2613,6 +2615,35 @@ static bool handle_light_color(
     return true;
 }
 
+/**
+ * Handler: Light refresh command (CMD 0x3C) — log-only
+ * Pattern: "02 00 50 FF FF 80 00 3C 0D 19"
+ *
+ * Refreshes/resyncs a light zone's light; observed during light configuration
+ * and color operations. What the refresh does at the light hardware is not
+ * yet confirmed, so this handler just logs.
+ */
+static bool handle_light_refresh(
+    const uint8_t *data, int len,
+    const uint8_t *payload, int payload_len,
+    const char *addr_info,
+    message_decoder_context_t *ctx)
+{
+    if (payload_len < 1) return false;
+
+    uint8_t zone_idx = payload[0];
+
+    if (zone_idx > 3) {  // PROTOCOL.md 0x3C: zones 1-4 map to index 0-3 only
+        ESP_LOGW(TAG, "%s Light refresh - zone index out of range 0-3: %d", addr_info, zone_idx);
+        record_undocumented(data, len);
+        return true;
+    }
+
+    ESP_LOGI(TAG, "%s Light zone %d refresh", addr_info, zone_idx + 1);
+
+    return true;
+}
+
 // ======================================================
 // Register message handlers (dispatched by register range and slot)
 // ======================================================
@@ -3895,6 +3926,10 @@ static bool dispatch_message(
 
     if (match_pattern(data, len, MSG_TYPE_LIGHT_COLOR)) {
         return handle_light_color(data, len, payload, payload_len, addr_info, ctx);
+    }
+
+    if (match_pattern(data, len, MSG_TYPE_LIGHT_REFRESH)) {
+        return handle_light_refresh(data, len, payload, payload_len, addr_info, ctx);
     }
 
     if (match_pattern(data, len, MSG_TYPE_CONFIG)) {
