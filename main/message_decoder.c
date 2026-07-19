@@ -96,8 +96,6 @@ static const char *MSG_TYPE_MODE_SET_CMD =          "02 00 50 FF FF 80 00 15 0D 
 static const char *MSG_TYPE_CHANNELS =              "02 00 50 00 6F 80 00 0D 0D 5B";
 static const char *MSG_TYPE_CHANNEL_STATUS =        "02 00 50 FF FF 80 00 0B 25 00";
 static const char *MSG_TYPE_LIGHT_CONFIG =          "02 00 50 FF FF 80 00 06 0E E4";
-static const char *MSG_TYPE_LIGHT_COLOR =           "02 00 50 FF FF 80 00 07 0E E5";
-static const char *MSG_TYPE_LIGHT_REFRESH =         "02 00 50 FF FF 80 00 3C 0D 19";
 static const char *MSG_TYPE_CONTROLLER_TIME =       "02 00 50 FF FF 80 00 FD 0F DC";
 static const char *MSG_TYPE_TOUCHSCREEN_UNKNOWN1 =  "02 00 50 FF FF 80 00 12 0E F0";
 static const char *MSG_TYPE_TOUCHSCREEN_UNKNOWN2 =  "02 00 50 FF FF 80 00 27 0D 04";
@@ -2534,7 +2532,7 @@ static bool handle_light_config(
 
 /**
  * Handler: Lighting zone color broadcast (CMD 0x07) — log-only
- * Pattern: "02 00 50 FF FF 80 00 07 0E E5"
+ * Dispatched on the CMD byte alone (source-agnostic).
  *
  * Color companion to the CMD 0x06 light config broadcast; only emitted for
  * multicolor-capable zones. The color byte mirrors the zone's Light Zone
@@ -2565,7 +2563,7 @@ static bool handle_light_color(
 
 /**
  * Handler: Light refresh command (CMD 0x3C) — log-only
- * Pattern: "02 00 50 FF FF 80 00 3C 0D 19"
+ * Dispatched on the CMD byte alone (source-agnostic).
  *
  * Refreshes/resyncs a light zone's light; observed during light configuration
  * and color operations. What the refresh does at the light hardware is not
@@ -3867,17 +3865,21 @@ static bool dispatch_message(
         return handle_register_write_request(data, len, payload, payload_len, addr_info, ctx);
     }
 
-    // Configuration messages
-    if (match_pattern(data, len, MSG_TYPE_LIGHT_CONFIG)) {
-        return handle_light_config(data, len, payload, payload_len, addr_info, ctx);
-    }
-
-    if (match_pattern(data, len, MSG_TYPE_LIGHT_COLOR)) {
+    // Lighting zone color broadcast (CMD 0x07) — dispatched on the CMD byte
+    // alone; only the Touchscreen (0x0050) observed sending it so far
+    if (cmd == 0x07) {
         return handle_light_color(data, len, payload, payload_len, addr_info, ctx);
     }
 
-    if (match_pattern(data, len, MSG_TYPE_LIGHT_REFRESH)) {
+    // Light refresh command (CMD 0x3C) — dispatched on the CMD byte alone;
+    // only the Touchscreen (0x0050) observed sending it so far
+    if (cmd == 0x3C) {
         return handle_light_refresh(data, len, payload, payload_len, addr_info, ctx);
+    }
+
+    // Configuration messages
+    if (match_pattern(data, len, MSG_TYPE_LIGHT_CONFIG)) {
+        return handle_light_config(data, len, payload, payload_len, addr_info, ctx);
     }
 
     if (match_pattern(data, len, MSG_TYPE_CONFIG)) {

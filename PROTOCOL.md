@@ -124,7 +124,7 @@ Click any CMD in the first column to jump to the full section in [Commands](#com
 |----------------------------------------------------------------|-------------------------------------|------------------------------------------------------------------------|---------------------------------------------------------------------------------------------|-------------------------|
 | [`0x05`](#0x05--touchscreen-activation-ack-️)                  | Touchscreen Activation Ack          | `0x0050` → Broadcast                                                   | 1-byte payload `0x01`; sent after favourite changes                                    | Yes (log-only)          |
 | [`0x06`](#0x06--lighting-zone-configuration-)                  | Lighting Zone Configuration         | `0x0050` → Broadcast                                                   |                                                                                             | Yes                     |
-| [`0x07`](#0x07--lighting-zone-color-broadcast-️)               | Lighting Zone Color Broadcast       | `0x0050` → Broadcast                                                   | `{zone_idx, color}`; only emitted for multicolor-capable zones; shared color code table, per-model subsets | Yes (log-only)          |
+| [`0x07`](#0x07--lighting-zone-color-broadcast-️)               | Lighting Zone Color Broadcast       | `0x0050` → Broadcast                                                   | `{zone_idx, color}`; only emitted for multicolor-capable zones; shared color code table, per-model subsets; dispatched on CMD byte alone | Yes (log-only)          |
 | [`0x0A`](#0x0a--firmware-version-)                             | Firmware Version                    | `0x0050`, `0x0062`, `0x0070`, `0x0081`, `0x0084`, `0x00A0`, `0x00F0` → Broadcast | Same `{major, minor}` payload across all sources; dispatched on CMD byte alone              | Yes (unified handler)   |
 | [`0x0B`](#0x0b--channel-status-)                               | Channel Status                      | `0x0050` → Broadcast                                                   |                                                                                             | Yes                     |
 | [`0x0D`](#0x0d--active-channels-bitmask-)                      | Active Channels Bitmask             | `0x0050` → `0x006F` Internal Channels                                  | Unicast                                                                                     | Yes                     |
@@ -152,7 +152,7 @@ Click any CMD in the first column to jump to the full section in [Commands](#com
 | [`0x39`](#0x39--register-read-request-)                        | Register Read Request               | `0x00F0` Gateway, `0x0070` Genus Heater → Broadcast                    | Dispatched on CMD byte alone (source-agnostic)                                              | Yes (unified handler)   |
 | [`0x3A`](#0x3a--register-write--control-)                      | Register Write / Control            | `0x00F0`, `0x0084` → Broadcast                                         | Same `{register, slot, value}` payload from either source; dispatched on CMD byte alone. Used for Light Zone state (`0xC0`–`0xC7`/slot `0x01`) and color (`0xD0`–`0xD7`/slot `0x01`), Heater Control (`0xE6`/slot `0x00`), and Heater 2 pool setpoint (`0xEA`/slot `0x00`) | Yes (both)              |
 | [`0x3B`](#0x3b--pump-speed-)                                   | Pump Speed Telemetry                | `0x00A0` Viron XT Pump → Broadcast                                      | 2-byte big-endian RPM value; broadcast every ~60 seconds                                    | Yes                     |
-| [`0x3C`](#0x3c--light-refresh-command-️)                       | Light Refresh Command               | `0x0050` → Broadcast                                                   | 1-byte zone index; refreshes/resyncs the zone's light; observed during light config and color operations | Yes (log-only)          |
+| [`0x3C`](#0x3c--light-refresh-command-️)                       | Light Refresh Command               | `0x0050` → Broadcast                                                   | 1-byte zone index; refreshes/resyncs the zone's light; observed during light config and color operations; dispatched on CMD byte alone | Yes (log-only)          |
 | [`0xFD`](#0xfd--controller-daytimeclock-)                      | Controller Day/Time/Clock           | `0x0050` → Broadcast                                                   |                                                                                             | Yes                     |
 
 ---
@@ -1895,7 +1895,7 @@ Refreshes/resynchronizes a light zone's light. Broadcast by the Touchscreen (`0x
 **Notes:**
 
 - ⚠️ Exactly what the refresh does at the light hardware (e.g. a power-cycle color resync) is not yet confirmed; the zone-index reading of byte 10 is based on refreshes observed for zones 1 and 2.
-- Decoded in code by `handle_light_refresh` — log-only, no `pool_state` update.
+- Decoded in code by `handle_light_refresh` — dispatched on the CMD byte alone (source-agnostic), log-only, no `pool_state` update.
 
 ---
 
