@@ -44,17 +44,21 @@ for test_src in test_*.c; do
     binary="./run_${module}"
 
     # message_decoder.c now shares its data/discovery packet classification
-    # with framing.c - link it in for that one module.
+    # with framing.c - link it in for that one module. The lighting color
+    # name table lives in lighting_colors.c, needed by both message_decoder
+    # and mqtt_commands.
     extra_srcs=()
     if [ "$module" = "message_decoder" ]; then
-        extra_srcs=(../main/framing.c)
+        extra_srcs=(../main/framing.c ../main/lighting_colors.c)
+    elif [ "$module" = "mqtt_commands" ]; then
+        extra_srcs=(../main/lighting_colors.c)
     fi
 
     echo "========================================"
     echo "  Compiling: $test_src"
     echo "========================================"
 
-    if gcc -I. -I.. -o "$binary" "$test_src" "$main_src" ${extra_srcs[@]+"${extra_srcs[@]}"} "${SHARED[@]}" 2>&1; then
+    if gcc -fno-common -I. -I.. -o "$binary" "$test_src" "$main_src" ${extra_srcs[@]+"${extra_srcs[@]}"} "${SHARED[@]}" 2>&1; then
         if "$binary"; then
             PASS=$((PASS + 1))
         else
@@ -74,7 +78,7 @@ if [ -f test_framing.c ]; then
     echo "  Compiling: test_framing.c"
     echo "========================================"
 
-    if gcc -I. -I.. -o ./run_framing test_framing.c "${SHARED[@]}" 2>&1; then
+    if gcc -fno-common -I. -I.. -o ./run_framing test_framing.c "${SHARED[@]}" 2>&1; then
         if ./run_framing; then
             PASS=$((PASS + 1))
         else
@@ -94,7 +98,7 @@ if [ -f test_replay.c ]; then
     echo "  Compiling: test_replay.c"
     echo "========================================"
 
-    if gcc -I. -I.. -o ./run_replay test_replay.c ../main/message_decoder.c ../main/framing.c "${SHARED[@]}" 2>&1; then
+    if gcc -fno-common -I. -I.. -o ./run_replay test_replay.c ../main/message_decoder.c ../main/framing.c ../main/lighting_colors.c "${SHARED[@]}" 2>&1; then
         if ./run_replay; then
             PASS=$((PASS + 1))
         else

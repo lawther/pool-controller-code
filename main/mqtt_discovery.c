@@ -621,7 +621,8 @@ static void publish_channel_discovery(const char *device_id, const char *mac_suf
 // ======================================================
 
 static void publish_light_discovery(const char *device_id, const char *mac_suffix,
-                                     int zone_num, const char *zone_name)
+                                     int zone_num, const char *zone_name,
+                                     uint8_t multicolor_light_type)
 {
     char avail_topic[128];
     char state_topic[128];
@@ -651,6 +652,28 @@ static void publish_light_discovery(const char *device_id, const char *mac_suffi
     cJSON_AddStringToObject(root, "unique_id", uid);
     cJSON_AddStringToObject(root, "object_id", uid);
     cJSON_AddStringToObject(root, "availability_topic", avail_topic);
+
+    // Color selection as an effect list for multicolor zones: the model's
+    // subset of the shared color table (register 0xF0 selects the model)
+    int color_count = 0;
+    const uint8_t *color_codes = multicolor_light_color_codes(multicolor_light_type, &color_count);
+    if (color_codes && color_count > 0) {
+        char effect_command_topic[128];
+        snprintf(effect_command_topic, sizeof(effect_command_topic),
+                 "pool/%s/light/%d/color/set", device_id, zone_num);
+
+        cJSON *effect_list = cJSON_CreateArray();
+        for (int i = 0; i < color_count; i++) {
+            if (color_codes[i] < LIGHTING_COLOR_COUNT) {
+                cJSON_AddItemToArray(effect_list, cJSON_CreateString(LIGHTING_COLOR_NAMES[color_codes[i]]));
+            }
+        }
+        cJSON_AddItemToObject(root, "effect_list", effect_list);
+        cJSON_AddStringToObject(root, "effect_command_topic", effect_command_topic);
+        cJSON_AddStringToObject(root, "effect_state_topic", state_topic);
+        cJSON_AddStringToObject(root, "effect_value_template", "{{ value_json.color }}");
+    }
+
     cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
 
     char *json_str = cJSON_PrintUnformatted(root);
@@ -953,7 +976,7 @@ void mqtt_publish_channel_discovery_single(int channel_num, const char *channel_
     publish_channel_discovery(device_id, mac_suffix, channel_num, channel_name);
 }
 
-void mqtt_publish_light_discovery_single(int zone_num, const char *zone_name)
+void mqtt_publish_light_discovery_single(int zone_num, const char *zone_name, uint8_t multicolor_light_type)
 {
     char device_id[32];
     mqtt_get_device_id(device_id, sizeof(device_id));
@@ -962,7 +985,7 @@ void mqtt_publish_light_discovery_single(int zone_num, const char *zone_name)
     device_get_mac_suffix(mac_suffix, sizeof(mac_suffix));
 
     ESP_LOGI(TAG, "Publishing discovery for light zone %d: %s", zone_num, zone_name ? zone_name : "(unnamed)");
-    publish_light_discovery(device_id, mac_suffix, zone_num, zone_name);
+    publish_light_discovery(device_id, mac_suffix, zone_num, zone_name, multicolor_light_type);
 }
 
 // ======================================================

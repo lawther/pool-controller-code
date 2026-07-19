@@ -95,6 +95,28 @@ extern const char *LIGHTING_COLOR_NAMES[];
  */
 const char* get_channel_type_name(uint8_t type_code);
 
+/**
+ * Get multicolor light type name from the register 0xF0 light model index
+ * Known values: MULTICOLOR_LIGHT_TYPE_NONE ("None"), MULTICOLOR_LIGHT_TYPE_SLX
+ * ("SLX"), MULTICOLOR_LIGHT_TYPE_DELTA ("Delta"). Otherwise formats
+ * "Unknown (0xXX)" into the caller-supplied buffer and returns it.
+ * @param type Multicolor light type index from register 0xF0, slot 0x01
+ * @param fallback_buf Buffer for the unknown-value fallback string
+ * @param buf_size Size of fallback_buf
+ * @return Multicolor light type name string
+ */
+const char* multicolor_light_type_name(uint8_t type, char *fallback_buf, size_t buf_size);
+
+/**
+ * Get the color codes available on a multicolor light model
+ * Returns the model's subset of the shared color value space (each code is an
+ * index into LIGHTING_COLOR_NAMES) — see PROTOCOL.md, Light Zone Color Control.
+ * @param light_type Multicolor light type index from register 0xF0, slot 0x01
+ * @param count Out: number of codes (0 if the type is unknown or None)
+ * @return Pointer to the code array, or NULL if the type has no color table
+ */
+const uint8_t* multicolor_light_color_codes(uint8_t light_type, int *count);
+
 // Special channel type markers
 #define CHANNEL_UNUSED          0x00  // Unused/unconfigured channel
 #define CHANNEL_TYPE_HEATER     0xFD  // Channel is a heater (handled separately)
@@ -164,6 +186,7 @@ typedef enum {
     REG_ID_HEATER2_ONOFF         = 0xE9,  // Heater 2 on/off state — tentative, see PROTOCOL.md Appendix A
     REG_ID_HEATER2_POOL_SETPOINT = 0xEA,  // Heater 2 pool setpoint
     REG_ID_HEATER2_SPA_SETPOINT  = 0xEB,  // Heater 2 spa setpoint — tentative, see PROTOCOL.md Appendix A
+    REG_ID_MULTICOLOR_LIGHT_TYPE = 0xF0,  // System-wide multicolor light type selection (slot 0x01): MULTICOLOR_LIGHT_TYPE_*
     REG_ID_CHANNEL_COUNT         = 0xF4,  // Total number of channels
 
     REG_ID_CHANNEL_CATEGORY_0    = 0xF5,  // Channel 0 category (0–7 → 0xF5–0xFC, slot 0x01)

@@ -390,6 +390,45 @@ void test_light_invalid_payload(void)
     TEST_ASSERT(s_uart_calls == 0, "light/1/set BLINK: no UART write (invalid payload)");
 }
 
+void test_light_1_color_blue(void)
+{
+    send_cmd("light/1/color/set", "Blue");
+
+    // reg_id=0xD0, color=0x05 (Blue), checksum=(0xD0+0x01+0x05)&0xFF=0xD6
+    uint8_t expected[] = {
+        0x02, 0x00, 0xF0, 0xFF, 0xFF, 0x80, 0x00,
+        0x3A, 0x0F, 0xB9,
+        0xD0, 0x01, 0x05,
+        0xD6,
+        0x03
+    };
+    TEST_ASSERT(s_uart_calls == 1, "light/1/color/set Blue: exactly one UART write");
+    TEST_ASSERT(s_uart_len == sizeof(expected), "light/1/color/set Blue: correct length");
+    TEST_ASSERT(memcmp(s_uart_buf, expected, sizeof(expected)) == 0, "light/1/color/set Blue: correct bytes");
+}
+
+void test_light_2_color_magenta(void)
+{
+    send_cmd("light/2/color/set", "Magenta");
+
+    // reg_id=0xD1, color=0x0D (Magenta), checksum=(0xD1+0x01+0x0D)&0xFF=0xDF
+    uint8_t expected[] = {
+        0x02, 0x00, 0xF0, 0xFF, 0xFF, 0x80, 0x00,
+        0x3A, 0x0F, 0xB9,
+        0xD1, 0x01, 0x0D,
+        0xDF,
+        0x03
+    };
+    TEST_ASSERT(s_uart_calls == 1, "light/2/color/set Magenta: exactly one UART write");
+    TEST_ASSERT(memcmp(s_uart_buf, expected, sizeof(expected)) == 0, "light/2/color/set Magenta: correct bytes");
+}
+
+void test_light_color_unknown(void)
+{
+    send_cmd("light/1/color/set", "Chartreuse");
+    TEST_ASSERT(s_uart_calls == 0, "light/1/color/set Chartreuse: no UART write (unknown color)");
+}
+
 // ======================================================
 // Valve tests
 // ======================================================
@@ -496,6 +535,9 @@ int main(void)
     test_light_1_on();
     test_light_2_off();
     test_light_invalid_payload();
+    test_light_1_color_blue();
+    test_light_2_color_magenta();
+    test_light_color_unknown();
 
     printf("\n--- Valve Tests ---\n");
     test_valve_1_on();

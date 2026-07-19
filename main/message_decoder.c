@@ -96,7 +96,6 @@ static const char *MSG_TYPE_MODE_SET_CMD =          "02 00 50 FF FF 80 00 15 0D 
 static const char *MSG_TYPE_CHANNELS =              "02 00 50 00 6F 80 00 0D 0D 5B";
 static const char *MSG_TYPE_CHANNEL_STATUS =        "02 00 50 FF FF 80 00 0B 25 00";
 static const char *MSG_TYPE_LIGHT_CONFIG =          "02 00 50 FF FF 80 00 06 0E E4";
-static const char *MSG_TYPE_LIGHT_COLOR =           "02 00 50 FF FF 80 00 07 0E E5";
 static const char *MSG_TYPE_CONTROLLER_TIME =       "02 00 50 FF FF 80 00 FD 0F DC";
 static const char *MSG_TYPE_TOUCHSCREEN_UNKNOWN1 =  "02 00 50 FF FF 80 00 12 0E F0";
 static const char *MSG_TYPE_TOUCHSCREEN_UNKNOWN2 =  "02 00 50 FF FF 80 00 27 0D 04";
@@ -272,6 +271,7 @@ static const cmd_name_entry_t CMD_NAME_TABLE[] = {
     {0x38, "Register Response"},
     {0x39, "Register Request"},
     {0x3A, "Light Zone Control Cmd"},
+    {0x3C, "Light Refresh Cmd"},
     {0xFD, "Controller Day/Time"},
 };
 
@@ -294,6 +294,40 @@ static const char* get_cmd_name(uint8_t cmd, char *fallback_buf, size_t buf_size
     }
     snprintf(fallback_buf, buf_size, "Unknown CMD 0x%02X", cmd);
     return fallback_buf;
+}
+
+const char* multicolor_light_type_name(uint8_t type, char *fallback_buf, size_t buf_size) {
+    switch (type) {
+        case MULTICOLOR_LIGHT_TYPE_NONE:  return "None";
+        case MULTICOLOR_LIGHT_TYPE_SLX:   return "SLX";
+        case MULTICOLOR_LIGHT_TYPE_DELTA: return "Delta";
+        default:
+            snprintf(fallback_buf, buf_size, "Unknown (0x%02X)", type);
+            return fallback_buf;
+    }
+}
+
+// Per-model color code subsets of the shared color value space (indexes into
+// LIGHTING_COLOR_NAMES) — see PROTOCOL.md, Light Zone Color Control.
+static const uint8_t SLX_COLOR_CODES[] = {
+    0x01, 0x02, 0x04, 0x05, 0x07, 0x08, 0x0A, 0x0D, 0x0E, 0x0F, 0x10, 0x11
+};
+static const uint8_t DELTA_COLOR_CODES[] = {
+    0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C
+};
+
+const uint8_t* multicolor_light_color_codes(uint8_t light_type, int *count) {
+    switch (light_type) {
+        case MULTICOLOR_LIGHT_TYPE_SLX:
+            *count = sizeof(SLX_COLOR_CODES);
+            return SLX_COLOR_CODES;
+        case MULTICOLOR_LIGHT_TYPE_DELTA:
+            *count = sizeof(DELTA_COLOR_CODES);
+            return DELTA_COLOR_CODES;
+        default:
+            *count = 0;
+            return NULL;
+    }
 }
 
 // Channel state names
@@ -353,60 +387,8 @@ const char *DAY_OF_WEEK_NAMES[] = {
 };
 #define DAY_OF_WEEK_COUNT 7
 
-// Lighting color names
-const char *LIGHTING_COLOR_NAMES[] = {
-    "Unknown",           // 0
-    "Red",               // 1
-    "Orange",            // 2
-    "Yellow",            // 3
-    "Green",             // 4
-    "Blue",              // 5
-    "Purple",            // 6
-    "White",             // 7
-    "User 1",            // 8
-    "User 2",            // 9
-    "Disco",             // 10
-    "Smooth",            // 11
-    "Fade",              // 12
-    "Magenta",           // 13
-    "Cyan",              // 14
-    "Pattern",           // 15
-    "Rainbow",           // 16
-    "Ocean",             // 17
-    "Voodoo Lounge",     // 18
-    "Deep Blue Sea",     // 19
-    "Royal Blue",        // 20
-    "Afternoon Skies",   // 21
-    "Aqua Green",        // 22
-    "Emerald",           // 23
-    "Warm Red",          // 24
-    "Flamingo",          // 25
-    "Vivid Violet",      // 26
-    "Sangria",           // 27
-    "Twilight",          // 28
-    "Tranquillity",      // 29
-    "Gemstone",          // 30
-    "USA",               // 31
-    "Mardi Gras",        // 32
-    "Cool Cabaret",      // 33
-    "Sam",               // 34
-    "Party",             // 35
-    "Romance",           // 36
-    "Caribbean",         // 37
-    "American",          // 38
-    "California Sunset", // 39
-    "Royal",             // 40
-    "Hold",              // 41
-    "Recall",            // 42
-    "Peruvian Paradise", // 43
-    "Super Nova",        // 44
-    "Northern Lights",   // 45
-    "Tidal Wave",        // 46
-    "Patriot Dream",     // 47
-    "Desert Skies",      // 48
-    "Nova",              // 49
-    "Pink",              // 50
-};
+// Lighting color names are defined in lighting_colors.c (shared color value
+// space; see PROTOCOL.md, Light Zone Color Control)
 
 // Gateway comms status lookup table
 typedef struct {
@@ -633,6 +615,7 @@ static bool handle_favourite_label(const uint8_t *data, int len, const uint8_t *
 static bool handle_favourite_enable(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 static bool handle_active_favourite(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 static bool handle_temp_setpoint(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
+static bool handle_multicolor_light_type(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 static bool handle_channel_count(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 static bool handle_channel_category(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 static bool handle_valve_state(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
@@ -688,6 +671,8 @@ static const register_handler_t REGISTER_HANDLERS[] = {
 
     // Heater 2 setpoints (slot 0x00, registers 0xEA=Pool, 0xEB=Spa)
     {REG_ID_HEATER2_POOL_SETPOINT, REG_ID_HEATER2_SPA_SETPOINT, 0x00, handle_temp_setpoint,          "Heater 2 Setpoint"},
+
+    {REG_ID_MULTICOLOR_LIGHT_TYPE, REG_ID_MULTICOLOR_LIGHT_TYPE, 0x01, handle_multicolor_light_type, "Multicolor Light Type"},
 
     {REG_ID_CHANNEL_COUNT,         REG_ID_CHANNEL_COUNT,         0x01, handle_channel_count,         "Channel Count"},
 
@@ -944,6 +929,59 @@ static bool handle_heater2_state(
 
     if (ctx->enable_mqtt) {
         mqtt_publish_heater(&snapshot, 1);
+    }
+
+    return true;
+}
+
+/**
+ * Handler: Multicolor light type selection
+ * Register 0xF0, Slot 0x01
+ * System-wide light model selected in the touchscreen's light setup:
+ * 0x00=SLX, 0x01=Delta, 0xFF=no multicolor light configured. A value outside
+ * the known set is a new model index worth capturing.
+ */
+static bool handle_multicolor_light_type(
+    const uint8_t *data, int len,
+    const uint8_t *payload, int payload_len,
+    const char *addr_info,
+    message_decoder_context_t *ctx)
+{
+    if (payload_len < 3) return false;
+
+    uint8_t type = payload[2];
+    char name_buf[16];
+    const char *name = multicolor_light_type_name(type, name_buf, sizeof(name_buf));
+
+    ESP_LOGI(TAG, "%s Multicolor light type - %s", addr_info, name);
+
+    if (type != MULTICOLOR_LIGHT_TYPE_NONE &&
+        type != MULTICOLOR_LIGHT_TYPE_SLX &&
+        type != MULTICOLOR_LIGHT_TYPE_DELTA) {
+        record_undocumented(data, len);
+    }
+
+    bool type_changed = false;
+    pool_state_t state_snapshot;
+
+    if (ctx->state_mutex && xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) == pdTRUE) {
+        type_changed = !ctx->pool_state->multicolor_light_type_valid ||
+                       ctx->pool_state->multicolor_light_type != type;
+        ctx->pool_state->multicolor_light_type = type;
+        ctx->pool_state->multicolor_light_type_valid = true;
+        ctx->pool_state->last_update_ms = xTaskGetTickCount() * portTICK_PERIOD_MS;
+        state_snapshot = *ctx->pool_state;
+        xSemaphoreGive(ctx->state_mutex);
+    }
+
+    // The type selects the color effect list on the HA light entities, so
+    // re-publish configured zones when it changes (refreshes their discovery)
+    if (type_changed && ctx->enable_mqtt) {
+        for (int i = 0; i < MAX_LIGHT_ZONES; i++) {
+            if (state_snapshot.lighting[i].configured) {
+                mqtt_publish_light(&state_snapshot, state_snapshot.lighting[i].zone);
+            }
+        }
     }
 
     return true;
@@ -2494,7 +2532,7 @@ static bool handle_light_config(
 
 /**
  * Handler: Lighting zone color broadcast (CMD 0x07) — log-only
- * Pattern: "02 00 50 FF FF 80 00 07 0E E5"
+ * Dispatched on the CMD byte alone (source-agnostic).
  *
  * Color companion to the CMD 0x06 light config broadcast; only emitted for
  * multicolor-capable zones. The color byte mirrors the zone's Light Zone
@@ -2519,6 +2557,35 @@ static bool handle_light_color(
     }
 
     ESP_LOGI(TAG, "%s Lighting zone %d color - 0x%02X", addr_info, zone_idx + 1, color);
+
+    return true;
+}
+
+/**
+ * Handler: Light refresh command (CMD 0x3C) — log-only
+ * Dispatched on the CMD byte alone (source-agnostic).
+ *
+ * Refreshes/resyncs a light zone's light; observed during light configuration
+ * and color operations. What the refresh does at the light hardware is not
+ * yet confirmed, so this handler just logs.
+ */
+static bool handle_light_refresh(
+    const uint8_t *data, int len,
+    const uint8_t *payload, int payload_len,
+    const char *addr_info,
+    message_decoder_context_t *ctx)
+{
+    if (payload_len < 1) return false;
+
+    uint8_t zone_idx = payload[0];
+
+    if (zone_idx > 3) {  // PROTOCOL.md 0x3C: zones 1-4 map to index 0-3 only
+        ESP_LOGW(TAG, "%s Light refresh - zone index out of range 0-3: %d", addr_info, zone_idx);
+        record_undocumented(data, len);
+        return true;
+    }
+
+    ESP_LOGI(TAG, "%s Light zone %d refresh", addr_info, zone_idx + 1);
 
     return true;
 }
@@ -3798,13 +3865,21 @@ static bool dispatch_message(
         return handle_register_write_request(data, len, payload, payload_len, addr_info, ctx);
     }
 
+    // Lighting zone color broadcast (CMD 0x07) — dispatched on the CMD byte
+    // alone; only the Touchscreen (0x0050) observed sending it so far
+    if (cmd == 0x07) {
+        return handle_light_color(data, len, payload, payload_len, addr_info, ctx);
+    }
+
+    // Light refresh command (CMD 0x3C) — dispatched on the CMD byte alone;
+    // only the Touchscreen (0x0050) observed sending it so far
+    if (cmd == 0x3C) {
+        return handle_light_refresh(data, len, payload, payload_len, addr_info, ctx);
+    }
+
     // Configuration messages
     if (match_pattern(data, len, MSG_TYPE_LIGHT_CONFIG)) {
         return handle_light_config(data, len, payload, payload_len, addr_info, ctx);
-    }
-
-    if (match_pattern(data, len, MSG_TYPE_LIGHT_COLOR)) {
-        return handle_light_color(data, len, payload, payload_len, addr_info, ctx);
     }
 
     if (match_pattern(data, len, MSG_TYPE_CONFIG)) {
