@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - Added a device reboot control: a Reboot button on the firmware-update web page (with confirmation and auto-reload countdown) backed by a new `/reboot` endpoint, and a matching Home Assistant Reboot button via MQTT (`pool/<device_id>/reboot`)
+- Decoded the solar protocol messages, previously logged as unhandled: register 0x3A (slot 0x01) is the Solar Setpoint in °C (confirmed by changing the setpoint in the UI and watching the rebroadcast; polled by the Internet Gateway every cycle), CMD 0x2D is the Solar Setpoint Broadcast the touchscreen fires when the setpoint is changed (1-byte °C), and CMD 0x2C is the Solar Status Broadcast carrying the solar mode (Off/Auto/On), a config bitmask (Winter/Summer season, Flush daily, Filter pump required for solar), the temperature differential, and two bytes read as the pool-water/roof temperature readings (byte order unconfirmed) — all three handled log-only and documented in PROTOCOL.md, with the remaining 0x2C unknowns (a byte tracking differential − 3, an always-set bit) flagged for further captures
 ### Changed
 ### Removed
 ### Fixed
