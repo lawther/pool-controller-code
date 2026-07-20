@@ -794,6 +794,8 @@ Data fields:
 - Byte 10: Current water temperature 1 in °C
 - Byte 11: Current water temperature 2 in °C — second sensor reading; often `0x00` in installations with only one sensor wired.
 
+The touchscreen mirrors this reading into register `0x30`/slot `0x01` (same 2-byte payload), which the Internet Gateway polls — see [Appendix A](#appendix-a-register-dispatch-table).
+
 ---
 
 #### Genus Heater (`0x0070`) / HiNRG Gas Heater (`0x0072`) / ICI Gas Heater (`0x0074`) ✅
@@ -2017,6 +2019,8 @@ The register ID and slot together determine the message meaning. The slot distin
 | `0x08`–`0x17`  | `0x04` | Timers 1–16            | start/stop time + days bitmask (see [0x38 Timer Registers](#timer-registers-slot-0x04))   |
 | `0x20`         | `0x03` | Active Favourite       | CMD `0x2A` value of the active favourite (`0x00`=Pool … `0x07`=Favourite 6); `0xFF` = none active — see note below |
 | `0x21`–`0x28`  | `0x03` | Favourite Enable       | 1-byte flag (`0x01`=enabled, `0x00`=disabled). Maps to CMD `0x2A` values `0x00`–`0x07` in order. Pool (`0x21`) and Spa (`0x22`) are always `0x01`. |
+| `0x30`         | `0x01` | Current Water Temperature | 2-byte `{temp °C, 0x00}` mirror of the controller's [0x16](#0x16--water-temperature-reading-) reading — see note below |
+| `0x30` ⚠️      | `0x03` | Unknown                | 1-byte, only `0x00` observed. Polled by the Internet Gateway. Sits immediately before the Favourite Labels block, as `0x20` does the Enable block. |
 | `0x31`–`0x38`  | `0x03` | Favourite Labels       | Null-terminated ASCII string. Maps to CMD `0x2A` values `0x00`–`0x07` in order. `0x31`=Pool, `0x32`=Spa, `0x33`–`0x38`=user Favourites 1–6. |
 | `0x3A`         | `0x01` | Solar Setpoint         | 1-byte °C value — see note below                 |
 | `0x64`-`0x65` ⚠️| `0x00`| Unknown                | Only `0x01` observed. Repeats ~every 8 minutes   |
@@ -2053,6 +2057,7 @@ The register ID and slot together determine the message meaning. The slot distin
 - Register ranges can overlap (e.g., `0xD0`–`0xD7`) but are distinguished by the slot value
 - The same slot value (e.g., `0x02`) can represent different data formats depending on the register
 - Slot values appear to be context-dependent rather than globally defining a data type
+- **`0x30`/slot `0x01` (Current Water Temperature) — confirmed ✅**: 2-byte payload `{temp, 0x00}` mirroring the water temperature the controller broadcasts via [0x16](#0x16--water-temperature-reading-) (same two bytes as that message's `{temp1, temp2}` payload). Tracks the controller's own sensor, not a heater's — observed reading 17°C while the heat pump's `0x16` said 18°C — and follows changes: a 16→17°C rise in the controller reading appeared in the next `0x30` broadcast ~23 s later. Polled by the Internet Gateway every cycle via [0x39](#0x39--register-read-request-) and also rebroadcast unsolicited by the touchscreen roughly every 2 minutes. On an install whose controller has no temperature sensor (its `0x16` reads `00 00`), the touchscreen never answers the Gateway's `0x30`/`0x01` polls.
 - **`0x3A` (Solar Setpoint) — confirmed ✅**: 1-byte solar temperature setpoint in °C. Confirmed by UI experiment: changing the solar setpoint to 23°C rebroadcast `3A 01 17`. Polled by the Internet Gateway every cycle via [0x39](#0x39--register-read-request-) (never appears in the touchscreen's spontaneous ~8-minute dump); on installs where the setting is untouched it reads the `0x19` (25°C) default. Setpoint changes are also announced via the dedicated [0x2D Solar Setpoint Broadcast](#0x2d--solar-setpoint-broadcast-).
 - **`0xE9`/`0xEA`/`0xEB` (Heater 2 trio) — confirmed ✅**: Slot `0x00` holds the Heater 1 trio at `0xE6` (state), `0xE7` (Pool setpoint), `0xE8` (Spa setpoint), and `0xE9`/`0xEA`/`0xEB` are the analogous trio for the second heater: `0xE9` = state (`0x00`=Off, `0x01`=On), `0xEA` = Pool setpoint, `0xEB` = Spa setpoint (1-byte °C). All three are writable via the gateway register-write command (CMD `0x3A` / second-byte `0xB9`). `0xEA` was confirmed by UI capture — changing the setpoint in the UI sends a `0x3A` write to `0xEA`/slot `0x00` and the touchscreen rebroadcasts the new value via CMD `0x38` (observed 21°C `EA 00 15`, 22°C `EA 00 16`, 27°C `EA 00 1B`; the 27°C value matched the **H2** value in the heater's `0x0070` CMD `0x17` broadcast). `0xE9` and `0xEB` are confirmed as Heater 2 state and spa setpoint respectively. (On the test install the second heater is a heat pump; "Heater 2" is kept as the generic name since another install's second heater may be a different type.)
 - **Mutually exclusive broadcast**: in captures observed so far the touchscreen broadcasts *either* the `E6/E7/E8` trio *or* the `E9/EA/EB` trio in slot `0x00`, but not both — consistent with a config-dependent enable (likely [0x26](#0x26--configuration-️) byte 10 bit 3 = heater count).

@@ -618,6 +618,7 @@ static bool handle_favourite_enable(const uint8_t *data, int len, const uint8_t 
 static bool handle_active_favourite(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 static bool handle_temp_setpoint(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 static bool handle_solar_setpoint(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
+static bool handle_water_temp_register(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 static bool handle_multicolor_light_type(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 static bool handle_channel_count(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 static bool handle_channel_category(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
@@ -656,6 +657,9 @@ static const register_handler_t REGISTER_HANDLERS[] = {
 
     // Favourite enable flags (slot 0x03, registers 0x21-0x28 = Pool,Spa,Fav1-6)
     {REG_ID_FAVOURITE_ENABLE_0,      REG_ID_FAVOURITE_ENABLE_7,      0x03, handle_favourite_enable,      "Favourite Enable"},
+
+    // Water temperature mirror (slot 0x01, register 0x30)
+    {REG_ID_WATER_TEMP,              REG_ID_WATER_TEMP,              0x01, handle_water_temp_register,   "Water Temperature"},
 
     // Favourite labels (slot 0x03, registers 0x31-0x38 = Pool,Spa,Fav1-6)
     {REG_ID_FAVOURITE_LABEL_0,       REG_ID_FAVOURITE_LABEL_7,       0x03, handle_favourite_label,       "Favourite Label"},
@@ -888,6 +892,33 @@ static bool handle_solar_setpoint(
 
     uint8_t temp_c = payload[2];
     ESP_LOGI(TAG, "%s Solar setpoint - %d°C", addr_info, temp_c);
+
+    return true;
+}
+
+/**
+ * Handler: Current water temperature register mirror
+ * Register 0x30, Slot 0x01. The touchscreen mirrors the controller's CMD 0x16
+ * reading here for the Internet Gateway to poll; 2-byte payload {temp1, temp2}
+ * matching the CMD 0x16 layout. Log-only — the authoritative reading flows
+ * through CMD 0x16 (handle_temp_reading), which attributes it to the
+ * controller's seen-device entry and publishes to MQTT.
+ */
+static bool handle_water_temp_register(
+    const uint8_t *data, int len,
+    const uint8_t *payload, int payload_len,
+    const char *addr_info,
+    message_decoder_context_t *ctx)
+{
+    if (payload_len < 3) return false;
+
+    uint8_t temp_c = payload[2];
+    if (payload_len >= 4) {
+        ESP_LOGI(TAG, "%s Water temperature (register mirror) - %d°C (temp2: %d°C)",
+                 addr_info, temp_c, payload[3]);
+    } else {
+        ESP_LOGI(TAG, "%s Water temperature (register mirror) - %d°C", addr_info, temp_c);
+    }
 
     return true;
 }

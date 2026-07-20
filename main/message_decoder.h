@@ -140,6 +140,8 @@ typedef enum {
     REG_ID_FAVOURITE_ENABLE_0      = 0x21,  // Fav enable index 0  (0–7 → 0x21–0x28, slot 0x03)
     REG_ID_FAVOURITE_ENABLE_7      = 0x28,  // Fav enable index 7 (last)
 
+    REG_ID_WATER_TEMP              = 0x30,  // Current water temperature °C (slot 0x01) — mirror of the controller's CMD 0x16 reading
+
     REG_ID_FAVOURITE_LABEL_0       = 0x31,  // Fav label index 0   (0–7 → 0x31–0x38, slot 0x03)
     REG_ID_FAVOURITE_LABEL_7       = 0x38,  // Fav label index 7 (last)
 
