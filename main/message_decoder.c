@@ -273,7 +273,7 @@ static const cmd_name_entry_t CMD_NAME_TABLE[] = {
     {0x38, "Register Response"},
     {0x39, "Register Request"},
     {0x3A, "Light Zone Control Cmd"},
-    {0x3C, "Light Refresh Cmd"},
+    {0x3C, "Light Resync Cmd"},
     {0xFD, "Controller Day/Time"},
 };
 
@@ -2618,14 +2618,14 @@ static bool handle_light_color(
 }
 
 /**
- * Handler: Light refresh command (CMD 0x3C) — log-only
+ * Handler: Light resync command (CMD 0x3C) — log-only
  * Dispatched on the CMD byte alone (source-agnostic).
  *
- * Refreshes/resyncs a light zone's light; observed during light configuration
- * and color operations. What the refresh does at the light hardware is not
+ * Resyncs a light zone's light; observed during light configuration
+ * and color operations. What the resync does at the light hardware is not
  * yet confirmed, so this handler just logs.
  */
-static bool handle_light_refresh(
+static bool handle_light_resync(
     const uint8_t *data, int len,
     const uint8_t *payload, int payload_len,
     const char *addr_info,
@@ -2636,12 +2636,12 @@ static bool handle_light_refresh(
     uint8_t zone_idx = payload[0];
 
     if (zone_idx > 3) {  // PROTOCOL.md 0x3C: zones 1-4 map to index 0-3 only
-        ESP_LOGW(TAG, "%s Light refresh - zone index out of range 0-3: %d", addr_info, zone_idx);
+        ESP_LOGW(TAG, "%s Light resync - zone index out of range 0-3: %d", addr_info, zone_idx);
         record_undocumented(data, len);
         return true;
     }
 
-    ESP_LOGI(TAG, "%s Light zone %d refresh", addr_info, zone_idx + 1);
+    ESP_LOGI(TAG, "%s Light zone %d resync", addr_info, zone_idx + 1);
 
     return true;
 }
@@ -3980,10 +3980,10 @@ static bool dispatch_message(
         return handle_light_color(data, len, payload, payload_len, addr_info, ctx);
     }
 
-    // Light refresh command (CMD 0x3C) — dispatched on the CMD byte alone;
+    // Light resync command (CMD 0x3C) — dispatched on the CMD byte alone;
     // only the Touchscreen (0x0050) observed sending it so far
     if (cmd == 0x3C) {
-        return handle_light_refresh(data, len, payload, payload_len, addr_info, ctx);
+        return handle_light_resync(data, len, payload, payload_len, addr_info, ctx);
     }
 
     // Solar setpoint broadcast (CMD 0x2D) — dispatched on the CMD byte alone;

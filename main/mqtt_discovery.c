@@ -685,6 +685,46 @@ static void publish_light_discovery(const char *device_id, const char *mac_suffi
     publish_discovery("light", uid, json_str);
     cJSON_free(json_str);
     cJSON_Delete(root);
+
+    // Resync button for multicolor zones: pressing it fires the Light Resync
+    // Command (CMD 0x3C) for this zone
+    char resync_uid[64];
+    snprintf(resync_uid, sizeof(resync_uid), DISCOVERY_ID_PREFIX "_%s_light%d_resync", mac_suffix, zone_num);
+
+    if (color_codes && color_count > 0) {
+        char resync_command_topic[128];
+        snprintf(resync_command_topic, sizeof(resync_command_topic),
+                 "pool/%s/light/%d/resync", device_id, zone_num);
+
+        char resync_name[64];
+        snprintf(resync_name, sizeof(resync_name), "%s Resync", display_name);
+
+        cJSON *btn = cJSON_CreateObject();
+        cJSON_AddStringToObject(btn, "name", resync_name);
+        cJSON_AddStringToObject(btn, "command_topic", resync_command_topic);
+        cJSON_AddStringToObject(btn, "icon", "mdi:sync");
+        cJSON_AddStringToObject(btn, "unique_id", resync_uid);
+        cJSON_AddStringToObject(btn, "object_id", resync_uid);
+        cJSON_AddStringToObject(btn, "availability_topic", avail_topic);
+        cJSON_AddItemToObject(btn, "device", build_device_cjson(device_id, mac_suffix));
+
+        char *btn_json = cJSON_PrintUnformatted(btn);
+        if (!btn_json) {
+            ESP_LOGE(TAG, "Failed to print light resync button discovery JSON");
+            cJSON_Delete(btn);
+            return;
+        }
+        publish_discovery("button", resync_uid, btn_json);
+        cJSON_free(btn_json);
+        cJSON_Delete(btn);
+    } else {
+        // Clear any previously published resync button if the zone is no
+        // longer multicolor (an empty retained config removes the HA entity)
+        char config_topic[256];
+        snprintf(config_topic, sizeof(config_topic),
+                 "homeassistant/button/%s/%s/config", device_id, resync_uid);
+        mqtt_publish(config_topic, "", 1, true);
+    }
 }
 
 // ======================================================

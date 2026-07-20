@@ -147,6 +147,29 @@ static void handle_light_color_command(int zone, const char *payload, int payloa
     send_uart_command(cmd, sizeof(cmd));
 }
 
+static void handle_light_resync_command(int zone)
+{
+    uint8_t zone_idx = zone - 1;
+
+    // Build CMD 0x3C Light Resync broadcast, impersonating the Touchscreen
+    // (the only observed sender of this command)
+    // Pattern: 02 00 50 FF FF 80 00 3C 0D 19 [ZONE_IDX] [CHECKSUM] 03
+    // Checksum = zone_idx (only data byte)
+    uint8_t cmd[] = {
+        0x02,       // START
+        0x00, 0x50, // SOURCE: Touchscreen
+        0xFF, 0xFF, // DEST: Broadcast
+        0x80, 0x00, // CONTROL
+        0x3C, 0x0D, 0x19, // Command pattern
+        zone_idx,   // Zone index (0-based)
+        zone_idx,   // Checksum (= zone index)
+        0x03        // END
+    };
+
+    ESP_LOGI(TAG, "Sending light zone %d resync command", zone);
+    send_uart_command(cmd, sizeof(cmd));
+}
+
 // ======================================================
 // Heater Control
 // ======================================================
@@ -490,7 +513,8 @@ void mqtt_handle_command(const char *topic, int topic_len, const char *data, int
         }
     }
     else if (strncmp(cmd_topic, "light/", 6) == 0 && cmd_topic_len > 10) {
-        // Extract zone number (formats: "light/N/set", "light/N/color/set")
+        // Extract zone number (formats: "light/N/set", "light/N/color/set",
+        // "light/N/resync")
         char *endptr;
         int zone = (int)strtol(cmd_topic + 6, &endptr, 10);
         if (endptr == cmd_topic + 6 || *endptr != '/') {
@@ -506,6 +530,8 @@ void mqtt_handle_command(const char *topic, int topic_len, const char *data, int
             handle_light_command(zone, data, data_len);
         } else if (suffix_len == 10 && strncmp(endptr, "/color/set", 10) == 0) {
             handle_light_color_command(zone, data, data_len);
+        } else if (suffix_len == 7 && strncmp(endptr, "/resync", 7) == 0) {
+            handle_light_resync_command(zone);
         } else {
             ESP_LOGE(TAG, "Invalid light topic format: %s", cmd_topic);
         }

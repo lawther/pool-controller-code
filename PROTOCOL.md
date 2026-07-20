@@ -42,7 +42,7 @@ This document describes the proprietary serial protocol used by the Connect 10 p
   - [0x39 — Register Read Request ✅](#0x39--register-read-request-)
   - [0x3A — Register Write / Control ✅](#0x3a--register-write--control-)
   - [0x3B — Pump Speed Telemetry ✅](#0x3b--pump-speed-)
-  - [0x3C — Light Refresh Command ⚠️](#0x3c--light-refresh-command-️)
+  - [0x3C — Light Resync Command ⚠️](#0x3c--light-resync-command-️)
   - [0xFD — Controller Day/Time/Clock ✅](#0xfd--controller-daytimeclock-)
 - [Appendix A: Register Dispatch Table](#appendix-a-register-dispatch-table)
 - [Implementation Notes](#implementation-notes)
@@ -156,7 +156,7 @@ Click any CMD in the first column to jump to the full section in [Commands](#com
 | [`0x39`](#0x39--register-read-request-)                        | Register Read Request               | `0x00F0` Gateway, `0x0070` Genus Heater → Broadcast                    | Dispatched on CMD byte alone (source-agnostic)                                              | Yes (unified handler)   |
 | [`0x3A`](#0x3a--register-write--control-)                      | Register Write / Control            | `0x00F0`, `0x0084` → Broadcast                                         | Same `{register, slot, value}` payload from either source; dispatched on CMD byte alone. Used for Light Zone state (`0xC0`–`0xC7`/slot `0x01`) and color (`0xD0`–`0xD7`/slot `0x01`), Heater Control (`0xE6`/slot `0x00`), and Heater 2 pool setpoint (`0xEA`/slot `0x00`) | Yes (both)              |
 | [`0x3B`](#0x3b--pump-speed-)                                   | Pump Speed Telemetry                | `0x00A0` Viron XT Pump → Broadcast                                      | 2-byte big-endian RPM value; broadcast every ~60 seconds                                    | Yes                     |
-| [`0x3C`](#0x3c--light-refresh-command-️)                       | Light Refresh Command               | `0x0050` → Broadcast                                                   | 1-byte zone index; refreshes/resyncs the zone's light; observed during light config and color operations; dispatched on CMD byte alone | Yes (log-only)          |
+| [`0x3C`](#0x3c--light-resync-command-️)                       | Light Resync Command               | `0x0050` → Broadcast                                                   | 1-byte zone index; resyncs the zone's light; observed during light config and color operations; dispatched on CMD byte alone | Yes (log-only)          |
 | [`0xFD`](#0xfd--controller-daytimeclock-)                      | Controller Day/Time/Clock           | `0x0050` → Broadcast                                                   |                                                                                             | Yes                     |
 
 ---
@@ -1945,9 +1945,9 @@ Speed telemetry broadcast by the Viron XT Variable Speed Pump (`0x00A0`). Emitte
 
 ---
 
-### 0x3C — Light Refresh Command ⚠️
+### 0x3C — Light Resync Command ⚠️
 
-Refreshes/resynchronizes a light zone's light. Broadcast by the Touchscreen (`0x0050`); observed during light configuration sessions and color operations (one capture shows a zone-1 refresh a few seconds before the zone's color-change rebroadcast).
+Resynchronizes a light zone's light. Broadcast by the Touchscreen (`0x0050`); observed during light configuration sessions and color operations (one capture shows a zone-1 resync a few seconds before the zone's color-change rebroadcast).
 
 **Pattern:** `02 00 50 FF FF 80 00 3C 0D 19`
 
@@ -1967,8 +1967,9 @@ Refreshes/resynchronizes a light zone's light. Broadcast by the Touchscreen (`0x
 
 **Notes:**
 
-- ⚠️ Exactly what the refresh does at the light hardware (e.g. a power-cycle color resync) is not yet confirmed; the zone-index reading of byte 10 is based on refreshes observed for zones 1 and 2.
-- Decoded in code by `handle_light_refresh` — dispatched on the CMD byte alone (source-agnostic), log-only, no `pool_state` update.
+- ⚠️ Exactly what the resync does at the light hardware (e.g. a power-cycle color resync) is not yet confirmed; the zone-index reading of byte 10 is based on resyncs observed for zones 1 and 2.
+- An external sender must impersonate the Touchscreen (source address `0x0050`).
+- Decoded in code by `handle_light_resync` — dispatched on the CMD byte alone (source-agnostic), log-only, no `pool_state` update. The firmware can also send it: multicolor light zones get a per-zone Resync button in Home Assistant.
 
 ---
 
