@@ -18,10 +18,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 ### Removed
 ### Fixed
-- Fixed heater setpoint changes made from Home Assistant never being confirmed back to it: the setpoint's own register (0xE7/0xE8 for Heater 1, 0xEA/0xEB for Heater 2) is now read back with a CMD 0x39 request a second after the write, since the controller does not announce the change itself and the Internet Gateway's polling cycle turns out to be install-dependent — read-backs are served whether or not a Gateway is present, unlike the requester's existing polling for missing data
-- Fixed the Home Assistant Heater 1 switch never following the heater on installs with a dedicated heater device: the gas heater (HiNRG 0x0072 / ICI 0x0074) CMD 0x12 status handler updated the heater's on/off state but only published the Heater 1 Status sensor, so the switch stayed off while the status sensor moved to "Igniting"/"Setpoint Reached"; the switch state is now published from that handler, and the Connect 8/10's own CMD 0x12 heater bit — observed stuck at 0 for the whole time an external gas heater was running, which overwrote the correct value — is ignored once a dedicated heater device (Genus 0x0070, HiNRG 0x0072, ICI 0x0074) has reported its own status, while service mode still comes from the controller either way
 ### Deprecated
 ### Security
+
+## [1.11.1] - 2026-07-26
+### Fixed
+- Fixed heater setpoint changes made from Home Assistant never being confirmed back to it: the setpoint's own register (0xE7/0xE8 for Heater 1, 0xEA/0xEB for Heater 2) is now read back with a CMD 0x39 request a second after the write, since the controller does not announce the change itself and the Internet Gateway's polling cycle turns out to be install-dependent — read-backs are served whether or not a Gateway is present, unlike the requester's existing polling for missing data
+- Fixed the Home Assistant Heater 1 switch never following the heater on installs with a dedicated heater device: the gas heater (HiNRG 0x0072 / ICI 0x0074) CMD 0x12 status handler updated the heater's on/off state but only published the Heater 1 Status sensor, so the switch stayed off while the status sensor moved to "Igniting"/"Setpoint Reached"; the switch state is now published from that handler, and the Connect 8/10's own CMD 0x12 heater bit — observed stuck at 0 for the whole time an external gas heater was running, which overwrote the correct value — is ignored once a dedicated heater device (Genus 0x0070, HiNRG 0x0072, ICI 0x0074) has reported its own status, while service mode still comes from the controller either way
 
 ## [1.11.0] - 2026-07-21
 ### Added
