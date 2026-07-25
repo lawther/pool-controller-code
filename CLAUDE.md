@@ -28,7 +28,7 @@ Requires ESP-IDF v5.5+ with environment sourced (`. $IDF_PATH/export.sh`).
 - **tcp_bridge.c/.h**: TCP server (port 7373) that bridges UART data to/from network clients
 - **message_decoder.c/.h**: Pattern-matching decoder for protocol messages
 - **pool_state.c/.h**: Global pool state structure and definitions
-- **register_requester.c/.h**: Proactively sends CMD 0x39 register read requests when Internet Gateway is absent; woken immediately when a new light zone is configured
+- **register_requester.c/.h**: Proactively sends CMD 0x39 register read requests when Internet Gateway is absent; woken immediately when a new light zone is configured. Also serves one-off read-backs queued after a register write (`register_requester_read_back`), regardless of gateway presence
 - **mqtt_poolclient.c/.h**: MQTT client lifecycle and connection management
 - **mqtt_publish.c/.h**: MQTT publishing functions for pool state updates
 - **mqtt_discovery.c/.h**: Home Assistant MQTT discovery integration
@@ -85,6 +85,7 @@ main.c
   ├─> mqtt_poolclient (MQTT connection)
   │     ├─> mqtt_discovery (Home Assistant integration)
   │     ├─> mqtt_commands (handle MQTT commands)
+  │     │     └─> register_requester (read a register back after writing it)
   │     └─> firmware_update (publish update state, handle install command)
   ├─> firmware_update (GitHub release check + pull OTA)
   │     └─> mqtt_poolclient (publish HA update entity state)

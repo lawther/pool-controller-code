@@ -4,6 +4,7 @@
 #include "mqtt_poolclient.h"
 #include "pool_state.h"
 #include "bus.h"
+#include "register_requester.h"
 #include "esp_log.h"
 #include <string.h>
 #include <stdlib.h>
@@ -374,6 +375,11 @@ static void handle_temperature_command(bool is_pool, const char *payload, int pa
 
     ESP_LOGI(TAG, "Setting %s setpoint to %" PRId32 "°C", is_pool ? "pool" : "spa", temp_c);
     send_uart_command(cmd, sizeof(cmd));
+
+    // Read the setpoint back: on many installs nothing else republishes it, so
+    // this is what carries the new value through to Home Assistant.
+    register_requester_read_back(
+        is_pool ? REG_ID_HEATER1_POOL_SETPOINT : REG_ID_HEATER1_SPA_SETPOINT, 0x00);
 }
 
 // Per-heater setpoint write.
@@ -409,7 +415,7 @@ static void handle_heater_setpoint_command(int index, bool is_pool,
         return;
     }
 
-    uint8_t reg  = is_pool ? 0xEA : 0xEB;   // Heater 2 pool / spa setpoint register
+    uint8_t reg  = is_pool ? REG_ID_HEATER2_POOL_SETPOINT : REG_ID_HEATER2_SPA_SETPOINT;
     uint8_t slot = 0x00;
     uint8_t val  = (uint8_t)temp_parsed;
 
@@ -429,6 +435,8 @@ static void handle_heater_setpoint_command(int index, bool is_pool,
 
     ESP_LOGI(TAG, "Setting Heater 2 %s setpoint to %ld°C", is_pool ? "pool" : "spa", temp_parsed);
     send_uart_command(cmd, sizeof(cmd));
+
+    register_requester_read_back(reg, slot);
 }
 
 // ======================================================

@@ -14,4 +14,12 @@ void register_requester_start(pool_state_t *pool_state, SemaphoreHandle_t state_
 // Safe to call from any task context (e.g. when a light zone is first configured).
 void register_requester_notify(void);
 
+// Queue a one-off CMD 0x39 read of a register, sent after a short delay.
+// Used to read a register back after writing it: the controller does not
+// announce every change itself, and the Internet Gateway's polling cycle is
+// install-dependent, so without this a write can never reach Home Assistant.
+// Runs regardless of whether a Gateway is present.
+// Safe to call from any task context.
+void register_requester_read_back(uint8_t reg_id, uint8_t slot);
+
 #endif // REGISTER_REQUESTER_H

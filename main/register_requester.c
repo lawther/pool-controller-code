@@ -5,12 +5,12 @@
 #include "config.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/queue.h"
 #include "esp_log.h"
 #include <stdio.h>
 #include <string.h>
 
 static const char *TAG = "REG_REQ";
-static TaskHandle_t s_task_handle = NULL;
 static pool_state_t *s_state = NULL;
 static SemaphoreHandle_t s_mutex = NULL;
 
@@ -20,6 +20,20 @@ static SemaphoreHandle_t s_mutex = NULL;
 #define REQUEST_INTERVAL_MS  250
 // How long to wait before re-checking if data is still missing
 #define RETRY_INTERVAL_MS    60000
+// How long to let the controller apply a write before reading the register back
+#define READBACK_DELAY_MS    1000
+// Pending read-backs / wake-ups waiting to be serviced by the task
+#define REQUEST_QUEUE_LEN    8
+
+// A unit of work posted to the task. `rescan` requests a fresh check for
+// missing data; otherwise the entry names a register to read back.
+typedef struct {
+    uint8_t reg_id;
+    uint8_t slot;
+    bool    rescan;
+} reg_request_t;
+
+static QueueHandle_t s_queue = NULL;
 
 // Header bytes for a CMD 0x39 register read request originating from the Internet Gateway.
 // Header checksum 0xB7 = (02+00+F0+FF+FF+80+00+39+0E) & 0xFF, constant for all requests.
@@ -143,15 +157,47 @@ static void register_requester_task(void *arg)
             }
         }
 
-        // Wait for retry interval or an early wake from register_requester_notify()
-        ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(RETRY_INTERVAL_MS));
+        // Serve queued read-backs until the retry interval elapses, then loop
+        // round and re-check for missing data. A rescan request ends the wait
+        // early. Read-backs are served whether or not a gateway is present.
+        TickType_t remaining = pdMS_TO_TICKS(RETRY_INTERVAL_MS);
+        while (remaining > 0) {
+            reg_request_t req;
+            TickType_t wait_start = xTaskGetTickCount();
+            if (xQueueReceive(s_queue, &req, remaining) != pdTRUE) {
+                break;  // retry interval elapsed
+            }
+            TickType_t waited = xTaskGetTickCount() - wait_start;
+            remaining = (waited >= remaining) ? 0 : remaining - waited;
+
+            if (req.rescan) {
+                break;
+            }
+
+            // Give the controller time to apply the write it is following.
+            vTaskDelay(pdMS_TO_TICKS(READBACK_DELAY_MS));
+            char desc[32];
+            snprintf(desc, sizeof(desc), "read-back of 0x%02X", req.reg_id);
+            send_request(req.reg_id, req.slot, desc);
+        }
     }
 }
 
 void register_requester_notify(void)
 {
-    if (s_task_handle) {
-        xTaskNotifyGive(s_task_handle);
+    if (!s_queue) return;
+
+    reg_request_t req = { .rescan = true };
+    xQueueSend(s_queue, &req, 0);
+}
+
+void register_requester_read_back(uint8_t reg_id, uint8_t slot)
+{
+    if (!s_queue) return;
+
+    reg_request_t req = { .reg_id = reg_id, .slot = slot, .rescan = false };
+    if (xQueueSend(s_queue, &req, 0) != pdTRUE) {
+        ESP_LOGW(TAG, "Read-back queue full, dropping 0x%02X/0x%02X", reg_id, slot);
     }
 }
 
@@ -159,5 +205,10 @@ void register_requester_start(pool_state_t *pool_state, SemaphoreHandle_t state_
 {
     s_state = pool_state;
     s_mutex = state_mutex;
-    xTaskCreate(register_requester_task, "reg_req", 4096, NULL, 2, &s_task_handle);
+    s_queue = xQueueCreate(REQUEST_QUEUE_LEN, sizeof(reg_request_t));
+    if (!s_queue) {
+        ESP_LOGE(TAG, "Failed to create request queue");
+        return;
+    }
+    xTaskCreate(register_requester_task, "reg_req", 4096, NULL, 2, NULL);
 }
