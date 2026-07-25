@@ -1166,6 +1166,7 @@ static bool handle_gas_heater_status(
     pool_heater_t* const heater_state = &(ctx->pool_state->heaters[0]);
     heater_state->valid = true;
     heater_state->on = heater_on;
+    heater_state->device_reported = true;
 
     heater_state->gas_heater_valid = true;
     heater_state->water_flow_detected = water_flow_detected;
@@ -1181,6 +1182,7 @@ static bool handle_gas_heater_status(
     xSemaphoreGive(ctx->state_mutex);
 
     if (ctx->enable_mqtt) {
+        mqtt_publish_heater(&snapshot, 0);
         mqtt_publish_gas_heater(&snapshot, 0);
     }
 
@@ -1244,6 +1246,7 @@ static bool handle_genus_heater_status(
     }
     ctx->pool_state->heaters[0].on = heater_on;
     ctx->pool_state->heaters[0].valid = true;
+    ctx->pool_state->heaters[0].device_reported = true;
     ctx->pool_state->last_update_ms = xTaskGetTickCount() * portTICK_PERIOD_MS;
     snapshot = *ctx->pool_state;
     xSemaphoreGive(ctx->state_mutex);
@@ -1293,6 +1296,13 @@ static bool handle_heater_temp_setting(
 /**
  * Handler: Heater status message
  * Pattern: "02 00 62 FF FF 80 00 12 0F"
+ *
+ * The controller's own view of Heater 1. On installs carrying a dedicated
+ * heater device (Genus 0x0070, HiNRG 0x0072, ICI 0x0074) that device's CMD 0x12
+ * status is authoritative and this frame's heater bit is ignored: it has been
+ * observed stuck at 0 for the whole time an external gas heater was running
+ * (payload `04 00 00`), which pinned the Home Assistant switch to OFF. Service
+ * mode comes from here either way.
  */
 static bool handle_heater(
     const uint8_t *data, int len,
@@ -1327,8 +1337,11 @@ static bool handle_heater(
         ESP_LOGW(TAG, "Failed to acquire mutex for heater");
         return true;
     }
-    ctx->pool_state->heaters[0].on = heater_on;
-    ctx->pool_state->heaters[0].valid = true;
+    bool heater_is_ours = !ctx->pool_state->heaters[0].device_reported;
+    if (heater_is_ours) {
+        ctx->pool_state->heaters[0].on = heater_on;
+        ctx->pool_state->heaters[0].valid = true;
+    }
     ctx->pool_state->service_mode = service_mode;
     ctx->pool_state->service_mode_valid = true;
     ctx->pool_state->last_update_ms = xTaskGetTickCount() * portTICK_PERIOD_MS;
@@ -1336,7 +1349,9 @@ static bool handle_heater(
     xSemaphoreGive(ctx->state_mutex);
 
     if (ctx->enable_mqtt) {
-        mqtt_publish_heater(&snapshot, 0);
+        if (heater_is_ours) {
+            mqtt_publish_heater(&snapshot, 0);
+        }
         mqtt_publish_service_mode(&snapshot);
     }
 
