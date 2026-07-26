@@ -392,6 +392,7 @@ The page offers the **5 most recent releases** in a version picker, defaulting t
 The page source lives in `installer/`:
 
 - `installer/index.html` — the installer page. Static; it reads `versions.json` at runtime to build the picker, so it needs no build step.
+- `installer/app.js` — the page's script. Kept out of the HTML so the page's CSP can be `script-src 'self'` with no `'unsafe-inline'`.
 - `installer/manifest.template.json` — the ESP Web Tools manifest, with `__VERSION__` / `__BINARY__` placeholders stamped once per offered version.
 - `installer/build-site.sh` — assembles the deployable site.
 - `installer/preview.sh` — builds it and serves it locally.
@@ -401,6 +402,20 @@ The published site is *not* these files as-is. `build-site.sh` queries the recen
 Releases without a `pool-controller-full-*.bin` asset are skipped, and the script keeps looking further back until it has 5 usable ones. Change the count via the `INSTALLER_VERSIONS` env in `pages.yml`; at ~1.5 MB per binary, 5 versions is roughly a 7.5 MB site.
 
 A deploy always publishes the newest 5 releases regardless of which tag triggered it, so re-running an old tag's build can't roll the public installer back to that version.
+
+### Vendored flasher
+
+ESP Web Tools is **vendored into the site**, not loaded from a CDN. The page holds a live Web Serial port and writes a full flash image, so the JavaScript it loads decides which bytes reach the device — that code is pinned and verified rather than resolved at page load from a third-party origin. A floating `@10` CDN range would mean every visitor executing whatever was published to npm most recently, with no review and no deploy step in between.
+
+`build-site.sh` downloads the exact `EWT_VERSION` tarball from the npm registry, checks it against the registry's published `dist.integrity` hash pinned in `EWT_INTEGRITY`, and unpacks it to `ewt/`. A mismatch aborts the build. To upgrade, bump both:
+
+```bash
+curl -s https://registry.npmjs.org/esp-web-tools/<version> | jq -r .dist.integrity
+```
+
+then re-test flashing on real hardware before merging.
+
+With every asset same-origin, the page sets a `default-src 'none'` CSP allowing `script-src 'self'` and no external origins, so nothing off-origin can inject code into the flashing page.
 
 **One-time setup:** in Settings → Pages, set the source to **GitHub Actions**. Setting it to "Deploy from a branch" cannot work — that serves the sources raw, with no `manifest.json` and no binary, and the page fails with *"Failed to download manifest"*. (`installer/` is named that way rather than `docs/` precisely so it isn't offered as a branch publishing directory.)
 
