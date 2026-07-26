@@ -34,11 +34,34 @@ int bus_send_bytes(const uint8_t *data, size_t len)
     return (int)len;
 }
 
+// ======================================================
+// Register read-back spy
+//
+// After writing a setpoint, mqtt_commands.c queues a CMD 0x39 read-back of
+// the register it just wrote (see main/register_requester.h). The real
+// implementation needs FreeRTOS, so record the request here instead.
+// ======================================================
+
+static uint8_t s_read_back_reg   = 0;
+static uint8_t s_read_back_slot  = 0;
+static int     s_read_back_calls = 0;
+
+void register_requester_read_back(uint8_t reg_id, uint8_t slot)
+{
+    s_read_back_reg  = reg_id;
+    s_read_back_slot = slot;
+    s_read_back_calls++;
+}
+
 static void uart_spy_reset(void)
 {
     memset(s_uart_buf, 0, sizeof(s_uart_buf));
     s_uart_len   = 0;
     s_uart_calls = 0;
+
+    s_read_back_reg   = 0;
+    s_read_back_slot  = 0;
+    s_read_back_calls = 0;
 }
 
 // ======================================================
@@ -281,6 +304,8 @@ void test_temperature_pool(void)
     TEST_ASSERT(s_uart_calls == 1, "heater/0/pool_setpoint/set 30: exactly one UART write");
     TEST_ASSERT(s_uart_len == sizeof(expected), "heater/0/pool_setpoint/set 30: correct length");
     TEST_ASSERT(memcmp(s_uart_buf, expected, sizeof(expected)) == 0, "heater/0/pool_setpoint/set 30: correct bytes");
+    TEST_ASSERT(s_read_back_calls == 1 && s_read_back_reg == 0xE7 && s_read_back_slot == 0x00,
+                "heater/0/pool_setpoint/set 30: reads register 0xE7 back");
 }
 
 void test_temperature_spa(void)
@@ -298,6 +323,8 @@ void test_temperature_spa(void)
     };
     TEST_ASSERT(s_uart_calls == 1, "heater/0/spa_setpoint/set 37: exactly one UART write");
     TEST_ASSERT(memcmp(s_uart_buf, expected, sizeof(expected)) == 0, "heater/0/spa_setpoint/set 37: correct bytes");
+    TEST_ASSERT(s_read_back_calls == 1 && s_read_back_reg == 0xE8 && s_read_back_slot == 0x00,
+                "heater/0/spa_setpoint/set 37: reads register 0xE8 back");
 }
 
 void test_heater2_pool_setpoint(void)
@@ -316,6 +343,8 @@ void test_heater2_pool_setpoint(void)
     TEST_ASSERT(s_uart_calls == 1, "heater/1/pool_setpoint/set 27: exactly one UART write");
     TEST_ASSERT(s_uart_len == sizeof(expected), "heater/1/pool_setpoint/set 27: correct length");
     TEST_ASSERT(memcmp(s_uart_buf, expected, sizeof(expected)) == 0, "heater/1/pool_setpoint/set 27: correct bytes");
+    TEST_ASSERT(s_read_back_calls == 1 && s_read_back_reg == 0xEA && s_read_back_slot == 0x00,
+                "heater/1/pool_setpoint/set 27: reads register 0xEA back");
 }
 
 void test_heater2_spa_setpoint(void)
@@ -333,6 +362,8 @@ void test_heater2_spa_setpoint(void)
     };
     TEST_ASSERT(s_uart_calls == 1, "heater/1/spa_setpoint/set 24: exactly one UART write");
     TEST_ASSERT(memcmp(s_uart_buf, expected, sizeof(expected)) == 0, "heater/1/spa_setpoint/set 24: correct bytes");
+    TEST_ASSERT(s_read_back_calls == 1 && s_read_back_reg == 0xEB && s_read_back_slot == 0x00,
+                "heater/1/spa_setpoint/set 24: reads register 0xEB back");
 }
 
 void test_temperature_out_of_range(void)
