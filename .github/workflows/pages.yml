@@ -1,16 +1,32 @@
 name: Deploy Web Installer
 
 # Publishes the ESP Web Tools installer page to GitHub Pages, serving the
-# merged full-flash binary from the latest release.
+# merged full-flash binary from a release alongside it.
 #
-# This keys off `workflow_run` rather than `release: published` on purpose:
+# The page source lives in installer/, deliberately NOT docs/ — GitHub Pages
+# treats docs/ as a branch publishing directory, and pointing Pages at it
+# serves the raw sources, which have no manifest.json and no firmware binary
+# (both are produced here at deploy time). Keeping the sources out of docs/
+# removes that trap: this workflow is the only way the site gets published.
+#
+# Pages must be configured with source "GitHub Actions" (Settings → Pages),
+# not "Deploy from a branch".
+#
+# The workflow_run trigger is used rather than `release: published` because
 # Build & Release publishes its draft with the built-in GITHUB_TOKEN, and
-# events raised by that token never trigger further workflow runs, so a
-# `release` trigger here would silently never fire.
+# events raised by that token never trigger further workflow runs — a release
+# trigger would silently never fire.
 on:
+  # Tag builds: publish the release that was just built.
   workflow_run:
     workflows: ["Build & Release"]
     types: [completed]
+  # Page edits: republish against the current latest release.
+  push:
+    branches: [main]
+    paths:
+      - 'installer/**'
+      - '.github/workflows/pages.yml'
   workflow_dispatch:
 
 permissions:
@@ -26,12 +42,12 @@ concurrency:
 
 jobs:
   deploy:
-    # Tag builds only. On a tag push `workflow_run.head_branch` is the tag name,
-    # so this skips the PR and main-branch runs of Build & Release. Manual runs
-    # republish the page against whatever release is currently latest, which is
-    # how to ship an edit to docs/ without cutting a new firmware release.
+    # workflow_run fires for every Build & Release run, including PR and
+    # main-branch builds that produce no release. Only tag builds carry a
+    # release to publish; on a tag push workflow_run.head_branch is the tag
+    # name. push and workflow_dispatch always deploy, using the latest release.
     if: >-
-      github.event_name == 'workflow_dispatch' ||
+      github.event_name != 'workflow_run' ||
       (github.event.workflow_run.conclusion == 'success' &&
       startsWith(github.event.workflow_run.head_branch, 'v'))
     runs-on: ubuntu-latest
@@ -49,15 +65,16 @@ jobs:
         id: fw
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Empty for workflow_dispatch, in which case the latest release is used.
+          # Set only for workflow_run; empty for push and workflow_dispatch,
+          # which fall back to whatever release is currently latest.
           EVENT_TAG: ${{ github.event.workflow_run.head_branch }}
           EVENT_NAME: ${{ github.event_name }}
         run: |
           set -euo pipefail
-          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
-            VERSION=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName -q .tagName)
-          else
+          if [ "$EVENT_NAME" = "workflow_run" ]; then
             VERSION="$EVENT_TAG"
+          else
+            VERSION=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName -q .tagName)
           fi
           BINARY="pool-controller-full-${VERSION}.bin"
           mkdir -p site
@@ -65,7 +82,7 @@ jobs:
             --pattern "$BINARY" --dir site
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "binary=$BINARY" >> "$GITHUB_OUTPUT"
-          echo "Staging $BINARY ($(du -h "site/$BINARY" | cut -f1))"
+          echo "Staging $BINARY ($(du -h "site/$BINARY" | cut -f1)) for $VERSION"
 
       - name: Assemble site
         env:
@@ -73,15 +90,16 @@ jobs:
           BINARY: ${{ steps.fw.outputs.binary }}
         run: |
           set -euo pipefail
-          cp docs/index.html site/index.html
+          cp installer/index.html site/index.html
           sed -e "s|__VERSION__|${VERSION}|g" \
               -e "s|__BINARY__|${BINARY}|g" \
-              docs/manifest.template.json > site/manifest.json
+              installer/manifest.template.json > site/manifest.json
           # Fail loudly rather than deploying a page that can't flash anything.
           if grep -q '__VERSION__\|__BINARY__' site/manifest.json; then
             echo "manifest.json still contains unsubstituted placeholders" >&2
             exit 1
           fi
+          test -s "site/${BINARY}"
           cat site/manifest.json
 
       - name: Upload Pages artifact
