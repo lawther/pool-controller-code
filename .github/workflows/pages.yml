@@ -34,6 +34,10 @@ permissions:
   pages: write
   id-token: write
 
+env:
+  # How many recent releases the installer offers in its version picker.
+  INSTALLER_VERSIONS: 5
+
 # Never run two deploys at once, and let an in-flight deploy finish rather
 # than cancelling it — a half-published installer page is worse than a stale one.
 concurrency:
@@ -61,46 +65,14 @@ jobs:
       - name: Configure Pages
         uses: actions/configure-pages@v6
 
-      - name: Download release firmware
-        id: fw
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Set only for workflow_run; empty for push and workflow_dispatch,
-          # which fall back to whatever release is currently latest.
-          EVENT_TAG: ${{ github.event.workflow_run.head_branch }}
-          EVENT_NAME: ${{ github.event_name }}
-        run: |
-          set -euo pipefail
-          if [ "$EVENT_NAME" = "workflow_run" ]; then
-            VERSION="$EVENT_TAG"
-          else
-            VERSION=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName -q .tagName)
-          fi
-          BINARY="pool-controller-full-${VERSION}.bin"
-          mkdir -p site
-          gh release download "$VERSION" --repo "$GITHUB_REPOSITORY" \
-            --pattern "$BINARY" --dir site
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "binary=$BINARY" >> "$GITHUB_OUTPUT"
-          echo "Staging $BINARY ($(du -h "site/$BINARY" | cut -f1)) for $VERSION"
-
+      # Always the newest INSTALLER_VERSIONS releases, whichever tag triggered
+      # the run. Re-running an old tag's build therefore can't roll the public
+      # installer back to that version.
       - name: Assemble site
         env:
-          VERSION: ${{ steps.fw.outputs.version }}
-          BINARY: ${{ steps.fw.outputs.binary }}
-        run: |
-          set -euo pipefail
-          cp installer/index.html site/index.html
-          sed -e "s|__VERSION__|${VERSION}|g" \
-              -e "s|__BINARY__|${BINARY}|g" \
-              installer/manifest.template.json > site/manifest.json
-          # Fail loudly rather than deploying a page that can't flash anything.
-          if grep -q '__VERSION__\|__BINARY__' site/manifest.json; then
-            echo "manifest.json still contains unsubstituted placeholders" >&2
-            exit 1
-          fi
-          test -s "site/${BINARY}"
-          cat site/manifest.json
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: ./installer/build-site.sh --out site --limit "${INSTALLER_VERSIONS:-5}"
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v5

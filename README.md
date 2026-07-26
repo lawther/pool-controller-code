@@ -387,13 +387,20 @@ To re-test the workflow without cutting a real release, run it manually from the
 
 <https://marklynch.github.io/pool-controller-code/> flashes the latest release onto an ESP32-C6 straight from the browser using [ESP Web Tools](https://github.com/esphome/esp-web-tools) and Web Serial — no ESP-IDF toolchain, no esptool. It needs desktop Chrome or Edge; Safari, Firefox and mobile browsers have no Web Serial support and get a "flash manually" fallback instead.
 
+The page offers the **5 most recent releases** in a version picker, defaulting to the latest. Picking an older one shows a rollback warning. ESP Web Tools reads the manifest at click time, so switching versions just re-points the install button at that version's manifest.
+
 The page source lives in `installer/`:
 
-- `installer/index.html` — the installer page. Static, and it reads the version out of `manifest.json` at runtime, so it needs no build step.
-- `installer/manifest.template.json` — the ESP Web Tools manifest, with `__VERSION__` / `__BINARY__` placeholders stamped at deploy time.
-- `installer/preview.sh` — serves the assembled site locally for testing.
+- `installer/index.html` — the installer page. Static; it reads `versions.json` at runtime to build the picker, so it needs no build step.
+- `installer/manifest.template.json` — the ESP Web Tools manifest, with `__VERSION__` / `__BINARY__` placeholders stamped once per offered version.
+- `installer/build-site.sh` — assembles the deployable site.
+- `installer/preview.sh` — builds it and serves it locally.
 
-The published site is *not* these files as-is: `manifest.json` and the firmware binary don't exist in the repo, they're produced at deploy time. `.github/workflows/pages.yml` downloads `pool-controller-full-<tag>.bin` from the release, substitutes the placeholders, and deploys page plus binary together. Serving the binary same-origin rather than linking it from the release keeps the flasher's fetch simple.
+The published site is *not* these files as-is. `build-site.sh` queries the recent releases, downloads each `pool-controller-full-<tag>.bin`, and emits per-version manifests plus a `versions.json` index — none of which exist in the repo. Both the workflow and `preview.sh` call that one script, so a local preview is exactly what gets deployed. Serving the binaries same-origin rather than linking them from the releases keeps the flasher's fetch simple.
+
+Releases without a `pool-controller-full-*.bin` asset are skipped, and the script keeps looking further back until it has 5 usable ones. Change the count via the `INSTALLER_VERSIONS` env in `pages.yml`; at ~1.5 MB per binary, 5 versions is roughly a 7.5 MB site.
+
+A deploy always publishes the newest 5 releases regardless of which tag triggered it, so re-running an old tag's build can't roll the public installer back to that version.
 
 **One-time setup:** in Settings → Pages, set the source to **GitHub Actions**. Setting it to "Deploy from a branch" cannot work — that serves the sources raw, with no `manifest.json` and no binary, and the page fails with *"Failed to download manifest"*. (`installer/` is named that way rather than `docs/` precisely so it isn't offered as a branch publishing directory.)
 
@@ -408,12 +415,12 @@ Runs of Build & Release that aren't tag builds show up as *skipped* here. That's
 ### Testing locally
 
 ```bash
-./installer/preview.sh              # latest release
-./installer/preview.sh v1.11.0      # a specific release
-./installer/preview.sh --bin build/pool-controller-full.bin
+./installer/preview.sh                                   # latest 5 releases
+./installer/preview.sh --limit 2                         # fewer, quicker to download
+./installer/preview.sh --bin build/pool-controller-full.bin --version dev
 ```
 
-This assembles the same layout the workflow deploys and serves it on <http://localhost:8000>, which counts as a secure context, so the flasher really works. Opening `installer/index.html` from disk does **not** work — there's no `manifest.json` next to it, and `file://` can't fetch one.
+This serves the assembled site on <http://localhost:8000>, which counts as a secure context, so the flasher really works. Requires `gh` unless you pass `--bin`. Opening `installer/index.html` from disk does **not** work — `manifest.json` and `versions.json` are generated, and `file://` can't fetch them anyway.
 
 ## Documentation
 

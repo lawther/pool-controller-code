@@ -45,16 +45,28 @@
   h1 { font-size: 2rem; margin: .5rem 0 .25rem; letter-spacing: -.02em; }
   h2 { font-size: 1.15rem; margin: 0 0 .75rem; letter-spacing: -.01em; }
   .tagline { color: var(--muted); margin: 0; }
-  .version {
-    display: inline-block; margin-top: .75rem; padding: .15rem .6rem;
-    border: 1px solid var(--line); border-radius: 999px;
-    font-size: .8rem; color: var(--muted); font-variant-numeric: tabular-nums;
-  }
   .card {
     background: var(--card); border: 1px solid var(--line);
     border-radius: 12px; padding: 1.5rem; margin-bottom: 1.25rem;
   }
   .install { text-align: center; }
+  .picker {
+    display: flex; flex-wrap: wrap; gap: .5rem .75rem;
+    align-items: center; justify-content: center;
+    margin-bottom: 1.25rem; font-size: .92rem;
+  }
+  .picker label { color: var(--muted); }
+  select {
+    font: inherit; color: var(--fg); background-color: var(--bg);
+    border: 1px solid var(--line); border-radius: 7px;
+    padding: .35rem 2rem .35rem .6rem; cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='%2359636e' d='M4 6l4 4 4-4z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right .5rem center;
+    background-size: 1rem;
+  }
+  select:disabled { opacity: .6; cursor: default; }
   .btn {
     appearance: none; border: 0; cursor: pointer;
     background: var(--accent); color: var(--accent-fg);
@@ -67,6 +79,8 @@
     background: var(--warn-bg); border: 1px solid var(--warn-line);
     font-size: .92rem; text-align: left;
   }
+  .notice[hidden] { display: none; }
+  #older { margin: 1.25rem 0 0; }
   ol, ul { padding-left: 1.25rem; margin: 0; }
   li + li { margin-top: .4rem; }
   a { color: var(--accent); }
@@ -75,6 +89,7 @@
     border-radius: 5px; padding: .1rem .35rem; font-size: .875em;
   }
   .links { display: flex; flex-wrap: wrap; gap: .5rem 1.25rem; }
+  .hint { margin: .9rem 0 0; color: var(--muted); font-size: .92rem; }
   footer {
     margin-top: 2rem; text-align: center;
     color: var(--muted); font-size: .85rem;
@@ -87,11 +102,18 @@
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true"><path fill="#1565C0" d="M2,15C3.67,14.25 5.33,13.5 7,13.17V5A3,3 0 0,1 10,2C11.31,2 12.42,2.83 12.83,4H10A1,1 0 0,0 9,5V6H14V5A3,3 0 0,1 17,2C18.31,2 19.42,2.83 19.83,4H17A1,1 0 0,0 16,5V14.94C18,14.62 20,13 22,13V15C19.78,15 17.56,17 15.33,17C13.11,17 10.89,15 8.67,15C6.44,15 4.22,16 2,17V15M14,8H9V10H14V8M14,12H9V13C10.67,13.16 12.33,14.31 14,14.79V12M2,19C4.22,18 6.44,17 8.67,17C10.89,17 13.11,19 15.33,19C17.56,19 19.78,17 22,17V19C19.78,19 17.56,21 15.33,21C13.11,21 10.89,19 8.67,19C6.44,19 4.22,20 2,21V19Z"/></svg>
     <h1>Pool Controller</h1>
     <p class="tagline">Flash the Connect&nbsp;10 bridge firmware to your ESP32-C6, straight from this page.</p>
-    <span class="version" id="version">loading…</span>
   </header>
 
   <section class="card install">
-    <esp-web-install-button manifest="./manifest.json">
+    <div class="picker">
+      <label for="version">Version</label>
+      <select id="version" disabled>
+        <option>loading…</option>
+      </select>
+      <a id="notes" href="https://github.com/marklynch/pool-controller-code/releases">Release notes</a>
+    </div>
+
+    <esp-web-install-button id="installer" manifest="./manifest.json">
       <button class="btn" slot="activate">Connect &amp; Install</button>
       <span class="notice" slot="unsupported">
         Your browser can't talk to serial devices. Use desktop <strong>Chrome</strong> or
@@ -102,6 +124,12 @@
         This page has to be served over HTTPS for serial access to work.
       </span>
     </esp-web-install-button>
+
+    <p class="notice" id="older" hidden>
+      You've picked an older release. Unless you're rolling back deliberately, use
+      <strong id="older-latest"></strong> — and note that once the device is online it
+      will offer to update itself to the latest version anyway.
+    </p>
   </section>
 
   <section class="card">
@@ -112,7 +140,7 @@
       <li>Close anything else using the port (serial monitor, <code>idf.py monitor</code>, Arduino IDE).</li>
       <li>Press <strong>Connect &amp; Install</strong> and pick the ESP32-C6 serial port from the list.</li>
     </ol>
-    <p style="margin:.9rem 0 0;color:var(--muted);font-size:.92rem">
+    <p class="hint">
       If no port appears, hold the <strong>BOOT</strong> button while plugging the board in to force
       the bootloader, then try again.
     </p>
@@ -126,7 +154,7 @@
       <li>Open <a href="http://192.168.4.1">http://192.168.4.1</a> and choose your WiFi network.</li>
       <li>The device restarts and appears at <code>http://poolcontrol-AABBCC.local</code>. The LED goes green once WiFi and MQTT are both connected.</li>
     </ol>
-    <p style="margin:.9rem 0 0;color:var(--muted);font-size:.92rem">
+    <p class="hint">
       Full setup notes, the LED colour reference and Home Assistant configuration are in the
       <a href="https://github.com/marklynch/pool-controller-code#readme">README</a>. Once online,
       the device updates itself over-the-air — you only need this page for the first install.
@@ -140,7 +168,7 @@
       <a href="https://github.com/marklynch/pool-controller-pcb">Circuit &amp; PCB</a>
       <a href="https://github.com/marklynch/pool-controller-case">Case</a>
       <a href="https://github.com/marklynch/pool-controller-code/blob/main/PROTOCOL.md">Protocol notes</a>
-      <a href="https://github.com/marklynch/pool-controller-code/releases" id="release-link">Releases</a>
+      <a href="https://github.com/marklynch/pool-controller-code/releases">Releases</a>
     </div>
   </section>
 
@@ -152,17 +180,59 @@
 
 <script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js"></script>
 <script>
-  // The manifest is the single source of truth for the version — it is stamped
-  // by the deploy workflow from the release being published.
-  fetch('./manifest.json')
-    .then((r) => r.json())
-    .then((m) => {
-      document.getElementById('version').textContent = m.version;
-      document.getElementById('release-link').href =
-        'https://github.com/marklynch/pool-controller-code/releases/tag/' + m.version;
+  // versions.json is generated by installer/build-site.sh, newest release first,
+  // with one manifest and one firmware binary per version. ESP Web Tools reads
+  // the manifest when the button is clicked, so switching versions is just a
+  // matter of re-pointing the button's manifest attribute.
+  const select = document.getElementById('version');
+  const installer = document.getElementById('installer');
+  const notes = document.getElementById('notes');
+  const older = document.getElementById('older');
+  const olderLatest = document.getElementById('older-latest');
+
+  function apply(entry, latest) {
+    installer.setAttribute('manifest', './' + entry.manifest);
+    notes.href = entry.notes;
+    olderLatest.textContent = latest;
+    older.hidden = entry.version === latest;
+  }
+
+  fetch('./versions.json')
+    .then((r) => {
+      if (!r.ok) throw new Error('versions.json: HTTP ' + r.status);
+      return r.json();
+    })
+    .then((data) => {
+      const list = data.versions || [];
+      if (!list.length) throw new Error('no versions listed');
+
+      select.textContent = '';
+      for (const entry of list) {
+        const opt = document.createElement('option');
+        opt.value = entry.version;
+        opt.textContent =
+          entry.version +
+          (entry.version === data.latest ? ' (latest)' : '') +
+          (entry.published ? ' — ' + entry.published : '');
+        select.append(opt);
+      }
+      select.disabled = list.length < 2;
+      select.value = data.latest;
+      apply(list.find((e) => e.version === data.latest) || list[0], data.latest);
+
+      select.addEventListener('change', () => {
+        const entry = list.find((e) => e.version === select.value);
+        if (entry) apply(entry, data.latest);
+      });
     })
     .catch(() => {
-      document.getElementById('version').textContent = 'version unavailable';
+      // Leave the button on manifest.json, which build-site.sh always writes as
+      // a copy of the latest release's manifest, so installing still works.
+      select.textContent = '';
+      const opt = document.createElement('option');
+      opt.textContent = 'latest';
+      select.append(opt);
+      select.disabled = true;
     });
 </script>
 </body>
