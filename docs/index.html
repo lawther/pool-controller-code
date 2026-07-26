@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pool Controller — Web Installer</title>
+<meta name="description" content="Flash the Connect 10 pool controller firmware to an ESP32-C6 straight from your browser.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%231565C0' d='M2,15C3.67,14.25 5.33,13.5 7,13.17V5A3,3 0 0,1 10,2C11.31,2 12.42,2.83 12.83,4H10A1,1 0 0,0 9,5V6H14V5A3,3 0 0,1 17,2C18.31,2 19.42,2.83 19.83,4H17A1,1 0 0,0 16,5V14.94C18,14.62 20,13 22,13V15C19.78,15 17.56,17 15.33,17C13.11,17 10.89,15 8.67,15C6.44,15 4.22,16 2,17V15M14,8H9V10H14V8M14,12H9V13C10.67,13.16 12.33,14.31 14,14.79V12M2,19C4.22,18 6.44,17 8.67,17C10.89,17 13.11,19 15.33,19C17.56,19 19.78,17 22,17V19C19.78,19 17.56,21 15.33,21C13.11,21 10.89,19 8.67,19C6.44,19 4.22,20 2,21V19Z'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #f6f8fa;
+    --card: #ffffff;
+    --fg: #1f2328;
+    --muted: #59636e;
+    --line: #d8dee4;
+    --accent: #1565c0;
+    --accent-fg: #ffffff;
+    --warn-bg: #fff8e5;
+    --warn-line: #e8d8a8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0d1117;
+      --card: #151b23;
+      --fg: #e6edf3;
+      --muted: #9198a1;
+      --line: #2f3742;
+      --accent: #4a9eff;
+      --accent-fg: #06121f;
+      --warn-bg: #1f1a0b;
+      --warn-line: #4a3c15;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 2rem 1rem 4rem;
+    background: var(--bg);
+    color: var(--fg);
+    font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  }
+  main { max-width: 46rem; margin: 0 auto; }
+  header { text-align: center; margin-bottom: 2.5rem; }
+  header svg { width: 64px; height: 64px; }
+  h1 { font-size: 2rem; margin: .5rem 0 .25rem; letter-spacing: -.02em; }
+  h2 { font-size: 1.15rem; margin: 0 0 .75rem; letter-spacing: -.01em; }
+  .tagline { color: var(--muted); margin: 0; }
+  .version {
+    display: inline-block; margin-top: .75rem; padding: .15rem .6rem;
+    border: 1px solid var(--line); border-radius: 999px;
+    font-size: .8rem; color: var(--muted); font-variant-numeric: tabular-nums;
+  }
+  .card {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 12px; padding: 1.5rem; margin-bottom: 1.25rem;
+  }
+  .install { text-align: center; }
+  .btn {
+    appearance: none; border: 0; cursor: pointer;
+    background: var(--accent); color: var(--accent-fg);
+    font: inherit; font-weight: 600;
+    padding: .8rem 2rem; border-radius: 8px;
+  }
+  .btn:hover { filter: brightness(1.08); }
+  .notice {
+    display: block; padding: .9rem 1rem; border-radius: 8px;
+    background: var(--warn-bg); border: 1px solid var(--warn-line);
+    font-size: .92rem; text-align: left;
+  }
+  ol, ul { padding-left: 1.25rem; margin: 0; }
+  li + li { margin-top: .4rem; }
+  a { color: var(--accent); }
+  code {
+    background: var(--bg); border: 1px solid var(--line);
+    border-radius: 5px; padding: .1rem .35rem; font-size: .875em;
+  }
+  .links { display: flex; flex-wrap: wrap; gap: .5rem 1.25rem; }
+  footer {
+    margin-top: 2rem; text-align: center;
+    color: var(--muted); font-size: .85rem;
+  }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true"><path fill="#1565C0" d="M2,15C3.67,14.25 5.33,13.5 7,13.17V5A3,3 0 0,1 10,2C11.31,2 12.42,2.83 12.83,4H10A1,1 0 0,0 9,5V6H14V5A3,3 0 0,1 17,2C18.31,2 19.42,2.83 19.83,4H17A1,1 0 0,0 16,5V14.94C18,14.62 20,13 22,13V15C19.78,15 17.56,17 15.33,17C13.11,17 10.89,15 8.67,15C6.44,15 4.22,16 2,17V15M14,8H9V10H14V8M14,12H9V13C10.67,13.16 12.33,14.31 14,14.79V12M2,19C4.22,18 6.44,17 8.67,17C10.89,17 13.11,19 15.33,19C17.56,19 19.78,17 22,17V19C19.78,19 17.56,21 15.33,21C13.11,21 10.89,19 8.67,19C6.44,19 4.22,20 2,21V19Z"/></svg>
+    <h1>Pool Controller</h1>
+    <p class="tagline">Flash the Connect&nbsp;10 bridge firmware to your ESP32-C6, straight from this page.</p>
+    <span class="version" id="version">loading…</span>
+  </header>
+
+  <section class="card install">
+    <esp-web-install-button manifest="./manifest.json">
+      <button class="btn" slot="activate">Connect &amp; Install</button>
+      <span class="notice" slot="unsupported">
+        Your browser can't talk to serial devices. Use desktop <strong>Chrome</strong> or
+        <strong>Edge</strong> — Safari, Firefox and mobile browsers don't support Web Serial.
+        You can still <a href="https://github.com/marklynch/pool-controller-code/releases/latest">flash manually from the release</a>.
+      </span>
+      <span class="notice" slot="not-allowed">
+        This page has to be served over HTTPS for serial access to work.
+      </span>
+    </esp-web-install-button>
+  </section>
+
+  <section class="card">
+    <h2>Before you start</h2>
+    <ol>
+      <li>Use a desktop <strong>Chrome</strong> or <strong>Edge</strong> browser.</li>
+      <li>Connect the controller to your computer with a <strong>USB-C data cable</strong> — some charge-only cables carry power but no data.</li>
+      <li>Close anything else using the port (serial monitor, <code>idf.py monitor</code>, Arduino IDE).</li>
+      <li>Press <strong>Connect &amp; Install</strong> and pick the ESP32-C6 serial port from the list.</li>
+    </ol>
+    <p style="margin:.9rem 0 0;color:var(--muted);font-size:.92rem">
+      If no port appears, hold the <strong>BOOT</strong> button while plugging the board in to force
+      the bootloader, then try again.
+    </p>
+  </section>
+
+  <section class="card">
+    <h2>After flashing</h2>
+    <ol>
+      <li>The LED turns <strong>purple</strong> — the device is in provisioning mode.</li>
+      <li>On your phone, join the WiFi network <code>POOL_AABBCC</code> (password <code>poolsetup</code>).</li>
+      <li>Open <a href="http://192.168.4.1">http://192.168.4.1</a> and choose your WiFi network.</li>
+      <li>The device restarts and appears at <code>http://poolcontrol-AABBCC.local</code>. The LED goes green once WiFi and MQTT are both connected.</li>
+    </ol>
+    <p style="margin:.9rem 0 0;color:var(--muted);font-size:.92rem">
+      Full setup notes, the LED colour reference and Home Assistant configuration are in the
+      <a href="https://github.com/marklynch/pool-controller-code#readme">README</a>. Once online,
+      the device updates itself over-the-air — you only need this page for the first install.
+    </p>
+  </section>
+
+  <section class="card">
+    <h2>Project links</h2>
+    <div class="links">
+      <a href="https://github.com/marklynch/pool-controller-code">Firmware</a>
+      <a href="https://github.com/marklynch/pool-controller-pcb">Circuit &amp; PCB</a>
+      <a href="https://github.com/marklynch/pool-controller-case">Case</a>
+      <a href="https://github.com/marklynch/pool-controller-code/blob/main/PROTOCOL.md">Protocol notes</a>
+      <a href="https://github.com/marklynch/pool-controller-code/releases" id="release-link">Releases</a>
+    </div>
+  </section>
+
+  <footer>
+    Not an official product. No support or warranty, and not connected to or supported by Fluidra.<br>
+    MIT licensed.
+  </footer>
+</main>
+
+<script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js"></script>
+<script>
+  // The manifest is the single source of truth for the version — it is stamped
+  // by the deploy workflow from the release being published.
+  fetch('./manifest.json')
+    .then((r) => r.json())
+    .then((m) => {
+      document.getElementById('version').textContent = m.version;
+      document.getElementById('release-link').href =
+        'https://github.com/marklynch/pool-controller-code/releases/tag/' + m.version;
+    })
+    .catch(() => {
+      document.getElementById('version').textContent = 'version unavailable';
+    });
+</script>
+</body>
+</html>

@@ -43,6 +43,8 @@ The device has three connectors:
 - **2 × RJ12 sockets** — for the pool control bus. Use a standard flat RJ12 cable to connect either socket to your Connect 10 system; this also powers the device. The two sockets are wired in parallel, so the second one can be used to daisy-chain another device (e.g. another controller, gateway, or accessory) on the same bus.
 - **1 × USB-C socket** — for manually flashing firmware and serial monitoring from a computer. It is **not** required for normal operation.
 
+If the device hasn't been flashed yet, the quickest route is the [web installer](https://marklynch.github.io/pool-controller-code/) — plug the board into a computer over USB-C and flash the latest release from Chrome or Edge, no toolchain needed. After that, updates arrive over-the-air.
+
 To bring the device online for the first time:
 
 1. Plug a flat RJ12 cable from the Connect 10 into either RJ12 socket on the device. This both connects it to the pool bus and powers it. (Optional: run a second cable from the other RJ12 socket to daisy-chain the next device on the bus.)
@@ -380,6 +382,21 @@ The workflow will:
 The published release appears at `https://github.com/marklynch/pool-controller-code/releases/tag/v1.0.0`.
 
 To re-test the workflow without cutting a real release, run it manually from the Actions tab (Build & Release → Run workflow). Manual runs build the firmware and upload it as a workflow artifact but do not create a GitHub Release.
+
+## Web Installer
+
+<https://marklynch.github.io/pool-controller-code/> flashes the latest release onto an ESP32-C6 straight from the browser using [ESP Web Tools](https://github.com/esphome/esp-web-tools) and Web Serial — no ESP-IDF toolchain, no esptool. It needs desktop Chrome or Edge; Safari, Firefox and mobile browsers have no Web Serial support and get a "flash manually" fallback instead.
+
+The page source lives in `docs/`:
+
+- `docs/index.html` — the installer page. Static, and it reads the version out of `manifest.json` at runtime, so it needs no build step and can be opened locally for editing.
+- `docs/manifest.template.json` — the ESP Web Tools manifest, with `__VERSION__` / `__BINARY__` placeholders stamped at deploy time.
+
+`.github/workflows/pages.yml` assembles and publishes the site: it downloads `pool-controller-full-<tag>.bin` from the release, substitutes the placeholders, and deploys to GitHub Pages. The binary is served from Pages alongside the page rather than linked from the release, so the browser can fetch it without cross-origin trouble.
+
+It triggers on `workflow_run` when Build & Release finishes, filtered to tag builds — not on `release: published`, because releases published with the built-in `GITHUB_TOKEN` (as `build.yml` does) don't trigger further workflow runs. To republish the page after editing `docs/` without cutting a firmware release, run it manually from the Actions tab (Deploy Web Installer → Run workflow); manual runs re-stamp the page against whatever release is currently latest.
+
+**One-time setup:** in Settings → Pages, set the source to **GitHub Actions**. The workflow fails at the "Configure Pages" step until that's done.
 
 ## Documentation
 
