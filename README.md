@@ -387,16 +387,33 @@ To re-test the workflow without cutting a real release, run it manually from the
 
 <https://marklynch.github.io/pool-controller-code/> flashes the latest release onto an ESP32-C6 straight from the browser using [ESP Web Tools](https://github.com/esphome/esp-web-tools) and Web Serial — no ESP-IDF toolchain, no esptool. It needs desktop Chrome or Edge; Safari, Firefox and mobile browsers have no Web Serial support and get a "flash manually" fallback instead.
 
-The page source lives in `docs/`:
+The page source lives in `installer/`:
 
-- `docs/index.html` — the installer page. Static, and it reads the version out of `manifest.json` at runtime, so it needs no build step and can be opened locally for editing.
-- `docs/manifest.template.json` — the ESP Web Tools manifest, with `__VERSION__` / `__BINARY__` placeholders stamped at deploy time.
+- `installer/index.html` — the installer page. Static, and it reads the version out of `manifest.json` at runtime, so it needs no build step.
+- `installer/manifest.template.json` — the ESP Web Tools manifest, with `__VERSION__` / `__BINARY__` placeholders stamped at deploy time.
+- `installer/preview.sh` — serves the assembled site locally for testing.
 
-`.github/workflows/pages.yml` assembles and publishes the site: it downloads `pool-controller-full-<tag>.bin` from the release, substitutes the placeholders, and deploys to GitHub Pages. The binary is served from Pages alongside the page rather than linked from the release, so the browser can fetch it without cross-origin trouble.
+The published site is *not* these files as-is: `manifest.json` and the firmware binary don't exist in the repo, they're produced at deploy time. `.github/workflows/pages.yml` downloads `pool-controller-full-<tag>.bin` from the release, substitutes the placeholders, and deploys page plus binary together. Serving the binary same-origin rather than linking it from the release keeps the flasher's fetch simple.
 
-It triggers on `workflow_run` when Build & Release finishes, filtered to tag builds — not on `release: published`, because releases published with the built-in `GITHUB_TOKEN` (as `build.yml` does) don't trigger further workflow runs. To republish the page after editing `docs/` without cutting a firmware release, run it manually from the Actions tab (Deploy Web Installer → Run workflow); manual runs re-stamp the page against whatever release is currently latest.
+**One-time setup:** in Settings → Pages, set the source to **GitHub Actions**. Setting it to "Deploy from a branch" cannot work — that serves the sources raw, with no `manifest.json` and no binary, and the page fails with *"Failed to download manifest"*. (`installer/` is named that way rather than `docs/` precisely so it isn't offered as a branch publishing directory.)
 
-**One-time setup:** in Settings → Pages, set the source to **GitHub Actions**. The workflow fails at the "Configure Pages" step until that's done.
+### Deploy triggers
+
+- **Tag builds** — `workflow_run` on Build & Release, filtered to tags. Not `release: published`: releases published with the built-in `GITHUB_TOKEN` (as `build.yml` does) don't trigger further workflow runs, so that trigger would silently never fire.
+- **Pushes to `main` touching `installer/`** — republishes the page against the current latest release.
+- **Manual** — Actions tab → Deploy Web Installer → Run workflow, also against the latest release.
+
+Runs of Build & Release that aren't tag builds show up as *skipped* here. That's expected: there's no release for them to publish.
+
+### Testing locally
+
+```bash
+./installer/preview.sh              # latest release
+./installer/preview.sh v1.11.0      # a specific release
+./installer/preview.sh --bin build/pool-controller-full.bin
+```
+
+This assembles the same layout the workflow deploys and serves it on <http://localhost:8000>, which counts as a secure context, so the flasher really works. Opening `installer/index.html` from disk does **not** work — there's no `manifest.json` next to it, and `file://` can't fetch one.
 
 ## Documentation
 
