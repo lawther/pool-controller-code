@@ -19,6 +19,22 @@ OUT=""
 LOCAL_BIN=""
 LOCAL_VERSION=""
 
+# ESP Web Tools is vendored into the site rather than loaded from a CDN. The
+# page holds a live Web Serial port and writes a full flash image, so whatever
+# JavaScript it loads decides which bytes reach the device — that code must be
+# pinned and verified, not resolved at page load from a third-party origin.
+#
+# EWT_INTEGRITY is the npm registry's published dist.integrity for this exact
+# version. Published npm versions are immutable, so a mismatch means the
+# tarball was tampered with in transit or the registry was compromised; either
+# way the build fails rather than shipping it.
+#
+# To upgrade: bump EWT_VERSION, then take the new hash from
+#   curl -s https://registry.npmjs.org/esp-web-tools/<version> | jq -r .dist.integrity
+# and re-test flashing before merging.
+EWT_VERSION="10.4.0"
+EWT_INTEGRITY="sha512-3pwkeFFm5Fj7UQo8SJNYK5RXrtNCpq6X9QoI6bMT4GBZWgrJqjn0YvM9ihG74BtMoSFYXfmDtkehuxe50PTMPQ=="
+
 while [ $# -gt 0 ]; do
   case "$1" in
     --out) OUT="$2"; shift 2 ;;
@@ -112,7 +128,36 @@ with open(os.path.join(out, "versions.json"), "w") as f:
 PY
 
 cp "$SRC/index.html" "$OUT/index.html"
+cp "$SRC/app.js" "$OUT/app.js"
 # Kept so a direct link to manifest.json still resolves to the current release.
 cp "$OUT/manifest-${LATEST}.json" "$OUT/manifest.json"
+
+# --- Vendor ESP Web Tools ---------------------------------------------------
+TMP="$(mktemp -d)"
+trap 'rm -rf "$TMP"' EXIT
+
+echo "Fetching esp-web-tools ${EWT_VERSION} …"
+curl -fsSL --retry 3 \
+  "https://registry.npmjs.org/esp-web-tools/-/esp-web-tools-${EWT_VERSION}.tgz" \
+  -o "$TMP/ewt.tgz"
+
+ACTUAL=$(python3 -c '
+import base64, hashlib, sys
+print("sha512-" + base64.b64encode(hashlib.sha512(open(sys.argv[1], "rb").read()).digest()).decode())
+' "$TMP/ewt.tgz")
+
+if [ "$ACTUAL" != "$EWT_INTEGRITY" ]; then
+  echo "esp-web-tools integrity check FAILED — refusing to build." >&2
+  echo "  expected: $EWT_INTEGRITY" >&2
+  echo "  actual:   $ACTUAL" >&2
+  exit 1
+fi
+
+tar xzf "$TMP/ewt.tgz" -C "$TMP" package/dist/web
+mkdir -p "$OUT/ewt"
+cp -R "$TMP/package/dist/web/." "$OUT/ewt/"
+# The page loads this entry point; the rest are its lazily imported chunks.
+test -s "$OUT/ewt/install-button.js"
+echo "  vendored esp-web-tools ${EWT_VERSION} (integrity verified)"
 
 echo "Built $OUT — latest ${LATEST}, $(grep -c '"version"' "$OUT/versions.json") version(s)."
