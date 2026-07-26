@@ -1,0 +1,94 @@
+name: Deploy Web Installer
+
+# Publishes the ESP Web Tools installer page to GitHub Pages, serving the
+# merged full-flash binary from the latest release.
+#
+# This keys off `workflow_run` rather than `release: published` on purpose:
+# Build & Release publishes its draft with the built-in GITHUB_TOKEN, and
+# events raised by that token never trigger further workflow runs, so a
+# `release` trigger here would silently never fire.
+on:
+  workflow_run:
+    workflows: ["Build & Release"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never run two deploys at once, and let an in-flight deploy finish rather
+# than cancelling it — a half-published installer page is worse than a stale one.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    # Tag builds only. On a tag push `workflow_run.head_branch` is the tag name,
+    # so this skips the PR and main-branch runs of Build & Release. Manual runs
+    # republish the page against whatever release is currently latest, which is
+    # how to ship an edit to docs/ without cutting a new firmware release.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+      startsWith(github.event.workflow_run.head_branch, 'v'))
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v6
+
+      - name: Download release firmware
+        id: fw
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Empty for workflow_dispatch, in which case the latest release is used.
+          EVENT_TAG: ${{ github.event.workflow_run.head_branch }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            VERSION=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName -q .tagName)
+          else
+            VERSION="$EVENT_TAG"
+          fi
+          BINARY="pool-controller-full-${VERSION}.bin"
+          mkdir -p site
+          gh release download "$VERSION" --repo "$GITHUB_REPOSITORY" \
+            --pattern "$BINARY" --dir site
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "binary=$BINARY" >> "$GITHUB_OUTPUT"
+          echo "Staging $BINARY ($(du -h "site/$BINARY" | cut -f1))"
+
+      - name: Assemble site
+        env:
+          VERSION: ${{ steps.fw.outputs.version }}
+          BINARY: ${{ steps.fw.outputs.binary }}
+        run: |
+          set -euo pipefail
+          cp docs/index.html site/index.html
+          sed -e "s|__VERSION__|${VERSION}|g" \
+              -e "s|__BINARY__|${BINARY}|g" \
+              docs/manifest.template.json > site/manifest.json
+          # Fail loudly rather than deploying a page that can't flash anything.
+          if grep -q '__VERSION__\|__BINARY__' site/manifest.json; then
+            echo "manifest.json still contains unsubstituted placeholders" >&2
+            exit 1
+          fi
+          cat site/manifest.json
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: site
+
+      - name: Deploy to Pages
+        id: deploy
+        uses: actions/deploy-pages@v5
