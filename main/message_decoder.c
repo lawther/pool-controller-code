@@ -641,13 +641,13 @@ static const register_handler_t REGISTER_HANDLERS[] = {
     {REG_ID_CHANNEL_NAME_0,          REG_ID_CHANNEL_NAME_7,          0x02, handle_channel_name,          "Channel Name"},
     {REG_ID_CHANNEL_STATE_0,         REG_ID_CHANNEL_STATE_7,         0x02, handle_channel_state,         "Channel State"},
 
-    // Lighting zones — reg_end capped at index 3 (MAX_LIGHT_ZONES - 1)
-    {REG_ID_LIGHT_ZONE_ENABLED_0,    REG_ID_LIGHT_ZONE_ENABLED_3,    0x01, handle_light_zone_enabled,    "Light Zone Enabled"},
-    {REG_ID_LIGHT_ZONE_MULTICOLOR_0, REG_ID_LIGHT_ZONE_MULTICOLOR_3, 0x01, handle_light_zone_multicolor, "Light Zone Multicolor"},
-    {REG_ID_LIGHT_ZONE_NAME_0,       REG_ID_LIGHT_ZONE_NAME_3,       0x01, handle_light_zone_name,       "Light Zone Name"},
-    {REG_ID_LIGHT_ZONE_STATE_0,      REG_ID_LIGHT_ZONE_STATE_3,      0x01, handle_light_zone_state,      "Light Zone State"},
-    {REG_ID_LIGHT_ZONE_COLOR_0,      REG_ID_LIGHT_ZONE_COLOR_3,      0x01, handle_light_zone_color,      "Light Zone Color"},
-    {REG_ID_LIGHT_ZONE_ACTIVE_0,     REG_ID_LIGHT_ZONE_ACTIVE_3,     0x01, handle_light_zone_active,     "Light Zone Active"},
+    // Lighting zones (slot 0x01, 8 zones per family)
+    {REG_ID_LIGHT_ZONE_ENABLED_0,    REG_ID_LIGHT_ZONE_ENABLED_7,    0x01, handle_light_zone_enabled,    "Light Zone Enabled"},
+    {REG_ID_LIGHT_ZONE_MULTICOLOR_0, REG_ID_LIGHT_ZONE_MULTICOLOR_7, 0x01, handle_light_zone_multicolor, "Light Zone Multicolor"},
+    {REG_ID_LIGHT_ZONE_NAME_0,       REG_ID_LIGHT_ZONE_NAME_7,       0x01, handle_light_zone_name,       "Light Zone Name"},
+    {REG_ID_LIGHT_ZONE_STATE_0,      REG_ID_LIGHT_ZONE_STATE_7,      0x01, handle_light_zone_state,      "Light Zone State"},
+    {REG_ID_LIGHT_ZONE_COLOR_0,      REG_ID_LIGHT_ZONE_COLOR_7,      0x01, handle_light_zone_color,      "Light Zone Color"},
+    {REG_ID_LIGHT_ZONE_ACTIVE_0,     REG_ID_LIGHT_ZONE_ACTIVE_7,     0x01, handle_light_zone_active,     "Light Zone Active"},
 
     // Valve labels (slot 0x02)
     {REG_ID_VALVE_LABEL_0,           REG_ID_VALVE_LABEL_1,           0x02, handle_valve_label,           "Valve Label"},
@@ -2561,8 +2561,9 @@ static bool handle_light_config(
     uint8_t zone_idx  = payload[0];
     uint8_t light_on  = payload[1];
 
-    if (zone_idx > 3) {  // PROTOCOL.md 0x06: zones 1-4 map to index 0-3 only
-        ESP_LOGW(TAG, "%s Lighting zone config - zone index out of range 0-3: %d", addr_info, zone_idx);
+    if (zone_idx >= MAX_LIGHT_ZONES) {  // PROTOCOL.md 0x06: zones 1-8 map to index 0-7
+        ESP_LOGW(TAG, "%s Lighting zone config - zone index out of range 0-%d: %d",
+                 addr_info, MAX_LIGHT_ZONES - 1, zone_idx);
         record_undocumented(data, len);
         return true;
     }
@@ -2621,8 +2622,9 @@ static bool handle_light_color(
     uint8_t zone_idx = payload[0];
     uint8_t color    = payload[1];
 
-    if (zone_idx > 3) {  // PROTOCOL.md 0x07: zones 1-4 map to index 0-3 only
-        ESP_LOGW(TAG, "%s Lighting zone color - zone index out of range 0-3: %d", addr_info, zone_idx);
+    if (zone_idx >= MAX_LIGHT_ZONES) {  // PROTOCOL.md 0x07: zones 1-8 map to index 0-7
+        ESP_LOGW(TAG, "%s Lighting zone color - zone index out of range 0-%d: %d",
+                 addr_info, MAX_LIGHT_ZONES - 1, zone_idx);
         record_undocumented(data, len);
         return true;
     }
@@ -2650,8 +2652,9 @@ static bool handle_light_resync(
 
     uint8_t zone_idx = payload[0];
 
-    if (zone_idx > 3) {  // PROTOCOL.md 0x3C: zones 1-4 map to index 0-3 only
-        ESP_LOGW(TAG, "%s Light resync - zone index out of range 0-3: %d", addr_info, zone_idx);
+    if (zone_idx >= MAX_LIGHT_ZONES) {  // PROTOCOL.md 0x3C: zones 1-8 map to index 0-7
+        ESP_LOGW(TAG, "%s Light resync - zone index out of range 0-%d: %d",
+                 addr_info, MAX_LIGHT_ZONES - 1, zone_idx);
         record_undocumented(data, len);
         return true;
     }

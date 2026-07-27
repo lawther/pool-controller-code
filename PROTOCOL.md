@@ -208,14 +208,18 @@ Indicates which lighting zones are installed and their current on/off state. Bro
 
 ```
 02 00 50 FF FF 80 00 06 0E E4 00 00 00 03
-                              ^^ Zone index (0-3 for zones 1-4)
+                              ^^ Zone index (0-7 for zones 1-8)
                                  ^^ Light status (00 off, 01 on)
 ```
 
 **Data Fields:**
 
-- Byte 10: Zone index (`0x00` to `0x03` for zones 1-4)
+- Byte 10: Zone index (`0x00` to `0x07` for zones 1-8)
 - Byte 11: Light status (`0x00` off, `0x01` on)
+
+**Notes:**
+
+- Only indices `0x00`–`0x03` have been observed directly. The `0x04`–`0x07` half is taken from the 8-wide slot-`0x01` light zone register families, which a real install has been seen using for zones 5–8 (see [Appendix A](#appendix-a-register-dispatch-table)); an install with more than four zones should exercise it here too.
 
 ---
 
@@ -229,20 +233,20 @@ Reports a lighting zone's current color — the CMD companion to [0x06 Lighting 
 
 ```
 02 00 50 FF FF 80 00 07 0E E5 00 05 05 03
-                              ^^ Zone index (0-3 for zones 1-4)
+                              ^^ Zone index (0-7 for zones 1-8)
                                  ^^ Color code (0x05 here)
 ```
 
 **Data Fields:**
 
-- Byte 10: Zone index (`0x00` to `0x03` for zones 1-4)
+- Byte 10: Zone index (`0x00` to `0x07` for zones 1-8)
 - Byte 11: Color code — same value and enumeration as the zone's Light Zone Color register (`0xD0`+zone, slot `0x01`)
 
 **Notes:**
 
 - The color byte tracks the zone's `0xD0`+/slot `0x01` register exactly: in a capture where the zone-1 color was changed from the Viron Chlorinator's app, the `0x07` payload flipped `00 05` → `00 01` within 120 ms of the `0xD0` register rebroadcasting `0x01` (Red).
 - Color codes come from the shared color table (each light model exposes a subset, selected by the Multicolor Light Type register `0xF0`) — see [Light Zone Color Control](#light-zone-color-control-register-0xd00xd7-slot-0x01-️).
-- ⚠️ Only zone index `0x00` has been observed (the only multicolor-configured zone on the observed install), so the zone-index reading of byte 10 is inferred from the CMD `0x06` layout rather than confirmed across zones.
+- ⚠️ Only zone index `0x00` has been observed (the only multicolor-configured zone on the observed install), so the zone-index reading of byte 10 is inferred from the CMD `0x06` layout rather than confirmed across zones. The `0x00`–`0x07` range likewise follows CMD `0x06` and the 8-wide light zone register families.
 
 ---
 
@@ -1965,7 +1969,7 @@ Resynchronizes a light zone's light. Broadcast by the Touchscreen (`0x0050`); ob
 
 **Data Fields:**
 
-- Byte 10: Zone index (`0x00` to `0x03` for zones 1-4, matching [CMD 0x06](#0x06--lighting-zone-configuration-))
+- Byte 10: Zone index (`0x00` to `0x07` for zones 1-8, matching [CMD 0x06](#0x06--lighting-zone-configuration-))
 
 **Notes:**
 
@@ -2068,7 +2072,8 @@ The register ID and slot together determine the message meaning. The slot distin
 - **`0xEB` default**: when the second heater isn't plumbed to spa, `0xEB` reads `0x0A` (10°C) — an unused default at the minimum setpoint rather than a live value.
 - **`0x20` (Active Favourite) — confirmed ✅**: slot `0x03` is the Favourite slot, and `0x20` sits immediately before the Favourite Enable block (`0x21`–`0x28`). Reports which favourite is currently active, using the same value space as CMD [`0x2A`](#0x2a--favourite-control-command-): `0x00`=Pool, `0x01`=Spa, `0x02`–`0x07`=user Favourites 1–6; `0xFF` = no favourite active. The All Off/All Auto command values (`0x80`/`0x81`) never appear here — the controller does not remember them as states: All Off reports as `0x00` (it is implemented as Pool mode with all channels off; the accompanying [0x14 Mode](#0x14--mode-spapool-) broadcast also says Pool) and All Auto reports as `0xFF`. Broadcast ~1 s after a gateway-commanded activation ([0x2A](#0x2a--favourite-control-command-)), when an active favourite is knocked out by a manual channel change, and in the periodic ~8-minute register dump — but **not** when a favourite is activated at the touchscreen itself (the new value then only appears in the next dump).
 - **`0xF0` (Multicolor Light Type) — confirmed ✅**: system-wide multicolor light model selection from the touchscreen's light setup. Confirmed by UI experiment: setting the light type to SLX multicolor rebroadcasts `0x00`, Delta rebroadcasts `0x01`, and with no multicolor light configured the register reads `0xFF` (none selected — same sentinel convention as Active Favourite `0x20`). A single global register, not per-zone (no `0xF1`–`0xF3` siblings exist, and the Gateway's periodic polling requests `0xF0` only), sitting at the front of the slot-`0x01` system-config block (`0xF4` channel count, `0xF5`–`0xFC` channel categories). Only the SLX and Delta indexes have been mapped; other models in the setup list presumably take further values. The selected model determines which subset of the shared color code table applies to the Light Zone Color registers and [CMD 0x07](#0x07--lighting-zone-color-broadcast-️) — full table in [Light Zone Color Control](#light-zone-color-control-register-0xd00xd7-slot-0x01-️).
-- **`0x90`–`0x97` (Light Zone Enabled)**: 1-byte flag reporting whether the light zone is configured in the controller: `0x01` = configured/present, `0x00` = not configured. Sits in the same slot-`0x01` per-zone register family as the other light-zone blocks (`0xA0` multicolor, `0xB0` name, `0xC0` state, `0xD0` color, `0xE0` active). Enabled zones are rebroadcast regularly; disabled zones are only broadcast at startup or after a configuration change. Only `0x90`–`0x93` (zones 1–4) observed; `0x94`–`0x97` inferred from the 8-wide sibling blocks. `0x90`–`0x93` overlaps the slot-`0x02` Channel State range — distinguished by slot as usual.
+- **Light zone families — 8 zones confirmed ✅**: the six slot-`0x01` per-zone blocks (`0x90` enabled, `0xA0` multicolor, `0xB0` name, `0xC0` state, `0xD0` color, `0xE0` active) each span 8 zones. An install with more than four light zones exercises the upper half: its Touchscreen reports `0xC4`–`0xC7` (state, all `0x00`) and `0xD4`–`0xD7` (color, all `0x05`) for zones 5–8, and its Internet Gateway polls the upper-half siblings `0x96`, `0xA5` and `0xB5`–`0xB7` via [0x39](#0x39--register-read-request-) in the same cycle as the lower four. Responses to those enabled/multicolor/name polls have not themselves been captured yet, so only the state and color blocks are directly confirmed across zones 5–8.
+- **`0x90`–`0x97` (Light Zone Enabled)**: 1-byte flag reporting whether the light zone is configured in the controller: `0x01` = configured/present, `0x00` = not configured. Sits in the same slot-`0x01` per-zone register family as the other light-zone blocks (`0xA0` multicolor, `0xB0` name, `0xC0` state, `0xD0` color, `0xE0` active). Enabled zones are rebroadcast regularly; disabled zones are only broadcast at startup or after a configuration change. `0x90`–`0x93` overlaps the slot-`0x02` Channel State range — distinguished by slot as usual.
 - **`0xF5`–`0xFC` (Channel Category) — confirmed ✅**: per-channel category code following the Channel Count register (`0xF4`): `0xF5` = Channel 1, `0xF6` = Channel 2, … `0xFC` = Channel 8. Values: `0x01` = Pool equipment, `0x02` = Light, `0x03` = Controlled Heater Power. Registers for unused channels are not broadcast (only `0xF5`–`0xFB` observed on a 7-channel system, so `0xFC` = Channel 8 is inferred from the range width of the other per-channel register blocks). This is a coarser classification than the per-channel [Channel Type](#0x0b--channel-status-) codes at `0x6C`–`0x73`.
 
 ### Examples by Register Type

@@ -157,31 +157,25 @@ typedef enum {
     REG_ID_CHANNEL_STATE_7         = 0x93,  // Channel 7 state (last)
 
     REG_ID_LIGHT_ZONE_ENABLED_0    = 0x90,  // Zone 0 enabled flag (0–7 → 0x90–0x97, slot 0x01; 0x90–0x93 shares range with REG_ID_CHANNEL_STATE_[4-7], slot 0x02)
-    REG_ID_LIGHT_ZONE_ENABLED_3    = 0x93,  // Zone 3 enabled    (usable max; capped by MAX_LIGHT_ZONES)
-    REG_ID_LIGHT_ZONE_ENABLED_7    = 0x97,  // Zone 7 enabled    (protocol max)
+    REG_ID_LIGHT_ZONE_ENABLED_7    = 0x97,  // Zone 7 enabled    (last)
 
     REG_ID_LIGHT_ZONE_MULTICOLOR_0 = 0xA0,  // Zone 0 multicolor (0–7 → 0xA0–0xA7, slot 0x01)
-    REG_ID_LIGHT_ZONE_MULTICOLOR_3 = 0xA3,  // Zone 3 multicolor (usable max; capped by MAX_LIGHT_ZONES)
-    REG_ID_LIGHT_ZONE_MULTICOLOR_7 = 0xA7,  // Zone 7 multicolor (protocol max)
+    REG_ID_LIGHT_ZONE_MULTICOLOR_7 = 0xA7,  // Zone 7 multicolor (last)
 
     REG_ID_LIGHT_ZONE_NAME_0       = 0xB0,  // Zone 0 name code (0–7 → 0xB0–0xB7, slot 0x01)
-    REG_ID_LIGHT_ZONE_NAME_3       = 0xB3,  // Zone 3 name      (usable max; capped by MAX_LIGHT_ZONES)
-    REG_ID_LIGHT_ZONE_NAME_7       = 0xB7,  // Zone 7 name      (protocol max)
+    REG_ID_LIGHT_ZONE_NAME_7       = 0xB7,  // Zone 7 name      (last)
 
     REG_ID_LIGHT_ZONE_STATE_0      = 0xC0,  // Zone 0 state (0–7 → 0xC0–0xC7, slot 0x01)
-    REG_ID_LIGHT_ZONE_STATE_3      = 0xC3,  // Zone 3 state (usable max; capped by MAX_LIGHT_ZONES)
-    REG_ID_LIGHT_ZONE_STATE_7      = 0xC7,  // Zone 7 state (protocol max)
+    REG_ID_LIGHT_ZONE_STATE_7      = 0xC7,  // Zone 7 state (last)
 
     REG_ID_LIGHT_ZONE_COLOR_0      = 0xD0,  // Zone 0 color (0–7 → 0xD0–0xD7, slot 0x01, shares range with REG_ID_VALVE_LABEL_[0|1])
-    REG_ID_LIGHT_ZONE_COLOR_3      = 0xD3,  // Zone 3 color (usable max; capped by MAX_LIGHT_ZONES)
-    REG_ID_LIGHT_ZONE_COLOR_7      = 0xD7,  // Zone 7 color (protocol max)
+    REG_ID_LIGHT_ZONE_COLOR_7      = 0xD7,  // Zone 7 color (last)
 
     REG_ID_VALVE_LABEL_0           = 0xD0,  // Valve 0 label (0–1 → 0xD0–0xD1, slot 0x02; shares range with REG_ID_LIGHT_ZONE_COLOR_[0|1])
     REG_ID_VALVE_LABEL_1           = 0xD1,  // Valve 1 label (last)
     
     REG_ID_LIGHT_ZONE_ACTIVE_0     = 0xE0,  // Zone 0 active flag (0–7 → 0xE0–0xE7, slot 0x01)
-    REG_ID_LIGHT_ZONE_ACTIVE_3     = 0xE3,  // Zone 3 active (usable max; capped by MAX_LIGHT_ZONES)
-    REG_ID_LIGHT_ZONE_ACTIVE_7     = 0xE7,  // Zone 7 active (protocol max)
+    REG_ID_LIGHT_ZONE_ACTIVE_7     = 0xE7,  // Zone 7 active (last)
 
     // Point registers
     REG_ID_HEATER1_ONOFF         = 0xE6,  // Heater 1 on/off state
