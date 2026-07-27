@@ -1667,6 +1667,7 @@ Timer schedule configuration. Each timer has a start time, stop time, and a days
 **Notes:**
 
 - Timers with all-zero payload (`start=00:00 stop=00:00 days=0x00`) are not configured
+- **Read-only over the bus** — the controller ignores [`0x3A`](#0x3a--register-write--control-) writes to slot `0x04`. Confirmed by injecting a Gateway-sourced write of Timer 2 (`09 04 06 1E 09 2D 1F`, 06:30–09:45 weekdays): the touchscreen sent no reply and no rebroadcast, and a read-back of `0x09`/`0x04` still returned the unconfigured all-zero payload. Timers are configured at the touchscreen only; the Gateway only ever reads them.
 - Timers are not broadcast by the touchscreen, but the internet gateway requests these 16 timer registers regularly.
 - Assumption of 16 timers based on how the gateway calls it — but potentially could be 8 as can only verify 8 timers on existing touchscreen.
 
@@ -1777,6 +1778,7 @@ Writes a single controller register. This is the write counterpart to the [0x39 
 **Notes:**
 
 - Distinguished from the Touchscreen's `0x38` register-data broadcast by the CMD byte (`0x3A` here, `0x38` for broadcasts).
+- Not every register that can be read via [0x39](#0x39--register-read-request-) can be written. Writes to Timer registers (`0x08`–`0x17`, slot `0x04`) and Channel State (`0x8C`–`0x93`, slot `0x02`) are ignored silently — no reply, no rebroadcast, and the register keeps its previous value.
 - The controller applies the write and then re-broadcasts the new state via the matching `0x38` register update or a device-specific status message (e.g. [0x12 Device Status](#0x12--device-status-️) for the heater).
 - This command requires the sender to impersonate the Internet Gateway (source address `0x00F0`).
 - Decoded in code by `handle_register_write_request` — dispatched on the CMD byte alone (source-agnostic), log-only, no `pool_state` update (state comes from the follow-up `0x38` rebroadcast or device-specific status).
@@ -2017,7 +2019,8 @@ The register ID and slot together determine the message meaning. The slot distin
 
 | Register Range  | Slot   | Purpose                | Data Format                                      |
 |-----------------|--------|------------------------|--------------------------------------------------|
-| `0x08`–`0x17`  | `0x04` | Timers 1–16            | start/stop time + days bitmask (see [0x38 Timer Registers](#timer-registers-slot-0x04))   |
+| `0x00`–`0x07` ⚠️| `0x04` | Unknown                | 1-byte, only `0x00` observed — including on installs that have timers configured. Polled by the Internet Gateway in the same contiguous slot-`0x04` scan as the timers, and answered by the touchscreen. |
+| `0x08`–`0x17`  | `0x04` | Timers 1–16            | start/stop time + days bitmask — read-only; writes ignored by controller (see [0x38 Timer Registers](#timer-registers-slot-0x04))   |
 | `0x20`         | `0x03` | Active Favourite       | CMD `0x2A` value of the active favourite (`0x00`=Pool … `0x07`=Favourite 6); `0xFF` = none active — see note below |
 | `0x21`–`0x28`  | `0x03` | Favourite Enable       | 1-byte flag (`0x01`=enabled, `0x00`=disabled). Maps to CMD `0x2A` values `0x00`–`0x07` in order. Pool (`0x21`) and Spa (`0x22`) are always `0x01`. |
 | `0x30`         | `0x01` | Current Water Temperature | 2-byte `{temp °C, 0x00}` mirror of the controller's [0x16](#0x16--water-temperature-reading-) reading — see note below |
