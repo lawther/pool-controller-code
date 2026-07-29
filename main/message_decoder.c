@@ -3551,6 +3551,7 @@ static bool handle_channel_status(
     bool past_end = false;
     uint8_t channels_to_publish[MAX_CHANNELS] = {0};
     int num_to_publish = 0;
+    bool publish_pump = false;
 
     // Update pool state
     pool_state_t state_snapshot;
@@ -3591,6 +3592,18 @@ static bool handle_channel_status(
                 ctx->pool_state->channels[ch_num - 1].active = (active != 0);
                 ctx->pool_state->channels[ch_num - 1].configured = true;
 
+                // If the Filter channel (0x01) is no longer active 
+                // (e.g. turned Off manually, or turned off by a timer in Auto mode), 
+                // the pump loses power and won't broadcast a speed of 0. We must set it here.
+                if (ch_type == 0x01 && !active) {
+                    if (ctx->pool_state->pump_speed != 0 || !ctx->pool_state->pump_speed_valid) {
+                        ctx->pool_state->pump_speed = 0;
+                        ctx->pool_state->pump_speed_valid = true;
+                        ctx->pool_state->last_update_ms = xTaskGetTickCount() * portTICK_PERIOD_MS;
+                        publish_pump = true;
+                    }
+                }
+
                 // Mark this channel for publishing
                 channels_to_publish[num_to_publish++] = ch_num;
             }
@@ -3608,6 +3621,9 @@ static bool handle_channel_status(
     if (ctx->enable_mqtt) {
         for (int i = 0; i < num_to_publish; i++) {
             mqtt_publish_channel(&state_snapshot, channels_to_publish[i]);
+        }
+        if (publish_pump) {
+            mqtt_publish_pump(&state_snapshot);
         }
     }
 

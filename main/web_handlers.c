@@ -955,6 +955,13 @@ static esp_err_t status_get_handler(httpd_req_t *req)
     }
     cJSON_AddItemToObject(root, "timers", timers);
 
+    // Pump Speed
+    if (state.pump_speed_valid) {
+        cJSON_AddNumberToObject(root, "pump_speed", state.pump_speed);
+    } else {
+        cJSON_AddNullToObject(root, "pump_speed");
+    }
+
     // Memory
     char free_heap_str[24], min_free_heap_str[24];
     uint32_t free_heap     = esp_get_free_heap_size();

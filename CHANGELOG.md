@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- Set pump speed to 0 when the Filter channel is not active (fixes #82).
 ### Changed
 ### Fixed
 ### Removed

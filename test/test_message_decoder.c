@@ -463,6 +463,62 @@ void test_decode_channel_status_all_off(void)
     TEST_ASSERT(!test_pool_state.channels[7].configured, "Ch8 should be unconfigured (Unused)");
 }
 
+void test_channel_status_resets_pump_speed_when_filter_off(void)
+{
+    init_test_context();
+
+    // Setup an existing pump speed
+    test_pool_state.pump_speed = 1500;
+    test_pool_state.pump_speed_valid = true;
+
+    // Broadcast Channel Status with Filter (Ch1) in Auto mode (0x01) but Inactive (0x00)
+    uint8_t msg[] = {
+        0x02, 0x00, 0x50, 0xFF, 0xFF, 0x80, 0x00,
+        0x0B, 0x25,  // Command / length (37)
+        0x00,        // Header checksum 
+        0x01,        // payload[0]: num_channels = 1
+        0x01, 0x01, 0x00, // Ch1: Filter(0x01), Auto(0x01), Inactive(0x00)
+        0x03,        // Data checksum
+        0x03
+    };
+
+    bool decoded = decode_message(msg, sizeof(msg), &test_ctx);
+
+    TEST_ASSERT(decoded, "Channel status message should be decoded");
+    
+    // Pump speed should be reset to 0 since Filter went to Off
+    TEST_ASSERT(test_pool_state.pump_speed_valid, "pump_speed_valid should be true");
+    TEST_ASSERT(test_pool_state.pump_speed == 0, "pump_speed should be 0");
+}
+
+void test_channel_status_resets_pump_speed_valid_when_filter_off_without_previous_speed(void)
+{
+    init_test_context();
+
+    // Setup an INVALID pump speed
+    test_pool_state.pump_speed = 0;
+    test_pool_state.pump_speed_valid = false;
+
+    // Broadcast Channel Status with Filter (Ch1) in Auto mode (0x01) but Inactive (0x00)
+    uint8_t msg[] = {
+        0x02, 0x00, 0x50, 0xFF, 0xFF, 0x80, 0x00,
+        0x0B, 0x25,  // Command / length (37)
+        0x00,        // Header checksum 
+        0x01,        // payload[0]: num_channels = 1
+        0x01, 0x01, 0x00, // Ch1: Filter(0x01), Auto(0x01), Inactive(0x00)
+        0x03,        // Data checksum
+        0x03
+    };
+
+    bool decoded = decode_message(msg, sizeof(msg), &test_ctx);
+
+    TEST_ASSERT(decoded, "Channel status message should be decoded");
+    
+    // Pump speed should be forced valid and 0 since Filter went to Inactive
+    TEST_ASSERT(test_pool_state.pump_speed_valid, "pump_speed_valid should be true even if it was false before");
+    TEST_ASSERT(test_pool_state.pump_speed == 0, "pump_speed should be 0");
+}
+
 /**
  * Test: Channel status message — light zones active
  * Real message: 02 00 50 FF FF 80 00 0B 25 00 08 01 00 00 02 00 00 FE 02 01 FE 02 01 0B 00 00 09 00 00 FD 00 00 00 00 00 1E 03
@@ -1218,6 +1274,8 @@ int main(void)
     // Channel status tests
     printf("\n--- Channel Status Tests ---\n");
     test_decode_channel_status_all_off();
+    test_channel_status_resets_pump_speed_when_filter_off();
+    test_channel_status_resets_pump_speed_valid_when_filter_off_without_previous_speed();
     test_decode_channel_status_lights_active();
     test_decode_channel_status_multispeed_pump();
     test_decode_channel_toggle_gateway();
