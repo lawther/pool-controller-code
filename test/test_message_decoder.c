@@ -446,19 +446,19 @@ void test_decode_channel_status_all_off(void)
     TEST_ASSERT(test_pool_state.num_channels == 8, "Should have 8 channels");
 
     TEST_ASSERT(test_pool_state.channels[0].configured, "Ch1 should be configured");
-    TEST_ASSERT(test_pool_state.channels[0].type == 0x01, "Ch1 type should be Filter (0x01)");
+    TEST_ASSERT(test_pool_state.channels[0].type == CHANNEL_TYPE_FILTER, "Ch1 type should be Filter (0x01)");
     TEST_ASSERT(test_pool_state.channels[0].state == 0, "Ch1 state should be Off");
     TEST_ASSERT(!test_pool_state.channels[0].active, "Ch1 should be inactive");
 
     TEST_ASSERT(test_pool_state.channels[1].configured, "Ch2 should be configured");
-    TEST_ASSERT(test_pool_state.channels[1].type == 0x02, "Ch2 type should be Cleaning (0x02)");
+    TEST_ASSERT(test_pool_state.channels[1].type == CHANNEL_TYPE_CLEANING, "Ch2 type should be Cleaning (0x02)");
 
     TEST_ASSERT(test_pool_state.channels[2].configured, "Ch3 should be configured");
-    TEST_ASSERT(test_pool_state.channels[2].type == 0xFE, "Ch3 type should be Light Zone (0xFE)");
+    TEST_ASSERT(test_pool_state.channels[2].type == CHANNEL_TYPE_LIGHT_ZONE, "Ch3 type should be Light Zone (0xFE)");
     TEST_ASSERT(!test_pool_state.channels[2].active, "Ch3 should be inactive");
 
     TEST_ASSERT(test_pool_state.channels[6].configured, "Ch7 should be configured");
-    TEST_ASSERT(test_pool_state.channels[6].type == 0xFD, "Ch7 type should be Heater (0xFD)");
+    TEST_ASSERT(test_pool_state.channels[6].type == CHANNEL_TYPE_HEATER, "Ch7 type should be Heater (0xFD)");
 
     TEST_ASSERT(!test_pool_state.channels[7].configured, "Ch8 should be unconfigured (Unused)");
 }
@@ -588,7 +588,7 @@ void test_decode_channel_status_multispeed_pump(void)
     bool decoded = decode_message(msg_med, sizeof(msg_med), &test_ctx);
 
     TEST_ASSERT(decoded, "Channel status (multi-speed Medium) should be decoded");
-    TEST_ASSERT(test_pool_state.channels[0].type == 0x01, "Ch1 type should be Filter (0x01)");
+    TEST_ASSERT(test_pool_state.channels[0].type == CHANNEL_TYPE_FILTER, "Ch1 type should be Filter (0x01)");
     TEST_ASSERT(test_pool_state.channels[0].state == 4, "Ch1 state should be On - Medium Speed (4)");
     TEST_ASSERT(test_pool_state.channels[0].active, "Ch1 should be active");
 

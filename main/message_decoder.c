@@ -167,33 +167,33 @@ static const char *MSG_TYPE_PUMP_BUTTONS =            "02 00 A0 FF FF 80 00 1B 0
 
 // Channel type lookup table
 typedef struct {
-    uint8_t code;
+    channel_type_t code;
     const char *name;
 } channel_type_entry_t;
 
 static const channel_type_entry_t CHANNEL_TYPE_TABLE[] = {
-    {0x00, "Unused"},
-    {0x01, "Filter"},
-    {0x02, "Cleaning"},
-    {0x03, "Heater Pump"},
-    {0x04, "Booster"},
-    {0x05, "Waterfall"},
-    {0x06, "Fountain"},
-    {0x07, "Spa Pump"},
-    {0x08, "Solar"},
-    {0x09, "Blower"},
-    {0x0A, "Swimjet"},
-    {0x0B, "Jets"},
-    {0x0C, "Spa Jets"},
-    {0x0D, "Overflow"},
-    {0x0E, "Spillway"},
-    {0x0F, "Audio"},
-    {0x10, "Hot Seat"},
-    {0x11, "Heater Power"},
-    {0x12, "Custom Name"},
-    {0xFB, "Secondary Heater"},
-    {0xFD, "Heater"},
-    {0xFE, "Light Zone"},
+    {CHANNEL_TYPE_UNUSED,           "Unused"},
+    {CHANNEL_TYPE_FILTER,           "Filter"},
+    {CHANNEL_TYPE_CLEANING,         "Cleaning"},
+    {CHANNEL_TYPE_HEATER_PUMP,      "Heater Pump"},
+    {CHANNEL_TYPE_BOOSTER,          "Booster"},
+    {CHANNEL_TYPE_WATERFALL,        "Waterfall"},
+    {CHANNEL_TYPE_FOUNTAIN,         "Fountain"},
+    {CHANNEL_TYPE_SPA_PUMP,         "Spa Pump"},
+    {CHANNEL_TYPE_SOLAR,            "Solar"},
+    {CHANNEL_TYPE_BLOWER,           "Blower"},
+    {CHANNEL_TYPE_SWIMJET,          "Swimjet"},
+    {CHANNEL_TYPE_JETS,             "Jets"},
+    {CHANNEL_TYPE_SPA_JETS,         "Spa Jets"},
+    {CHANNEL_TYPE_OVERFLOW,         "Overflow"},
+    {CHANNEL_TYPE_SPILLWAY,         "Spillway"},
+    {CHANNEL_TYPE_AUDIO,            "Audio"},
+    {CHANNEL_TYPE_HOT_SEAT,         "Hot Seat"},
+    {CHANNEL_TYPE_HEATER_POWER,     "Heater Power"},
+    {CHANNEL_TYPE_CUSTOM_NAME,      "Custom Name"},
+    {CHANNEL_TYPE_SECONDARY_HEATER, "Secondary Heater"},
+    {CHANNEL_TYPE_HEATER,           "Heater"},
+    {CHANNEL_TYPE_LIGHT_ZONE,       "Light Zone"},
 };
 
 #define CHANNEL_TYPE_TABLE_SIZE (sizeof(CHANNEL_TYPE_TABLE) / sizeof(CHANNEL_TYPE_TABLE[0]))
@@ -215,7 +215,7 @@ static const int GAS_HEATER_BITMASK_FUNCTIONAL_STATUS =         0x1F;
  * @param type_code Channel type code (0x00-0x12, 0xFD, 0xFE)
  * @return Channel type name, or "Unknown" if not found
  */
-const char* get_channel_type_name(uint8_t type_code) {
+const char* get_channel_type_name(channel_type_t type_code) {
     for (int i = 0; i < CHANNEL_TYPE_TABLE_SIZE; i++) {
         if (CHANNEL_TYPE_TABLE[i].code == type_code) {
             return CHANNEL_TYPE_TABLE[i].name;
@@ -226,7 +226,7 @@ const char* get_channel_type_name(uint8_t type_code) {
 
 // True if type_code is one of the documented channel types (see PROTOCOL.md
 // 0x0B "Channel Types"). Used to flag undocumented type codes for research.
-static bool channel_type_is_known(uint8_t type_code) {
+static bool channel_type_is_known(channel_type_t type_code) {
     for (int i = 0; i < CHANNEL_TYPE_TABLE_SIZE; i++) {
         if (CHANNEL_TYPE_TABLE[i].code == type_code) {
             return true;
@@ -2821,7 +2821,7 @@ static bool handle_channel_type(
     if (payload_len < 3) return false;
 
     uint8_t reg_id = payload[0];
-    uint8_t ch_type = payload[2];
+    channel_type_t ch_type = (channel_type_t)payload[2];
     uint8_t ch_num = reg_id - REG_ID_CHANNEL_TYPE_0 + 1;
 
     const char *type_name = get_channel_type_name(ch_type);
@@ -2831,7 +2831,7 @@ static bool handle_channel_type(
         record_undocumented(data, len);
     }
 
-    if (ch_type != CHANNEL_UNUSED) {
+    if (ch_type != CHANNEL_TYPE_UNUSED) {
         // Update pool state
         if (ctx->state_mutex && xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) == pdTRUE) {
             ctx->pool_state->channels[ch_num - 1].type = ch_type;
@@ -2920,7 +2920,7 @@ static bool handle_channel_state(
         channel_state_t *ch = &ctx->pool_state->channels[ch_num - 1];
         // State registers are broadcast for unused channels too (e.g. in the
         // periodic register dump) — only a known channel type marks it in use
-        if (ch->type != CHANNEL_UNUSED && (!ch->configured || ch->state != state)) {
+        if (ch->type != CHANNEL_TYPE_UNUSED && (!ch->configured || ch->state != state)) {
             ch->state = state;
             ch->configured = true;
             ctx->pool_state->last_update_ms = xTaskGetTickCount() * portTICK_PERIOD_MS;
@@ -3566,12 +3566,12 @@ static bool handle_channel_status(
                 continue;
             }
 
-            uint8_t ch_type = payload[payload_idx];
+            channel_type_t ch_type = (channel_type_t)payload[payload_idx];
             uint8_t state   = payload[payload_idx + 1];
             uint8_t active  = payload[payload_idx + 2];
             const char *state_name = (state < CHANNEL_STATE_COUNT) ? CHANNEL_STATE_NAMES[state] : "Unknown";
 
-            if (ch_type == CHANNEL_UNUSED) {
+            if (ch_type == CHANNEL_TYPE_UNUSED) {
                 ESP_LOGI(TAG, "  Ch%d: Unused", ch_num);
                 ctx->pool_state->channels[ch_num - 1].configured = false;
             } else {
@@ -3593,10 +3593,10 @@ static bool handle_channel_status(
                 ctx->pool_state->channels[ch_num - 1].active = (active != 0);
                 ctx->pool_state->channels[ch_num - 1].configured = true;
 
-                // If the Filter channel (0x01) is no longer active 
+                // If the Filter channel (CHANNEL_TYPE_FILTER) is no longer active 
                 // (e.g. turned Off manually, or turned off by a timer in Auto mode), 
                 // the pump loses power and won't broadcast a speed of 0. We must set it here.
-                if (ch_type == 0x01 && !active) {
+                if (ch_type == CHANNEL_TYPE_FILTER && !active) {
                     if (ctx->pool_state->pump_speed != 0 || !ctx->pool_state->pump_speed_valid ||
                         ctx->pool_state->pump_power_watts != 0 || !ctx->pool_state->pump_power_watts_valid) {
                         ctx->pool_state->pump_speed = 0;

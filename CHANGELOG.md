@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Set pump speed to 0 when the Filter channel is not active (fixes #82).
 - Decode new pump telemetry. Cmd 0x3B is extended with two extra bytes of payload that encode the pump's power consumption (fixes #81).
 ### Changed
+- Refactored channel types to use a strongly typed `channel_type_t` enum across decoder and state (fixes #84).
 ### Fixed
 ### Removed
 ### Deprecated
