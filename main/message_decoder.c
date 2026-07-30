@@ -158,6 +158,7 @@ static const char *MSG_TYPE_GATEWAY_STATUS =          "02 00 F0 FF FF 80 00 12 0
 
 // A0 Viron Pump Telemetry
 static const char *MSG_TYPE_PUMP_SPEED =              "02 00 A0 FF FF 80 00 3B 0E 69";
+static const char *MSG_TYPE_PUMP_SPEED_V2 =           "02 00 A0 FF FF 80 00 3B 10 6B";
 static const char *MSG_TYPE_PUMP_BUTTONS =            "02 00 A0 FF FF 80 00 1B 0D 48";
 
 // ======================================================
@@ -3596,9 +3597,12 @@ static bool handle_channel_status(
                 // (e.g. turned Off manually, or turned off by a timer in Auto mode), 
                 // the pump loses power and won't broadcast a speed of 0. We must set it here.
                 if (ch_type == 0x01 && !active) {
-                    if (ctx->pool_state->pump_speed != 0 || !ctx->pool_state->pump_speed_valid) {
+                    if (ctx->pool_state->pump_speed != 0 || !ctx->pool_state->pump_speed_valid ||
+                        ctx->pool_state->pump_power_watts != 0 || !ctx->pool_state->pump_power_watts_valid) {
                         ctx->pool_state->pump_speed = 0;
                         ctx->pool_state->pump_speed_valid = true;
+                        ctx->pool_state->pump_power_watts = 0;
+                        ctx->pool_state->pump_power_watts_valid = true;
                         ctx->pool_state->last_update_ms = xTaskGetTickCount() * portTICK_PERIOD_MS;
                         publish_pump = true;
                     }
@@ -3649,10 +3653,20 @@ static bool handle_pump_speed(
     const char *addr_info,
     message_decoder_context_t *ctx)
 {
-    if (payload_len < 2) return false;
+    if (payload_len != 2 && payload_len != 4) return false;
 
     uint16_t speed_rpm = ((uint16_t)payload[0] << 8) | payload[1];
-    ESP_LOGI(TAG, "%s Pump speed - %u RPM", addr_info, speed_rpm);
+    
+    uint16_t power_watts = 0;
+    bool has_power = false;
+    
+    if (payload_len == 4) {
+        power_watts = ((uint16_t)payload[2] << 8) | payload[3];
+        has_power = true;
+        ESP_LOGI(TAG, "%s Pump speed - %u RPM, Power - %u W", addr_info, speed_rpm, power_watts);
+    } else {
+        ESP_LOGI(TAG, "%s Pump speed - %u RPM", addr_info, speed_rpm);
+    }
 
     pool_state_t snapshot;
     if (!ctx->state_mutex || xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
@@ -3661,6 +3675,12 @@ static bool handle_pump_speed(
     }
     ctx->pool_state->pump_speed = speed_rpm;
     ctx->pool_state->pump_speed_valid = true;
+    
+    if (has_power) {
+        ctx->pool_state->pump_power_watts = power_watts;
+        ctx->pool_state->pump_power_watts_valid = true;
+    }
+
     ctx->pool_state->last_update_ms = xTaskGetTickCount() * portTICK_PERIOD_MS;
     snapshot = *ctx->pool_state;
     xSemaphoreGive(ctx->state_mutex);
@@ -4144,7 +4164,8 @@ static bool dispatch_message(
     }
 
     // Viron Pump Telemetry (0x00A0) messages
-    if (match_pattern(data, len, MSG_TYPE_PUMP_SPEED)) {
+    if (match_pattern(data, len, MSG_TYPE_PUMP_SPEED) ||
+        match_pattern(data, len, MSG_TYPE_PUMP_SPEED_V2)) {
         return handle_pump_speed(data, len, payload, payload_len, addr_info, ctx);
     }
 

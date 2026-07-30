@@ -231,6 +231,8 @@ typedef struct {
     // Pump
     uint16_t pump_speed;       // Current pump speed in RPM (from device 0x00A0)
     bool pump_speed_valid;
+    uint16_t pump_power_watts; // Current pump power in Watts
+    bool pump_power_watts_valid;
 
     // Chlorinator
     uint16_t ph_setpoint;      // pH * 10 (e.g., 74 = 7.4)

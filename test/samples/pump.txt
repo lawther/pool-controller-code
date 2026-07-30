@@ -34,3 +34,8 @@ I (00:03:27.999) MSG_DECODER: RX MSG: 02 00 50 00 A0 80 00 18 0D 97 02 02 03
 I (00:03:27.999) MSG_DECODER: [Touch Screen -> Viron XT Pump] Set Pump speed - High (0x02)
 I MSG_DECODER: [Touch Screen -> Viron XT Pump] Set Pump speed - High (0x02)
 02 00 50 00 A0 80 00 18 0D 97 02 02 03
+
+# V2 telemetry, 4 byte payload including power in watts
+I (23:30:21.823) MSG_DECODER: RX MSG: 02 00 A0 FF FF 80 00 3B 10 6B 04 7E 00 D9 5B 03 
+I (23:30:21.825) MSG_DECODER: [Viron XT Pump -> Broadcast] Pump speed - 1150 RPM, Power - 217 W
+02 00 A0 FF FF 80 00 3B 10 6B 04 7E 00 D9 5B 03 

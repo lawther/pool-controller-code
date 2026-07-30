@@ -585,7 +585,9 @@ void mqtt_publish_pump(const pool_state_t *current_state)
 
     // Check if anything changed
     if (s_last_published_state.pump_speed_valid == current_state->pump_speed_valid &&
-        s_last_published_state.pump_speed == current_state->pump_speed) {
+        s_last_published_state.pump_speed == current_state->pump_speed &&
+        s_last_published_state.pump_power_watts_valid == current_state->pump_power_watts_valid &&
+        s_last_published_state.pump_power_watts == current_state->pump_power_watts) {
         return;  // No change, skip publish
     }
 
@@ -607,9 +609,17 @@ void mqtt_publish_pump(const pool_state_t *current_state)
     // Pump speed
     if (current_state->pump_speed_valid) {
         len += snprintf(payload + len, sizeof(payload) - len,
-                       "\"speed_rpm\":%d}", current_state->pump_speed);
+                       "\"speed_rpm\":%d,", current_state->pump_speed);
     } else {
-        len += snprintf(payload + len, sizeof(payload) - len, "\"speed_rpm\":null}");
+        len += snprintf(payload + len, sizeof(payload) - len, "\"speed_rpm\":null,");
+    }
+    
+    // Pump power
+    if (current_state->pump_power_watts_valid) {
+        len += snprintf(payload + len, sizeof(payload) - len,
+                       "\"power_watts\":%d}", current_state->pump_power_watts);
+    } else {
+        len += snprintf(payload + len, sizeof(payload) - len, "\"power_watts\":null}");
     }
 
     mqtt_publish(topic, payload, 0, true);
@@ -617,6 +627,8 @@ void mqtt_publish_pump(const pool_state_t *current_state)
     // Update last published state
     s_last_published_state.pump_speed = current_state->pump_speed;
     s_last_published_state.pump_speed_valid = current_state->pump_speed_valid;
+    s_last_published_state.pump_power_watts = current_state->pump_power_watts;
+    s_last_published_state.pump_power_watts_valid = current_state->pump_power_watts_valid;
 
     ESP_LOGI(TAG, "Published pump: speed_rpm=%d", current_state->pump_speed);
 }

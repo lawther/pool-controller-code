@@ -947,6 +947,28 @@ static void publish_pump_discovery(const char *device_id, const char *mac_suffix
     publish_discovery("sensor", uid, json_str);
     cJSON_free(json_str);
     cJSON_Delete(root);
+
+    // Pump Power Discovery
+    char uid_power[64];
+    snprintf(uid_power, sizeof(uid_power), DISCOVERY_ID_PREFIX "_%s_pump_power", mac_suffix);
+
+    cJSON *power_root = cJSON_CreateObject();
+    cJSON_AddStringToObject(power_root, "name", "Pump Power");
+    cJSON_AddStringToObject(power_root, "state_topic", state_topic);
+    cJSON_AddStringToObject(power_root, "value_template", "{{ value_json.power_watts }}");
+    cJSON_AddStringToObject(power_root, "unit_of_measurement", "W");
+    cJSON_AddStringToObject(power_root, "icon", "mdi:flash");
+    cJSON_AddStringToObject(power_root, "unique_id", uid_power);
+    cJSON_AddStringToObject(power_root, "object_id", uid_power);
+    cJSON_AddStringToObject(power_root, "availability_topic", avail_topic);
+    cJSON_AddItemToObject(power_root, "device", build_device_cjson(device_id, mac_suffix));
+
+    char *power_json_str = cJSON_PrintUnformatted(power_root);
+    if (power_json_str) {
+        publish_discovery("sensor", uid_power, power_json_str);
+        cJSON_free(power_json_str);
+    }
+    cJSON_Delete(power_root);
 }
 
 static void publish_service_mode_discovery(const char *device_id, const char *mac_suffix)
