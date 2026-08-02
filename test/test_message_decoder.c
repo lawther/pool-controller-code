@@ -446,21 +446,77 @@ void test_decode_channel_status_all_off(void)
     TEST_ASSERT(test_pool_state.num_channels == 8, "Should have 8 channels");
 
     TEST_ASSERT(test_pool_state.channels[0].configured, "Ch1 should be configured");
-    TEST_ASSERT(test_pool_state.channels[0].type == 0x01, "Ch1 type should be Filter (0x01)");
+    TEST_ASSERT(test_pool_state.channels[0].type == CHANNEL_TYPE_FILTER, "Ch1 type should be Filter (0x01)");
     TEST_ASSERT(test_pool_state.channels[0].state == 0, "Ch1 state should be Off");
     TEST_ASSERT(!test_pool_state.channels[0].active, "Ch1 should be inactive");
 
     TEST_ASSERT(test_pool_state.channels[1].configured, "Ch2 should be configured");
-    TEST_ASSERT(test_pool_state.channels[1].type == 0x02, "Ch2 type should be Cleaning (0x02)");
+    TEST_ASSERT(test_pool_state.channels[1].type == CHANNEL_TYPE_CLEANING, "Ch2 type should be Cleaning (0x02)");
 
     TEST_ASSERT(test_pool_state.channels[2].configured, "Ch3 should be configured");
-    TEST_ASSERT(test_pool_state.channels[2].type == 0xFE, "Ch3 type should be Light Zone (0xFE)");
+    TEST_ASSERT(test_pool_state.channels[2].type == CHANNEL_TYPE_LIGHT_ZONE, "Ch3 type should be Light Zone (0xFE)");
     TEST_ASSERT(!test_pool_state.channels[2].active, "Ch3 should be inactive");
 
     TEST_ASSERT(test_pool_state.channels[6].configured, "Ch7 should be configured");
-    TEST_ASSERT(test_pool_state.channels[6].type == 0xFD, "Ch7 type should be Heater (0xFD)");
+    TEST_ASSERT(test_pool_state.channels[6].type == CHANNEL_TYPE_HEATER, "Ch7 type should be Heater (0xFD)");
 
     TEST_ASSERT(!test_pool_state.channels[7].configured, "Ch8 should be unconfigured (Unused)");
+}
+
+void test_channel_status_resets_pump_speed_when_filter_off(void)
+{
+    init_test_context();
+
+    // Setup an existing pump speed
+    test_pool_state.pump_speed = 1500;
+    test_pool_state.pump_speed_valid = true;
+
+    // Broadcast Channel Status with Filter (Ch1) in Auto mode (0x01) but Inactive (0x00)
+    uint8_t msg[] = {
+        0x02, 0x00, 0x50, 0xFF, 0xFF, 0x80, 0x00,
+        0x0B, 0x25,  // Command / length (37)
+        0x00,        // Header checksum 
+        0x01,        // payload[0]: num_channels = 1
+        0x01, 0x01, 0x00, // Ch1: Filter(0x01), Auto(0x01), Inactive(0x00)
+        0x03,        // Data checksum
+        0x03
+    };
+
+    bool decoded = decode_message(msg, sizeof(msg), &test_ctx);
+
+    TEST_ASSERT(decoded, "Channel status message should be decoded");
+    
+    // Pump speed should be reset to 0 since Filter went to Off
+    TEST_ASSERT(test_pool_state.pump_speed_valid, "pump_speed_valid should be true");
+    TEST_ASSERT(test_pool_state.pump_speed == 0, "pump_speed should be 0");
+}
+
+void test_channel_status_resets_pump_speed_valid_when_filter_off_without_previous_speed(void)
+{
+    init_test_context();
+
+    // Setup an INVALID pump speed
+    test_pool_state.pump_speed = 0;
+    test_pool_state.pump_speed_valid = false;
+
+    // Broadcast Channel Status with Filter (Ch1) in Auto mode (0x01) but Inactive (0x00)
+    uint8_t msg[] = {
+        0x02, 0x00, 0x50, 0xFF, 0xFF, 0x80, 0x00,
+        0x0B, 0x25,  // Command / length (37)
+        0x00,        // Header checksum 
+        0x01,        // payload[0]: num_channels = 1
+        0x01, 0x01, 0x00, // Ch1: Filter(0x01), Auto(0x01), Inactive(0x00)
+        0x03,        // Data checksum
+        0x03
+    };
+
+    bool decoded = decode_message(msg, sizeof(msg), &test_ctx);
+
+    TEST_ASSERT(decoded, "Channel status message should be decoded");
+    
+    // Pump speed should be forced valid and 0 since Filter went to Inactive
+    TEST_ASSERT(test_pool_state.pump_speed_valid, "pump_speed_valid should be true even if it was false before");
+    TEST_ASSERT(test_pool_state.pump_speed == 0, "pump_speed should be 0");
 }
 
 /**
@@ -532,7 +588,7 @@ void test_decode_channel_status_multispeed_pump(void)
     bool decoded = decode_message(msg_med, sizeof(msg_med), &test_ctx);
 
     TEST_ASSERT(decoded, "Channel status (multi-speed Medium) should be decoded");
-    TEST_ASSERT(test_pool_state.channels[0].type == 0x01, "Ch1 type should be Filter (0x01)");
+    TEST_ASSERT(test_pool_state.channels[0].type == CHANNEL_TYPE_FILTER, "Ch1 type should be Filter (0x01)");
     TEST_ASSERT(test_pool_state.channels[0].state == 4, "Ch1 state should be On - Medium Speed (4)");
     TEST_ASSERT(test_pool_state.channels[0].active, "Ch1 should be active");
 
@@ -1218,6 +1274,8 @@ int main(void)
     // Channel status tests
     printf("\n--- Channel Status Tests ---\n");
     test_decode_channel_status_all_off();
+    test_channel_status_resets_pump_speed_when_filter_off();
+    test_channel_status_resets_pump_speed_valid_when_filter_off_without_previous_speed();
     test_decode_channel_status_lights_active();
     test_decode_channel_status_multispeed_pump();
     test_decode_channel_toggle_gateway();

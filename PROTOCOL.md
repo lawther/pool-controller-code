@@ -1915,9 +1915,12 @@ Turns Heater 1 on or off (register `0xE6`). Heater 2 uses the analogous register
 
 Speed telemetry broadcast by the Viron XT Variable Speed Pump (`0x00A0`). Emitted every ~60 seconds while the pump is running.
 
-**Pattern:** `02 00 A0 FF FF 80 00 3B 0E 69`
+**Patterns:**
+- Version 1 (14-byte): `02 00 A0 FF FF 80 00 3B 0E 69`
+- Version 2 (16-byte): `02 00 A0 FF FF 80 00 3B 10 6B`
 
-**Example:**
+**Example (V1 14-byte):**
+Observed in pump reporting firmware v1.9.
 
 ```
 02 00 A0 FF FF 80 00 3B 0E 69 04 65 69 03
@@ -1925,10 +1928,21 @@ Speed telemetry broadcast by the Viron XT Variable Speed Pump (`0x00A0`). Emitte
                                     ^^ Data checksum (sum of bytes 10–11)
 ```
 
+**Example (V2 16-byte):**
+Observed in pump reporting firmware v5.1.
+
+```
+02 00 A0 FF FF 80 00 3B 10 6B 04 7E 00 D9 5B 03
+                              ^^^^^ Speed in RPM (big-endian uint16)
+                                    ^^^^^ Power in Watts (big-endian uint16)
+                                          ^^ Data checksum
+```
+
 **Data Fields:**
 
 - Bytes 10–11: Pump speed in RPM, **big-endian** `uint16` (e.g. `04 65` = 0x0465 = 1125 RPM)
-- Byte 12: Data checksum (sum of bytes 10–11, masked to 8 bits)
+- Bytes 12–13 (V2 only): Pump power in Watts, **big-endian** `uint16` (e.g. `00 D9` = 0x00D9 = 217 W)
+- Byte 12 (V1) / Byte 14 (V2): Data checksum
 
 **Observed speed values:**
 
@@ -1945,8 +1959,8 @@ Speed telemetry broadcast by the Viron XT Variable Speed Pump (`0x00A0`). Emitte
 **Notes:**
 
 - Encoding is **big-endian** (most-significant byte first), unlike the little-endian convention used elsewhere in this protocol. This likely reflects the pump's own native encoding.
-- Published to MQTT as `pool/{device_id}/pump/state` with JSON payload `{"speed_rpm": <value>}`.
-- Decoded in code by `handle_pump_speed`; speed value stored in `pool_state.pump_speed` / `pool_state.pump_speed_valid`.
+- Published to MQTT as `pool/{device_id}/pump/state` with JSON payload `{"speed_rpm": <value>, "power_watts": <value>}`.
+- Decoded in code by `handle_pump_speed`; values stored in `pool_state.pump_speed` and `pool_state.pump_power_watts` (and their `_valid` flags).
 - When buttons are pressed on the pump panel, [CMD `0x1B`](#0x1b--pump-button-activity-) bursts are emitted first; the next `0x3B` after the ~60 s interval reflects the newly committed speed.
 
 ---

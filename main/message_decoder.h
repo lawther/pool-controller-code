@@ -93,7 +93,7 @@ extern const char *LIGHTING_COLOR_NAMES[];
  * @param type_code Channel type code
  * @return Channel type name, or "Unknown" if not found
  */
-const char* get_channel_type_name(uint8_t type_code);
+const char* get_channel_type_name(channel_type_t type_code);
 
 /**
  * Get multicolor light type name from the register 0xF0 light model index
@@ -117,10 +117,7 @@ const char* multicolor_light_type_name(uint8_t type, char *fallback_buf, size_t 
  */
 const uint8_t* multicolor_light_color_codes(uint8_t light_type, int *count);
 
-// Special channel type markers
-#define CHANNEL_UNUSED          0x00  // Unused/unconfigured channel
-#define CHANNEL_TYPE_HEATER     0xFD  // Channel is a heater (handled separately)
-#define CHANNEL_TYPE_LIGHT_ZONE 0xFE  // Channel is a lighting zone (handled separately)
+
 
 // Channel category codes (registers 0xF5–0xFC, slot 0x01) — coarser than the
 // per-channel type codes above; only broadcast for channels that are in use.

@@ -955,6 +955,20 @@ static esp_err_t status_get_handler(httpd_req_t *req)
     }
     cJSON_AddItemToObject(root, "timers", timers);
 
+    // Pump
+    cJSON *pump = cJSON_CreateObject();
+    if (state.pump_speed_valid) {
+        cJSON_AddNumberToObject(pump, "speed_rpm", state.pump_speed);
+    } else {
+        cJSON_AddNullToObject(pump, "speed_rpm");
+    }
+    if (state.pump_power_watts_valid) {
+        cJSON_AddNumberToObject(pump, "power_watts", state.pump_power_watts);
+    } else {
+        cJSON_AddNullToObject(pump, "power_watts");
+    }
+    cJSON_AddItemToObject(root, "pump", pump);
+
     // Memory
     char free_heap_str[24], min_free_heap_str[24];
     uint32_t free_heap     = esp_get_free_heap_size();

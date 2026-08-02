@@ -32,11 +32,37 @@ extern const char *HEATER_STATUS_NAMES[];
 #define BURNER_STATE_NAME_COUNT 3
 extern const char *BURNER_STATE_NAMES[];
 
+// Channel type codes (PROTOCOL.md 0x0B "Channel Types")
+typedef enum {
+    CHANNEL_TYPE_UNUSED           = 0x00, // Unused/unconfigured channel
+    CHANNEL_TYPE_FILTER           = 0x01,
+    CHANNEL_TYPE_CLEANING         = 0x02,
+    CHANNEL_TYPE_HEATER_PUMP      = 0x03,
+    CHANNEL_TYPE_BOOSTER          = 0x04,
+    CHANNEL_TYPE_WATERFALL        = 0x05,
+    CHANNEL_TYPE_FOUNTAIN         = 0x06,
+    CHANNEL_TYPE_SPA_PUMP         = 0x07,
+    CHANNEL_TYPE_SOLAR            = 0x08,
+    CHANNEL_TYPE_BLOWER           = 0x09,
+    CHANNEL_TYPE_SWIMJET          = 0x0A,
+    CHANNEL_TYPE_JETS             = 0x0B,
+    CHANNEL_TYPE_SPA_JETS         = 0x0C,
+    CHANNEL_TYPE_OVERFLOW         = 0x0D,
+    CHANNEL_TYPE_SPILLWAY         = 0x0E,
+    CHANNEL_TYPE_AUDIO            = 0x0F,
+    CHANNEL_TYPE_HOT_SEAT         = 0x10,
+    CHANNEL_TYPE_HEATER_POWER     = 0x11,
+    CHANNEL_TYPE_CUSTOM_NAME      = 0x12,
+    CHANNEL_TYPE_SECONDARY_HEATER = 0xFB,
+    CHANNEL_TYPE_HEATER           = 0xFD, // Channel is a heater (handled separately)
+    CHANNEL_TYPE_LIGHT_ZONE       = 0xFE, // Channel is a lighting zone (handled separately)
+} channel_type_t;
+
 // Struct definitions
 typedef struct {
     uint8_t id;
     char name[32];
-    uint8_t type;
+    channel_type_t type;
     uint8_t category;  // 1=Pool equipment, 2=Light, 3=Controlled Heater Power (register 0xF5+, slot 0x01); 0 if not yet received
     uint8_t state;
     bool active;       // true if currently running (e.g. turned on by timer)
@@ -231,6 +257,8 @@ typedef struct {
     // Pump
     uint16_t pump_speed;       // Current pump speed in RPM (from device 0x00A0)
     bool pump_speed_valid;
+    uint16_t pump_power_watts; // Current pump power in Watts
+    bool pump_power_watts_valid;
 
     // Chlorinator
     uint16_t ph_setpoint;      // pH * 10 (e.g., 74 = 7.4)
