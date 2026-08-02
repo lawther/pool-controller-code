@@ -2,9 +2,11 @@
 #include "config.h"
 #include "message_decoder.h"
 #include "mqtt_poolclient.h"
+#include "mqtt_publish.h"
 #include "pool_state.h"
 #include "bus.h"
 #include "register_requester.h"
+#include "channel_power.h"
 #include "esp_log.h"
 #include <string.h>
 #include <stdlib.h>
@@ -56,6 +58,44 @@ static void handle_channel_command(int channel_id, const char *payload, int payl
 
     ESP_LOGI(TAG, "Toggling channel %d", channel_id);
     send_uart_command(cmd, sizeof(cmd));
+}
+
+// Set a channel's configured power estimate (Watts). This is local-only
+// config (not a bus register), so there's no read-back — persist to NVS and
+// republish the channel's state topic immediately. A value of 0 clears the
+// manual estimate (e.g. once a channel's device starts reporting its own
+// real power); see channel_power_get_effective.
+static void handle_channel_power_command(int channel_id, const char *payload, int payload_len)
+{
+    char watts_str[16];
+    if (payload_len <= 0 || payload_len >= (int)sizeof(watts_str)) {
+        ESP_LOGE(TAG, "Channel %d power payload invalid length", channel_id);
+        return;
+    }
+    memcpy(watts_str, payload, payload_len);
+    watts_str[payload_len] = '\0';
+
+    char *endptr;
+    long watts = strtol(watts_str, &endptr, 10);
+    if (endptr == watts_str || *endptr != '\0' || watts < 0 || watts > UINT16_MAX) {
+        ESP_LOGE(TAG, "Invalid channel %d power value: \"%s\"", channel_id, watts_str);
+        return;
+    }
+
+    if (channel_power_set_configured((uint8_t)channel_id, (uint16_t)watts) != ESP_OK) {
+        return;
+    }
+
+    // Pass the global state directly rather than copying it onto the stack:
+    // this handler runs on the default system event loop task, which this
+    // project sizes at only 2304 bytes (CONFIG_ESP_SYSTEM_EVENT_TASK_STACK_SIZE)
+    // — nowhere near enough for a ~3KB pool_state_t local. mqtt_publish_channel
+    // is synchronous and non-blocking (JSON build + MQTT enqueue), so holding
+    // the mutex for its duration is brief and safe.
+    if (s_pool_state_mutex && xSemaphoreTake(s_pool_state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) == pdTRUE) {
+        mqtt_publish_channel(&s_pool_state, (uint8_t)channel_id);
+        xSemaphoreGive(s_pool_state_mutex);
+    }
 }
 
 // ======================================================
@@ -507,17 +547,24 @@ void mqtt_handle_command(const char *topic, int topic_len, const char *data, int
 
     // Parse command type
     if (strncmp(cmd_topic, "channel/", 8) == 0 && cmd_topic_len > 12) {
-        // Extract channel number (format: "channel/N/set")
+        // Extract channel number (formats: "channel/N/set", "channel/N/power/set")
         char *endptr;
         int channel = (int)strtol(cmd_topic + 8, &endptr, 10);
         if (endptr == cmd_topic + 8 || *endptr != '/') {
             ESP_LOGE(TAG, "Invalid channel topic format: %s", cmd_topic);
             return;
         }
-        if (channel >= 1 && channel <= MAX_CHANNELS) {
-            handle_channel_command(channel, data, data_len);
-        } else {
+        if (channel < 1 || channel > MAX_CHANNELS) {
             ESP_LOGE(TAG, "Invalid channel number: %d", channel);
+            return;
+        }
+        int suffix_len = cmd_topic_len - (int)(endptr - cmd_topic);
+        if (suffix_len == 4 && strncmp(endptr, "/set", 4) == 0) {
+            handle_channel_command(channel, data, data_len);
+        } else if (suffix_len == 10 && strncmp(endptr, "/power/set", 10) == 0) {
+            handle_channel_power_command(channel, data, data_len);
+        } else {
+            ESP_LOGE(TAG, "Invalid channel topic format: %s", cmd_topic);
         }
     }
     else if (strncmp(cmd_topic, "light/", 6) == 0 && cmd_topic_len > 10) {

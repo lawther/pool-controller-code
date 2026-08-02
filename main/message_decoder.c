@@ -3675,7 +3675,8 @@ static bool handle_pump_speed(
     }
     ctx->pool_state->pump_speed = speed_rpm;
     ctx->pool_state->pump_speed_valid = true;
-    
+    ctx->pool_state->pump_telemetry_seen = true;
+
     if (has_power) {
         ctx->pool_state->pump_power_watts = power_watts;
         ctx->pool_state->pump_power_watts_valid = true;

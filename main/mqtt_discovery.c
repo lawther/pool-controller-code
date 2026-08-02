@@ -10,21 +10,10 @@
 #include "cJSON.h"
 #include <stdio.h>
 #include <string.h>
-#include <ctype.h>
 
 static const char *TAG = "MQTT_DISCOVERY";
 
 #define DISCOVERY_ID_PREFIX "pool_controller"
-
-// Lowercase + spaces-to-underscores, for use in unique_id/object_id
-static void normalize_name(const char *in, char *out, size_t out_len)
-{
-    size_t i = 0;
-    for (; i < out_len - 1 && in[i] != '\0'; i++) {
-        out[i] = (in[i] == ' ') ? '_' : tolower((unsigned char)in[i]);
-    }
-    out[i] = '\0';
-}
 
 // Build a device cJSON object (caller must not free separately — embed in root)
 static cJSON *build_device_cjson(const char *device_id, const char *mac_suffix)
@@ -515,36 +504,27 @@ static void publish_channel_discovery(const char *device_id, const char *mac_suf
     snprintf(state_topic, sizeof(state_topic), "pool/%s/channel/%d/state", device_id, channel_num);
     snprintf(command_topic, sizeof(command_topic), "pool/%s/channel/%d/set", device_id, channel_num);
 
-    // Determine display name and normalized part for IDs
+    // Display name only — unique IDs below are keyed on the stable channel
+    // number alone, never on the name. The name can legitimately change
+    // between discovery publishes (e.g. it's empty until the bus's channel-
+    // name broadcast arrives, so an early publish falls back to the type
+    // name); if that mutable value were embedded in the unique_id, each
+    // change would register as a brand-new HA entity while the old one
+    // lingers as an orphaned duplicate (retained on the broker forever).
     char display_name[64];
-    char norm_name[32];
     if (channel_name && channel_name[0] != '\0') {
         snprintf(display_name, sizeof(display_name), "%s", channel_name);
-        normalize_name(channel_name, norm_name, sizeof(norm_name));
     } else {
         snprintf(display_name, sizeof(display_name), "Channel %d", channel_num);
-        norm_name[0] = '\0';
     }
 
     // Build unique IDs
     char sensor_uid[64];
     char button_uid[64];
     char active_uid[64];
-    if (norm_name[0] != '\0') {
-        snprintf(sensor_uid, sizeof(sensor_uid),
-                 DISCOVERY_ID_PREFIX "_%s_ch%d_%s", mac_suffix, channel_num, norm_name);
-        snprintf(button_uid, sizeof(button_uid),
-                 DISCOVERY_ID_PREFIX "_%s_ch%d_%s_toggle", mac_suffix, channel_num, norm_name);
-        snprintf(active_uid, sizeof(active_uid),
-                 DISCOVERY_ID_PREFIX "_%s_ch%d_%s_active", mac_suffix, channel_num, norm_name);
-    } else {
-        snprintf(sensor_uid, sizeof(sensor_uid),
-                 DISCOVERY_ID_PREFIX "_%s_ch%d", mac_suffix, channel_num);
-        snprintf(button_uid, sizeof(button_uid),
-                 DISCOVERY_ID_PREFIX "_%s_ch%d_toggle", mac_suffix, channel_num);
-        snprintf(active_uid, sizeof(active_uid),
-                 DISCOVERY_ID_PREFIX "_%s_ch%d_active", mac_suffix, channel_num);
-    }
+    snprintf(sensor_uid, sizeof(sensor_uid), DISCOVERY_ID_PREFIX "_%s_ch%d", mac_suffix, channel_num);
+    snprintf(button_uid, sizeof(button_uid), DISCOVERY_ID_PREFIX "_%s_ch%d_toggle", mac_suffix, channel_num);
+    snprintf(active_uid, sizeof(active_uid), DISCOVERY_ID_PREFIX "_%s_ch%d_active", mac_suffix, channel_num);
 
     // Sensor for state
     {
@@ -612,6 +592,103 @@ static void publish_channel_discovery(const char *device_id, const char *mac_suf
         }
         publish_discovery("binary_sensor", active_uid, json_str);
         cJSON_free(json_str);
+        cJSON_Delete(root);
+    }
+
+    // Number for the configured power estimate (Watts). 0 = unset — either
+    // never configured, or deliberately cleared because this channel's
+    // device reports its own real power (see channel_power_get_effective).
+    {
+        char power_command_topic[128];
+        snprintf(power_command_topic, sizeof(power_command_topic),
+                 "pool/%s/channel/%d/power/set", device_id, channel_num);
+
+        char power_uid[80];
+        snprintf(power_uid, sizeof(power_uid), DISCOVERY_ID_PREFIX "_%s_ch%d_power", mac_suffix, channel_num);
+
+        char power_name[96];
+        snprintf(power_name, sizeof(power_name), "%s Configured Power", display_name);
+
+        cJSON *root = cJSON_CreateObject();
+        cJSON_AddStringToObject(root, "name", power_name);
+        cJSON_AddStringToObject(root, "icon", "mdi:flash-outline");
+        cJSON_AddStringToObject(root, "state_topic", state_topic);
+        cJSON_AddStringToObject(root, "command_topic", power_command_topic);
+        cJSON_AddStringToObject(root, "value_template", "{{ value_json.configured_watts }}");
+        cJSON_AddStringToObject(root, "unit_of_measurement", "W");
+        cJSON_AddNumberToObject(root, "min", 0);
+        cJSON_AddNumberToObject(root, "max", 10000);
+        cJSON_AddNumberToObject(root, "step", 1);
+        cJSON_AddStringToObject(root, "mode", "box");
+        cJSON_AddStringToObject(root, "entity_category", "config");
+        cJSON_AddStringToObject(root, "unique_id", power_uid);
+        cJSON_AddStringToObject(root, "object_id", power_uid);
+        cJSON_AddStringToObject(root, "availability_topic", avail_topic);
+        cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
+
+        char *json_str = cJSON_PrintUnformatted(root);
+        if (json_str) { publish_discovery("number", power_uid, json_str); cJSON_free(json_str); }
+        cJSON_Delete(root);
+    }
+
+    // Sensor for live power: real device telemetry when available (e.g. the
+    // Filter channel's variable-speed pump), else the configured estimate
+    // gated by active state; unknown if neither applies.
+    {
+        char sensor_uid[80];
+        snprintf(sensor_uid, sizeof(sensor_uid), DISCOVERY_ID_PREFIX "_%s_ch%d_power_sensor", mac_suffix, channel_num);
+
+        char sensor_name[80];
+        snprintf(sensor_name, sizeof(sensor_name), "%s Power", display_name);
+
+        cJSON *root = cJSON_CreateObject();
+        cJSON_AddStringToObject(root, "name", sensor_name);
+        cJSON_AddStringToObject(root, "device_class", "power");
+        cJSON_AddStringToObject(root, "state_class", "measurement");
+        cJSON_AddStringToObject(root, "unit_of_measurement", "W");
+        cJSON_AddStringToObject(root, "state_topic", state_topic);
+        cJSON_AddStringToObject(root, "value_template",
+                                "{{ value_json.power_watts if value_json.power_watts is not none else 'unknown' }}");
+        cJSON_AddStringToObject(root, "unique_id", sensor_uid);
+        cJSON_AddStringToObject(root, "object_id", sensor_uid);
+        cJSON_AddStringToObject(root, "availability_topic", avail_topic);
+        cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
+
+        char *json_str = cJSON_PrintUnformatted(root);
+        if (json_str) { publish_discovery("sensor", sensor_uid, json_str); cJSON_free(json_str); }
+        cJSON_Delete(root);
+    }
+
+    // Energy sensor: cumulative kWh, integrated on-device from the effective
+    // power over time (see channel_energy.c). The accumulator lives in RAM
+    // only and resets to 0 on reboot; state_class total_increasing tells HA
+    // to treat a value drop as a meter reset rather than corrupt long-term
+    // statistics, so this is safe without NVS persistence.
+    {
+        char energy_state_topic[128];
+        snprintf(energy_state_topic, sizeof(energy_state_topic),
+                 "pool/%s/channel/%d/energy/state", device_id, channel_num);
+
+        char energy_uid[80];
+        snprintf(energy_uid, sizeof(energy_uid), DISCOVERY_ID_PREFIX "_%s_ch%d_energy", mac_suffix, channel_num);
+
+        char energy_name[96];
+        snprintf(energy_name, sizeof(energy_name), "%s Energy", display_name);
+
+        cJSON *root = cJSON_CreateObject();
+        cJSON_AddStringToObject(root, "name", energy_name);
+        cJSON_AddStringToObject(root, "device_class", "energy");
+        cJSON_AddStringToObject(root, "state_class", "total_increasing");
+        cJSON_AddStringToObject(root, "unit_of_measurement", "kWh");
+        cJSON_AddStringToObject(root, "state_topic", energy_state_topic);
+        cJSON_AddStringToObject(root, "value_template", "{{ value_json.energy_kwh }}");
+        cJSON_AddStringToObject(root, "unique_id", energy_uid);
+        cJSON_AddStringToObject(root, "object_id", energy_uid);
+        cJSON_AddStringToObject(root, "availability_topic", avail_topic);
+        cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
+
+        char *json_str = cJSON_PrintUnformatted(root);
+        if (json_str) { publish_discovery("sensor", energy_uid, json_str); cJSON_free(json_str); }
         cJSON_Delete(root);
     }
 }

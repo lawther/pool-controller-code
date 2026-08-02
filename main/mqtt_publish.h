@@ -29,6 +29,10 @@ void mqtt_publish_mode(const pool_state_t *current_state);
 // Publish channel state by ID (1-8) from pool state
 void mqtt_publish_channel(const pool_state_t *current_state, uint8_t channel_id);
 
+// Publish a channel's cumulative energy (kWh) to pool/<id>/channel/<N>/energy/state.
+// Called periodically by channel_energy's accumulator task.
+void mqtt_publish_channel_energy(uint8_t channel_id, double energy_kwh);
+
 // Publish light zone state (1-4) from pool state
 void mqtt_publish_light(const pool_state_t *current_state, uint8_t zone);
 

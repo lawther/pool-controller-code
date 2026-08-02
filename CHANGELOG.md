@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- Added configurable per-channel power estimates and on-device energy accumulation, exposed to Home Assistant as editable power and read-only energy sensors for the Energy dashboard's Individual devices view
 ### Changed
 ### Fixed
 ### Removed

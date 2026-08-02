@@ -3,6 +3,7 @@
 #include "mqtt_discovery.h"
 #include "pool_state.h"
 #include "message_decoder.h"
+#include "channel_power.h"
 #include "esp_log.h"
 #include "cJSON.h"
 #include <string.h>
@@ -36,6 +37,22 @@ static struct {
 // (drives the color effect list); only meaningful while the zone's
 // s_discovery_published.lights flag is set
 static uint8_t s_light_discovery_type[MAX_LIGHT_ZONES];
+
+// Last-published per-channel power fields. These aren't bus-observed state
+// (channel_state_t), so they're tracked separately: a channel's power can
+// change (via MQTT command) without any bus-driven channel state change.
+static bool s_power_fields_published[MAX_CHANNELS];
+static uint16_t s_last_configured_watts[MAX_CHANNELS];
+static bool s_last_power_watts_valid[MAX_CHANNELS];
+static uint16_t s_last_power_watts[MAX_CHANNELS];
+
+// Display name each channel's discovery was last published with. Unique IDs
+// are stable (keyed on channel number only — see publish_channel_discovery),
+// so it's safe to re-publish discovery whenever the name changes (e.g. the
+// bus's channel-name broadcast arrives after the type-name fallback was
+// already used); HA updates the entity's label in place rather than forking
+// a new one.
+static char s_channel_discovery_name[MAX_CHANNELS][32];
 
 // ======================================================
 // Setpoint and Temperature Publishing
@@ -301,18 +318,43 @@ void mqtt_publish_channel(const pool_state_t *current_state, uint8_t channel_id)
     const char *type_name = get_channel_type_name(channel->type);
     const char *display_name = (channel->name[0] != '\0') ? channel->name : type_name;
 
-    // Publish discovery if this is the first time seeing this channel
+    // Re-publish discovery if the display name changed since it was last
+    // sent (e.g. the bus's channel-name broadcast arrived after an earlier
+    // publish already used the type-name fallback). Unique IDs are stable
+    // (channel number only), so this updates the entity's label in HA
+    // in place rather than creating a duplicate.
+    if (s_discovery_published.channels[idx] &&
+        strcmp(s_channel_discovery_name[idx], display_name) != 0) {
+        s_discovery_published.channels[idx] = false;
+    }
+
+    // Publish discovery if this is the first time seeing this channel (or the name changed)
     if (!s_discovery_published.channels[idx]) {
         mqtt_publish_channel_discovery_single(channel_id, display_name);
         s_discovery_published.channels[idx] = true;
+        strncpy(s_channel_discovery_name[idx], display_name, sizeof(s_channel_discovery_name[idx]) - 1);
+        s_channel_discovery_name[idx][sizeof(s_channel_discovery_name[idx]) - 1] = '\0';
     }
 
-    // Check if anything changed
-    if (s_last_published_state.channels[idx].configured &&
-        s_last_published_state.channels[idx].type == channel->type &&
-        s_last_published_state.channels[idx].state == channel->state &&
-        s_last_published_state.channels[idx].active == channel->active &&
-        strcmp(s_last_published_state.channels[idx].name, channel->name) == 0) {
+    uint16_t configured_watts = channel_power_get_configured(channel_id);
+    uint16_t power_watts = 0;
+    bool power_watts_valid = channel_power_get_effective(current_state, channel_id, &power_watts);
+
+    // Check if anything changed (bus-observed state, or power config/telemetry)
+    bool state_changed =
+        !s_last_published_state.channels[idx].configured ||
+        s_last_published_state.channels[idx].type != channel->type ||
+        s_last_published_state.channels[idx].state != channel->state ||
+        s_last_published_state.channels[idx].active != channel->active ||
+        strcmp(s_last_published_state.channels[idx].name, channel->name) != 0;
+
+    bool power_changed =
+        !s_power_fields_published[idx] ||
+        s_last_configured_watts[idx] != configured_watts ||
+        s_last_power_watts_valid[idx] != power_watts_valid ||
+        (power_watts_valid && s_last_power_watts[idx] != power_watts);
+
+    if (!state_changed && !power_changed) {
         return;  // No change, skip publish
     }
 
@@ -330,6 +372,12 @@ void mqtt_publish_channel(const pool_state_t *current_state, uint8_t channel_id)
     cJSON_AddStringToObject(root, "state",  state_name);
     cJSON_AddBoolToObject(root,   "active", channel->active);
     cJSON_AddStringToObject(root, "name",   display_name);
+    cJSON_AddNumberToObject(root, "configured_watts", configured_watts);
+    if (power_watts_valid) {
+        cJSON_AddNumberToObject(root, "power_watts", power_watts);
+    } else {
+        cJSON_AddNullToObject(root, "power_watts");
+    }
     char *payload = cJSON_PrintUnformatted(root);
     cJSON_Delete(root);
 
@@ -345,7 +393,35 @@ void mqtt_publish_channel(const pool_state_t *current_state, uint8_t channel_id)
     strncpy(s_last_published_state.channels[idx].name, channel->name, sizeof(s_last_published_state.channels[idx].name) - 1);
     s_last_published_state.channels[idx].configured = true;
 
+    s_power_fields_published[idx] = true;
+    s_last_configured_watts[idx] = configured_watts;
+    s_last_power_watts_valid[idx] = power_watts_valid;
+    s_last_power_watts[idx] = power_watts;
+
     ESP_LOGI(TAG, "Published channel %d: %s (%s)", channel_id, state_name, display_name);
+}
+
+void mqtt_publish_channel_energy(uint8_t channel_id, double energy_kwh)
+{
+    if (channel_id < 1 || channel_id > MAX_CHANNELS) {
+        return;
+    }
+
+    char device_id[32];
+    mqtt_get_device_id(device_id, sizeof(device_id));
+
+    char topic[128];
+    snprintf(topic, sizeof(topic), "pool/%s/channel/%d/energy/state", device_id, channel_id);
+
+    cJSON *root = cJSON_CreateObject();
+    cJSON_AddNumberToObject(root, "energy_kwh", energy_kwh);
+    char *payload = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+
+    if (payload) {
+        mqtt_publish(topic, payload, 0, true);
+        free(payload);
+    }
 }
 
 // ======================================================
