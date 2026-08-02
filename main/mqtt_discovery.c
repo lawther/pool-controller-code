@@ -1437,6 +1437,8 @@ static void publish_pump_discovery(const char *device_id, const char *mac_suffix
     cJSON_AddStringToObject(power_root, "state_topic", state_topic);
     cJSON_AddStringToObject(power_root, "value_template", "{{ value_json.power_watts }}");
     cJSON_AddStringToObject(power_root, "unit_of_measurement", "W");
+    cJSON_AddStringToObject(power_root, "device_class", "power");
+    cJSON_AddStringToObject(power_root, "state_class", "measurement");    
     cJSON_AddStringToObject(power_root, "icon", "mdi:flash");
     add_entity_ids(power_root, "sensor", mac_suffix, uid_power, "pump_power");
     cJSON_AddStringToObject(power_root, "availability_topic", avail_topic);
