@@ -2,6 +2,21 @@
 #define MQTT_DISCOVERY_H
 
 #include "pool_state.h"
+#include <stdbool.h>
+
+// Clear every retained discovery config belonging to this device and reboot,
+// so Home Assistant deletes the entities and re-creates them from the configs
+// published on the next connect. Entity ids are only assigned at first
+// registration, so this is what applies a changed entity_id scheme — and it
+// also clears entities left behind by earlier firmware. Returns immediately;
+// the work runs on its own task and ends in a restart. False if it couldn't be
+// started — MQTT not connected, or a reset already running.
+bool mqtt_discovery_reset_start(void);
+
+// Route an MQTT message to the entity reset, which subscribes to the broker's
+// discovery configs while it runs. Returns true if the message belonged to the
+// reset and must not be treated as a command. No-op when no reset is running.
+bool mqtt_discovery_reset_handle_message(const char *topic, int topic_len, int data_len);
 
 // Publish all Home Assistant discovery messages
 // This should be called once when MQTT connects

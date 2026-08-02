@@ -7,13 +7,71 @@
 #include "wifi_provisioning.h"
 #include "esp_app_desc.h"
 #include "esp_log.h"
+#include "esp_system.h"
 #include "cJSON.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include <stdarg.h>
+#include <stdatomic.h>
+#include <ctype.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 static const char *TAG = "MQTT_DISCOVERY";
 
+// Prefix of the unique_id, which is the entity's registry key: it is keyed on
+// the MAC suffix and the entity's role only, and must never change for an
+// entity that already exists in Home Assistant.
 #define DISCOVERY_ID_PREFIX "pool_controller"
+
+// Prefix of the entity_id Home Assistant is asked to use, giving every entity
+// the form `<component>.pool_control_<mac>_<role>`.
+#define ENTITY_ID_PREFIX "pool_control"
+
+// Add an entity's identity fields.
+//
+// `unique_id` is the registry key. The entity_id is built separately from
+// `slug_fmt` so that it stays consistent across entity types even where the
+// unique_id's historic spelling differs (e.g. `ch5` vs `channel_5`).
+//
+// Home Assistant needs to be told the entity_id explicitly: left to itself it
+// derives one from the area, the device name and the entity name (see
+// `_async_generate_entity_id`), which both varies with those mutable names and
+// repeats the device name we already carry in the id. The key that carries it
+// changed in HA 2026.4 — `object_id` before, `default_entity_id` after — so
+// publish both, naming the same entity_id either way. Unknown keys are dropped
+// by the discovery schema (`extra=vol.REMOVE_EXTRA`), so neither upsets the
+// version that doesn't use it.
+__attribute__((format(printf, 5, 6)))
+static void add_entity_ids(cJSON *root, const char *component, const char *mac_suffix,
+                           const char *unique_id, const char *slug_fmt, ...)
+{
+    char slug[64];
+    va_list args;
+    va_start(args, slug_fmt);
+    vsnprintf(slug, sizeof(slug), slug_fmt, args);
+    va_end(args);
+
+    // HA slugifies the entity_id anyway; lowercasing here keeps what we publish
+    // identical to what it registers.
+    char mac_lower[DEVICE_MAC_SUFFIX_LEN];
+    size_t i = 0;
+    for (; i < sizeof(mac_lower) - 1 && mac_suffix[i] != '\0'; i++) {
+        mac_lower[i] = (char)tolower((unsigned char)mac_suffix[i]);
+    }
+    mac_lower[i] = '\0';
+
+    char object_id[96];
+    snprintf(object_id, sizeof(object_id), ENTITY_ID_PREFIX "_%s_%s", mac_lower, slug);
+
+    char default_entity_id[128];
+    snprintf(default_entity_id, sizeof(default_entity_id), "%s.%s", component, object_id);
+
+    cJSON_AddStringToObject(root, "unique_id", unique_id);
+    cJSON_AddStringToObject(root, "object_id", object_id);
+    cJSON_AddStringToObject(root, "default_entity_id", default_entity_id);
+}
 
 // Build a device cJSON object (caller must not free separately — embed in root)
 static cJSON *build_device_cjson(const char *device_id, const char *mac_suffix)
@@ -89,6 +147,160 @@ static void remove_discovery(const char *component, const char *object_id)
 }
 
 // ======================================================
+// Home Assistant Entity Reset
+// ======================================================
+//
+// Home Assistant assigns an entity_id when it first registers an entity and
+// keeps it forever after, so a device whose entities were created under an
+// older id scheme never picks up a new one. Clearing the retained discovery
+// configs makes HA delete the entities; the fresh configs published on the
+// next boot then re-create them under the current scheme (MQTT applies
+// `default_entity_id` to an entity restored from a deleted registry entry).
+//
+// The configs are read back off the broker rather than reconstructed, so
+// entities left behind by earlier firmware — published under unique_ids this
+// build no longer generates — are cleared too.
+
+#define HA_RESET_TOPIC_FILTER   "homeassistant/+/+/+/config"
+#define HA_RESET_COLLECT_MS     3000   // retained configs arrive on subscribe
+#define HA_RESET_FLUSH_MS       1000   // let the retractions reach the broker
+#define HA_RESET_MAX_TOPICS     128
+
+// Written by the MQTT event handler as configs arrive, read by the reset task
+// once it has cleared s_reset_active and no more can be appended.
+static atomic_bool s_reset_active = false;
+static char *s_reset_topics[HA_RESET_MAX_TOPICS];
+static atomic_int s_reset_count = 0;
+
+bool mqtt_discovery_reset_handle_message(const char *topic, int topic_len, int data_len)
+{
+    if (!atomic_load(&s_reset_active)) {
+        return false;
+    }
+
+    // Payload continuation of a message whose topic arrived in an earlier
+    // event. Swallow it: it belongs to a discovery config, not a command.
+    if (topic_len == 0) {
+        return true;
+    }
+
+    // Only `homeassistant/<component>/<node_id>/<object_id>/config`, and only
+    // where <node_id> is ours — everything else on the broker is another
+    // device's and must be left alone.
+    char buf[256];
+    if ((size_t)topic_len >= sizeof(buf)) {
+        return false;
+    }
+    memcpy(buf, topic, topic_len);
+    buf[topic_len] = '\0';
+
+    char *segments[5];
+    int n_segments = 0;
+    for (char *p = buf, *next; n_segments < 5; p = next) {
+        segments[n_segments++] = p;
+        next = strchr(p, '/');
+        if (!next) break;
+        *next++ = '\0';
+    }
+    if (n_segments != 5 || strcmp(segments[0], "homeassistant") != 0 ||
+        strcmp(segments[4], "config") != 0) {
+        return false;
+    }
+
+    char device_id[32];
+    mqtt_get_device_id(device_id, sizeof(device_id));
+    if (strcmp(segments[2], device_id) != 0) {
+        return false;
+    }
+
+    // Nothing to clear: an empty payload is a config that has already been
+    // retracted, including the echo of our own retraction.
+    if (data_len == 0) {
+        return true;
+    }
+
+    int index = atomic_load(&s_reset_count);
+    if (index >= HA_RESET_MAX_TOPICS) {
+        ESP_LOGW(TAG, "HA entity reset: topic list full, ignoring %s", buf);
+        return true;
+    }
+
+    // Restore the separators stripped while splitting.
+    for (int i = 1; i < 5; i++) {
+        segments[i][-1] = '/';
+    }
+
+    // Collect only — the retraction is published from the reset task, because
+    // a QoS 1 publish from inside the MQTT event handler deadlocks the client.
+    char *copy = strdup(buf);
+    if (!copy) {
+        ESP_LOGE(TAG, "HA entity reset: out of memory for %s", buf);
+        return true;
+    }
+    // Fill the slot before publishing the new count, so the reset task never
+    // sees an index whose topic isn't written yet. Safe with a single writer.
+    s_reset_topics[index] = copy;
+    atomic_store(&s_reset_count, index + 1);
+    return true;
+}
+
+static void ha_reset_task(void *arg)
+{
+    ESP_LOGW(TAG, "HA entity reset: collecting retained discovery configs");
+    if (mqtt_subscribe(HA_RESET_TOPIC_FILTER, 1) != ESP_OK) {
+        // Nothing was cleared, so there's nothing to republish either: leave
+        // the device running rather than rebooting it for no reason.
+        atomic_store(&s_reset_active, false);
+        ESP_LOGE(TAG, "HA entity reset: could not subscribe, aborted");
+        vTaskDelete(NULL);
+        return;
+    }
+
+    vTaskDelay(pdMS_TO_TICKS(HA_RESET_COLLECT_MS));
+
+    atomic_store(&s_reset_active, false);
+    mqtt_unsubscribe(HA_RESET_TOPIC_FILTER);
+
+    int count = atomic_load(&s_reset_count);
+    for (int i = 0; i < count; i++) {
+        mqtt_publish(s_reset_topics[i], "", 1, true);
+        ESP_LOGW(TAG, "HA entity reset: cleared %s", s_reset_topics[i]);
+        free(s_reset_topics[i]);
+        s_reset_topics[i] = NULL;
+    }
+    ESP_LOGW(TAG, "HA entity reset: cleared %d discovery topics, restarting", count);
+
+    vTaskDelay(pdMS_TO_TICKS(HA_RESET_FLUSH_MS));
+    esp_restart();
+}
+
+bool mqtt_discovery_reset_start(void)
+{
+    if (!mqtt_client_is_connected()) {
+        ESP_LOGW(TAG, "HA entity reset needs an MQTT connection");
+        return false;
+    }
+
+    // Claim the reset here rather than in the task: the web button and the
+    // Home Assistant button can both fire before either task has started, and
+    // two tasks walking the same topic list would double-free it.
+    if (atomic_exchange(&s_reset_active, true)) {
+        ESP_LOGW(TAG, "HA entity reset already running");
+        return false;
+    }
+    // Safe to clear only after the claim, and before the task subscribes:
+    // nothing can be appended until those retained configs start arriving.
+    atomic_store(&s_reset_count, 0);
+
+    if (xTaskCreate(ha_reset_task, "ha_reset", 4096, NULL, 5, NULL) != pdPASS) {
+        atomic_store(&s_reset_active, false);
+        ESP_LOGE(TAG, "HA entity reset: could not start task");
+        return false;
+    }
+    return true;
+}
+
+// ======================================================
 // Per-Source Temperature Sensor Discovery
 // ======================================================
 
@@ -122,16 +334,14 @@ static void publish_temperature_sensor_discovery(
     }
 
     char uid[96];
-    char object_id[96];
+    char entity_slug[48];
     if (single_sensor_source) {
         snprintf(uid, sizeof(uid), DISCOVERY_ID_PREFIX "_%s_temp_%s", mac_suffix, slug);
-        snprintf(object_id, sizeof(object_id), DISCOVERY_ID_PREFIX "_%s_%s_temp",
-                 mac_suffix, slug);
+        snprintf(entity_slug, sizeof(entity_slug), "temp_%s", slug);
     } else {
         snprintf(uid, sizeof(uid), DISCOVERY_ID_PREFIX "_%s_temp_%s_%u",
                  mac_suffix, slug, sensor_index);
-        snprintf(object_id, sizeof(object_id), DISCOVERY_ID_PREFIX "_%s_%s_temp_%u",
-                 mac_suffix, slug, sensor_index);
+        snprintf(entity_slug, sizeof(entity_slug), "temp_%s_%u", slug, sensor_index);
     }
 
     cJSON *root = cJSON_CreateObject();
@@ -141,8 +351,7 @@ static void publish_temperature_sensor_discovery(
     cJSON_AddStringToObject(root, "state_topic", state_topic);
     cJSON_AddStringToObject(root, "unit_of_measurement", "°C");
     cJSON_AddStringToObject(root, "value_template", "{{ value_json.value }}");
-    cJSON_AddStringToObject(root, "unique_id", uid);
-    cJSON_AddStringToObject(root, "object_id", object_id);
+    add_entity_ids(root, "sensor", mac_suffix, uid, "%s", entity_slug);
     cJSON_AddStringToObject(root, "availability_topic", avail_topic);
     cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
 
@@ -213,8 +422,7 @@ static void publish_heater_setpoint_number(const char *device_id, const char *ma
     cJSON_AddNumberToObject(root, "step", 1);
     cJSON_AddStringToObject(root, "mode", "box");
     cJSON_AddStringToObject(root, "value_template", value_template);
-    cJSON_AddStringToObject(root, "unique_id", uid);
-    cJSON_AddStringToObject(root, "object_id", uid);
+    add_entity_ids(root, "number", mac_suffix, uid, "heater_%d_%s_setpoint", index + 1, circuit);
     cJSON_AddStringToObject(root, "availability_topic", avail_topic);
     cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
 
@@ -270,8 +478,7 @@ static void publish_heater_discovery(const char *device_id, const char *mac_suff
     cJSON_AddStringToObject(root, "command_topic", command_topic);
     cJSON_AddStringToObject(root, "payload_on", "ON");
     cJSON_AddStringToObject(root, "payload_off", "OFF");
-    cJSON_AddStringToObject(root, "unique_id", uid);
-    cJSON_AddStringToObject(root, "object_id", uid);
+    add_entity_ids(root, "switch", mac_suffix, uid, "heater_%d", index + 1);
     cJSON_AddStringToObject(root, "availability_topic", avail_topic);
     cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
 
@@ -327,8 +534,7 @@ static void publish_gas_heater_detail_discovery(const char *device_id, const cha
             cJSON_AddItemToArray(status_opts, cJSON_CreateString(HEATER_STATUS_NAMES[i]));
         }
         cJSON_AddItemToObject(root, "options", status_opts);
-        cJSON_AddStringToObject(root, "unique_id", uid);
-        cJSON_AddStringToObject(root, "object_id", uid);
+        add_entity_ids(root, "sensor", mac_suffix, uid, "heater_%d_status", index + 1);
         cJSON_AddStringToObject(root, "availability_topic", avail_topic);
         cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
         char *json_str = cJSON_PrintUnformatted(root);
@@ -351,8 +557,7 @@ static void publish_gas_heater_detail_discovery(const char *device_id, const cha
         cJSON_AddStringToObject(root, "device_class", "running");
         cJSON_AddStringToObject(root, "state_topic", state_topic);
         cJSON_AddStringToObject(root, "value_template", "{{ 'ON' if value_json.water_flow else 'OFF' }}");
-        cJSON_AddStringToObject(root, "unique_id", uid);
-        cJSON_AddStringToObject(root, "object_id", uid);
+        add_entity_ids(root, "binary_sensor", mac_suffix, uid, "heater_%d_water_flow", index + 1);
         cJSON_AddStringToObject(root, "availability_topic", avail_topic);
         cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
         char *json_str = cJSON_PrintUnformatted(root);
@@ -374,8 +579,7 @@ static void publish_gas_heater_detail_discovery(const char *device_id, const cha
         cJSON_AddStringToObject(root, "name", display_name);
         cJSON_AddStringToObject(root, "state_topic", state_topic);
         cJSON_AddStringToObject(root, "value_template", "{{ 'ON' if value_json.locked_out else 'OFF' }}");
-        cJSON_AddStringToObject(root, "unique_id", uid);
-        cJSON_AddStringToObject(root, "object_id", uid);
+        add_entity_ids(root, "binary_sensor", mac_suffix, uid, "heater_%d_locked_out", index + 1);
         cJSON_AddStringToObject(root, "availability_topic", avail_topic);
         cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
         char *json_str = cJSON_PrintUnformatted(root);
@@ -404,8 +608,7 @@ static void publish_gas_heater_detail_discovery(const char *device_id, const cha
             cJSON_AddItemToArray(burner_opts, cJSON_CreateString(BURNER_STATE_NAMES[i]));
         }
         cJSON_AddItemToObject(root, "options", burner_opts);
-        cJSON_AddStringToObject(root, "unique_id", uid);
-        cJSON_AddStringToObject(root, "object_id", uid);
+        add_entity_ids(root, "sensor", mac_suffix, uid, "heater_%d_burner", index + 1);
         cJSON_AddStringToObject(root, "availability_topic", avail_topic);
         cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
         char *json_str = cJSON_PrintUnformatted(root);
@@ -429,8 +632,7 @@ static void publish_gas_heater_detail_discovery(const char *device_id, const cha
         cJSON_AddStringToObject(root, "icon", "mdi:wrench-alert");
         cJSON_AddStringToObject(root, "state_topic", state_topic);
         cJSON_AddStringToObject(root, "value_template", "{{ 'ON' if value_json.general_service_required else 'OFF' }}");
-        cJSON_AddStringToObject(root, "unique_id", uid);
-        cJSON_AddStringToObject(root, "object_id", uid);
+        add_entity_ids(root, "binary_sensor", mac_suffix, uid, "heater_%d_general_service", index + 1);
         cJSON_AddStringToObject(root, "availability_topic", avail_topic);
         cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
         char *json_str = cJSON_PrintUnformatted(root);
@@ -454,8 +656,7 @@ static void publish_gas_heater_detail_discovery(const char *device_id, const cha
         cJSON_AddStringToObject(root, "icon", "mdi:fire-alert");
         cJSON_AddStringToObject(root, "state_topic", state_topic);
         cJSON_AddStringToObject(root, "value_template", "{{ 'ON' if value_json.ignition_service_required else 'OFF' }}");
-        cJSON_AddStringToObject(root, "unique_id", uid);
-        cJSON_AddStringToObject(root, "object_id", uid);
+        add_entity_ids(root, "binary_sensor", mac_suffix, uid, "heater_%d_ignition_service", index + 1);
         cJSON_AddStringToObject(root, "availability_topic", avail_topic);
         cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
         char *json_str = cJSON_PrintUnformatted(root);
@@ -478,8 +679,7 @@ static void publish_gas_heater_detail_discovery(const char *device_id, const cha
         cJSON_AddStringToObject(root, "icon", "mdi:snowflake");
         cJSON_AddStringToObject(root, "state_topic", state_topic);
         cJSON_AddStringToObject(root, "value_template", "{{ 'ON' if value_json.cooling_available else 'OFF' }}");
-        cJSON_AddStringToObject(root, "unique_id", uid);
-        cJSON_AddStringToObject(root, "object_id", uid);
+        add_entity_ids(root, "binary_sensor", mac_suffix, uid, "heater_%d_cooling_available", index + 1);
         cJSON_AddStringToObject(root, "availability_topic", avail_topic);
         cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
         char *json_str = cJSON_PrintUnformatted(root);
@@ -532,8 +732,7 @@ static void publish_mode_discovery(const char *device_id, const char *mac_suffix
     cJSON_AddItemToArray(opts, cJSON_CreateString("Spa"));
     cJSON_AddItemToObject(root, "options", opts);
 
-    cJSON_AddStringToObject(root, "unique_id", uid);
-    cJSON_AddStringToObject(root, "object_id", uid);
+    add_entity_ids(root, "select", mac_suffix, uid, "mode");
     cJSON_AddStringToObject(root, "availability_topic", avail_topic);
     cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
 
@@ -592,8 +791,7 @@ static void publish_channel_discovery(const char *device_id, const char *mac_suf
             cJSON_AddStringToObject(root, "name", display_name);
             cJSON_AddStringToObject(root, "state_topic", state_topic);
             cJSON_AddStringToObject(root, "value_template", "{{ value_json.state }}");
-            cJSON_AddStringToObject(root, "unique_id", sensor_uid);
-            cJSON_AddStringToObject(root, "object_id", sensor_uid);
+            add_entity_ids(root, "sensor", mac_suffix, sensor_uid, "channel_%d", channel_num);
             cJSON_AddStringToObject(root, "availability_topic", avail_topic);
             cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
 
@@ -614,8 +812,7 @@ static void publish_channel_discovery(const char *device_id, const char *mac_suf
             cJSON_AddStringToObject(root, "name", display_name);
             cJSON_AddStringToObject(root, "command_topic", command_topic);
             cJSON_AddStringToObject(root, "payload_press", "TOGGLE");
-            cJSON_AddStringToObject(root, "unique_id", button_uid);
-            cJSON_AddStringToObject(root, "object_id", button_uid);
+            add_entity_ids(root, "button", mac_suffix, button_uid, "channel_%d_toggle", channel_num);
             cJSON_AddStringToObject(root, "availability_topic", avail_topic);
             cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
 
@@ -639,8 +836,7 @@ static void publish_channel_discovery(const char *device_id, const char *mac_suf
             cJSON_AddStringToObject(root, "name", active_name);
             cJSON_AddStringToObject(root, "state_topic", state_topic);
             cJSON_AddStringToObject(root, "value_template", "{{ 'ON' if value_json.active else 'OFF' }}");
-            cJSON_AddStringToObject(root, "unique_id", active_uid);
-            cJSON_AddStringToObject(root, "object_id", active_uid);
+            add_entity_ids(root, "binary_sensor", mac_suffix, active_uid, "channel_%d_active", channel_num);
             cJSON_AddStringToObject(root, "availability_topic", avail_topic);
             cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
 
@@ -682,8 +878,7 @@ static void publish_channel_discovery(const char *device_id, const char *mac_suf
         cJSON_AddNumberToObject(root, "step", 1);
         cJSON_AddStringToObject(root, "mode", "box");
         cJSON_AddStringToObject(root, "entity_category", "config");
-        cJSON_AddStringToObject(root, "unique_id", power_uid);
-        cJSON_AddStringToObject(root, "object_id", power_uid);
+        add_entity_ids(root, "number", mac_suffix, power_uid, "channel_%d_configured_power", channel_num);
         cJSON_AddStringToObject(root, "availability_topic", avail_topic);
         cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
 
@@ -731,8 +926,7 @@ static void publish_channel_discovery(const char *device_id, const char *mac_suf
         cJSON_AddStringToObject(root, "unit_of_measurement", "W");
         cJSON_AddStringToObject(root, "state_topic", state_topic);
         cJSON_AddStringToObject(root, "value_template", "{{ value_json.power_watts }}");
-        cJSON_AddStringToObject(root, "unique_id", power_sensor_uid);
-        cJSON_AddStringToObject(root, "object_id", power_sensor_uid);
+        add_entity_ids(root, "sensor", mac_suffix, power_sensor_uid, "channel_%d_power", channel_num);
         cJSON_AddStringToObject(root, "availability_topic", avail_topic);
         cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
 
@@ -770,8 +964,7 @@ static void publish_channel_discovery(const char *device_id, const char *mac_suf
         cJSON_AddStringToObject(root, "unit_of_measurement", "kWh");
         cJSON_AddStringToObject(root, "state_topic", energy_state_topic);
         cJSON_AddStringToObject(root, "value_template", "{{ value_json.energy_kwh }}");
-        cJSON_AddStringToObject(root, "unique_id", energy_uid);
-        cJSON_AddStringToObject(root, "object_id", energy_uid);
+        add_entity_ids(root, "sensor", mac_suffix, energy_uid, "channel_%d_energy", channel_num);
         cJSON_AddStringToObject(root, "availability_topic", avail_topic);
         cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
 
@@ -826,8 +1019,7 @@ static void publish_system_power_discovery(const char *device_id, const char *ma
         cJSON_AddNumberToObject(root, "step", 1);
         cJSON_AddStringToObject(root, "mode", "box");
         cJSON_AddStringToObject(root, "entity_category", "config");
-        cJSON_AddStringToObject(root, "unique_id", uid);
-        cJSON_AddStringToObject(root, "object_id", uid);
+        add_entity_ids(root, "number", mac_suffix, uid, "system_configured_power");
         cJSON_AddStringToObject(root, "availability_topic", avail_topic);
         cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
 
@@ -864,8 +1056,7 @@ static void publish_system_power_discovery(const char *device_id, const char *ma
         cJSON_AddStringToObject(root, "unit_of_measurement", "W");
         cJSON_AddStringToObject(root, "state_topic", state_topic);
         cJSON_AddStringToObject(root, "value_template", "{{ value_json.power_watts }}");
-        cJSON_AddStringToObject(root, "unique_id", uid);
-        cJSON_AddStringToObject(root, "object_id", uid);
+        add_entity_ids(root, "sensor", mac_suffix, uid, "system_power");
         cJSON_AddStringToObject(root, "availability_topic", avail_topic);
         cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
 
@@ -895,8 +1086,7 @@ static void publish_system_power_discovery(const char *device_id, const char *ma
         cJSON_AddStringToObject(root, "unit_of_measurement", "kWh");
         cJSON_AddStringToObject(root, "state_topic", energy_state_topic);
         cJSON_AddStringToObject(root, "value_template", "{{ value_json.energy_kwh }}");
-        cJSON_AddStringToObject(root, "unique_id", uid);
-        cJSON_AddStringToObject(root, "object_id", uid);
+        add_entity_ids(root, "sensor", mac_suffix, uid, "system_energy");
         cJSON_AddStringToObject(root, "availability_topic", avail_topic);
         cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
 
@@ -945,8 +1135,7 @@ static void publish_light_discovery(const char *device_id, const char *mac_suffi
     cJSON_AddStringToObject(root, "payload_off", "OFF");
     cJSON_AddStringToObject(root, "state_value_template",
                             "{% if value_json.state == 'On' %}ON{% else %}OFF{% endif %}");
-    cJSON_AddStringToObject(root, "unique_id", uid);
-    cJSON_AddStringToObject(root, "object_id", uid);
+    add_entity_ids(root, "light", mac_suffix, uid, "light_%d", zone_num);
     cJSON_AddStringToObject(root, "availability_topic", avail_topic);
 
     // Color selection as an effect list for multicolor zones: the model's
@@ -999,8 +1188,7 @@ static void publish_light_discovery(const char *device_id, const char *mac_suffi
         cJSON_AddStringToObject(btn, "name", resync_name);
         cJSON_AddStringToObject(btn, "command_topic", resync_command_topic);
         cJSON_AddStringToObject(btn, "icon", "mdi:sync");
-        cJSON_AddStringToObject(btn, "unique_id", resync_uid);
-        cJSON_AddStringToObject(btn, "object_id", resync_uid);
+        add_entity_ids(btn, "button", mac_suffix, resync_uid, "light_%d_resync", zone_num);
         cJSON_AddStringToObject(btn, "availability_topic", avail_topic);
         cJSON_AddItemToObject(btn, "device", build_device_cjson(device_id, mac_suffix));
 
@@ -1040,11 +1228,12 @@ static void publish_ph_discovery(const char *device_id, const char *mac_suffix)
     cJSON *root = cJSON_CreateObject();
     cJSON_AddStringToObject(root, "name", "pH");
     cJSON_AddStringToObject(root, "state_topic", state_topic);
+    // pH is dimensionless: HA's `ph` device class accepts no unit at all
+    // (DEVICE_CLASS_UNITS maps it to {None}), so adding one costs the class.
+    cJSON_AddStringToObject(root, "device_class", "ph");
     cJSON_AddStringToObject(root, "state_class", "measurement");
-    cJSON_AddStringToObject(root, "unit_of_measurement", "pH");
     cJSON_AddStringToObject(root, "value_template", "{{ value_json.ph }}");
-    cJSON_AddStringToObject(root, "unique_id", uid);
-    cJSON_AddStringToObject(root, "object_id", uid);
+    add_entity_ids(root, "sensor", mac_suffix, uid, "ph");
     cJSON_AddStringToObject(root, "availability_topic", avail_topic);
     cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
 
@@ -1081,8 +1270,7 @@ static void publish_orp_discovery(const char *device_id, const char *mac_suffix)
     cJSON_AddStringToObject(root, "state_class", "measurement");
     cJSON_AddStringToObject(root, "value_template", "{{ value_json.orp }}");
     cJSON_AddStringToObject(root, "unit_of_measurement", "mV");
-    cJSON_AddStringToObject(root, "unique_id", uid);
-    cJSON_AddStringToObject(root, "object_id", uid);
+    add_entity_ids(root, "sensor", mac_suffix, uid, "orp");
     cJSON_AddStringToObject(root, "availability_topic", avail_topic);
     cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
 
@@ -1116,10 +1304,9 @@ static void publish_ph_setpoint_discovery(const char *device_id, const char *mac
     cJSON_AddStringToObject(root, "name", "pH Setpoint");
     cJSON_AddStringToObject(root, "state_topic", state_topic);
     cJSON_AddStringToObject(root, "value_template", "{{ value_json.ph_setpoint }}");
-    cJSON_AddStringToObject(root, "unit_of_measurement", "pH");
+    cJSON_AddStringToObject(root, "device_class", "ph");
     cJSON_AddStringToObject(root, "icon", "mdi:ph");
-    cJSON_AddStringToObject(root, "unique_id", uid);
-    cJSON_AddStringToObject(root, "object_id", uid);
+    add_entity_ids(root, "sensor", mac_suffix, uid, "ph_setpoint");
     cJSON_AddStringToObject(root, "availability_topic", avail_topic);
     cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
 
@@ -1155,8 +1342,7 @@ static void publish_orp_setpoint_discovery(const char *device_id, const char *ma
     cJSON_AddStringToObject(root, "state_topic", state_topic);
     cJSON_AddStringToObject(root, "value_template", "{{ value_json.orp_setpoint }}");
     cJSON_AddStringToObject(root, "unit_of_measurement", "mV");
-    cJSON_AddStringToObject(root, "unique_id", uid);
-    cJSON_AddStringToObject(root, "object_id", uid);
+    add_entity_ids(root, "sensor", mac_suffix, uid, "orp_setpoint");
     cJSON_AddStringToObject(root, "availability_topic", avail_topic);
     cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
 
@@ -1191,8 +1377,7 @@ static void publish_chlor_output_level_discovery(const char *device_id, const ch
     cJSON_AddStringToObject(root, "state_topic", state_topic);
     cJSON_AddStringToObject(root, "value_template", "{{ value_json.chlor_output_level }}");
     cJSON_AddStringToObject(root, "icon", "mdi:gauge");
-    cJSON_AddStringToObject(root, "unique_id", uid);
-    cJSON_AddStringToObject(root, "object_id", uid);
+    add_entity_ids(root, "sensor", mac_suffix, uid, "chlor_output_level");
     cJSON_AddStringToObject(root, "availability_topic", avail_topic);
     cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
 
@@ -1228,8 +1413,7 @@ static void publish_pump_discovery(const char *device_id, const char *mac_suffix
     cJSON_AddStringToObject(root, "value_template", "{{ value_json.speed_rpm }}");
     cJSON_AddStringToObject(root, "unit_of_measurement", "RPM");
     cJSON_AddStringToObject(root, "icon", "mdi:pump");
-    cJSON_AddStringToObject(root, "unique_id", uid);
-    cJSON_AddStringToObject(root, "object_id", uid);
+    add_entity_ids(root, "sensor", mac_suffix, uid, "pump_speed");
     cJSON_AddStringToObject(root, "availability_topic", avail_topic);
     cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
 
@@ -1254,8 +1438,7 @@ static void publish_pump_discovery(const char *device_id, const char *mac_suffix
     cJSON_AddStringToObject(power_root, "value_template", "{{ value_json.power_watts }}");
     cJSON_AddStringToObject(power_root, "unit_of_measurement", "W");
     cJSON_AddStringToObject(power_root, "icon", "mdi:flash");
-    cJSON_AddStringToObject(power_root, "unique_id", uid_power);
-    cJSON_AddStringToObject(power_root, "object_id", uid_power);
+    add_entity_ids(power_root, "sensor", mac_suffix, uid_power, "pump_power");
     cJSON_AddStringToObject(power_root, "availability_topic", avail_topic);
     cJSON_AddItemToObject(power_root, "device", build_device_cjson(device_id, mac_suffix));
 
@@ -1281,8 +1464,7 @@ static void publish_service_mode_discovery(const char *device_id, const char *ma
     cJSON_AddStringToObject(root, "name", "Service Mode");
     cJSON_AddStringToObject(root, "state_topic", state_topic);
     cJSON_AddStringToObject(root, "icon", "mdi:wrench");
-    cJSON_AddStringToObject(root, "unique_id", uid);
-    cJSON_AddStringToObject(root, "object_id", uid);
+    add_entity_ids(root, "binary_sensor", mac_suffix, uid, "service_mode");
     cJSON_AddStringToObject(root, "availability_topic", avail_topic);
     cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
 
@@ -1395,8 +1577,7 @@ static void publish_valve_discovery(const char *device_id, const char *mac_suffi
     cJSON_AddItemToObject(root, "options", opts);
 
     cJSON_AddStringToObject(root, "value_template", "{{ value_json.state }}");
-    cJSON_AddStringToObject(root, "unique_id", uid);
-    cJSON_AddStringToObject(root, "object_id", uid);
+    add_entity_ids(root, "select", mac_suffix, uid, "valve_%d", valve_num);
     cJSON_AddStringToObject(root, "availability_topic", avail_topic);
     cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
 
@@ -1488,8 +1669,7 @@ static void publish_favourite_discovery(const char *device_id, const char *mac_s
     cJSON_AddItemToArray(opts, cJSON_CreateString("No Favourite"));
 
     cJSON_AddItemToObject(root, "options", opts);
-    cJSON_AddStringToObject(root, "unique_id", uid);
-    cJSON_AddStringToObject(root, "object_id", uid);
+    add_entity_ids(root, "select", mac_suffix, uid, "favourite");
     cJSON_AddStringToObject(root, "availability_topic", avail_topic);
     cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
 
@@ -1537,7 +1717,7 @@ static void publish_update_discovery(const char *device_id, const char *mac_suff
     snprintf(uid, sizeof(uid), DISCOVERY_ID_PREFIX "_%s_firmware", mac_suffix);
 
     cJSON *root = cJSON_CreateObject();
-    cJSON_AddStringToObject(root, "name", "Firmware");
+    cJSON_AddStringToObject(root, "name", "System: Update Firmware");
     cJSON_AddStringToObject(root, "device_class", "firmware");
     // State is a JSON payload carrying installed_version/latest_version and
     // in_progress/update_percentage (see firmware_update_publish_mqtt_state).
@@ -1554,8 +1734,7 @@ static void publish_update_discovery(const char *device_id, const char *mac_suff
     // Installable update entities conventionally live in the Configuration
     // section (matches core UpdateEntity's default, which MQTT doesn't apply).
     cJSON_AddStringToObject(root, "entity_category", "config");
-    cJSON_AddStringToObject(root, "unique_id", uid);
-    cJSON_AddStringToObject(root, "object_id", uid);
+    add_entity_ids(root, "update", mac_suffix, uid, "firmware");
     cJSON_AddStringToObject(root, "availability_topic", avail_topic);
     cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
 
@@ -1584,13 +1763,12 @@ static void publish_update_check_discovery(const char *device_id, const char *ma
     snprintf(uid, sizeof(uid), DISCOVERY_ID_PREFIX "_%s_fw_check", mac_suffix);
 
     cJSON *root = cJSON_CreateObject();
-    cJSON_AddStringToObject(root, "name", "Check for firmware update");
+    cJSON_AddStringToObject(root, "name", "System: Check Updates");
     cJSON_AddStringToObject(root, "command_topic", command_topic);
     cJSON_AddStringToObject(root, "icon", "mdi:update");
     // Same section as the Firmware update entity it belongs with.
     cJSON_AddStringToObject(root, "entity_category", "config");
-    cJSON_AddStringToObject(root, "unique_id", uid);
-    cJSON_AddStringToObject(root, "object_id", uid);
+    add_entity_ids(root, "button", mac_suffix, uid, "firmware_check");
     cJSON_AddStringToObject(root, "availability_topic", avail_topic);
     cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
 
@@ -1618,18 +1796,52 @@ static void publish_reboot_discovery(const char *device_id, const char *mac_suff
     snprintf(uid, sizeof(uid), DISCOVERY_ID_PREFIX "_%s_reboot", mac_suffix);
 
     cJSON *root = cJSON_CreateObject();
-    cJSON_AddStringToObject(root, "name", "Reboot");
+    cJSON_AddStringToObject(root, "name", "System: Reboot");
     cJSON_AddStringToObject(root, "command_topic", command_topic);
     cJSON_AddStringToObject(root, "device_class", "restart");
     cJSON_AddStringToObject(root, "entity_category", "config");
-    cJSON_AddStringToObject(root, "unique_id", uid);
-    cJSON_AddStringToObject(root, "object_id", uid);
+    add_entity_ids(root, "button", mac_suffix, uid, "reboot");
     cJSON_AddStringToObject(root, "availability_topic", avail_topic);
     cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
 
     char *json_str = cJSON_PrintUnformatted(root);
     if (!json_str) {
         ESP_LOGE(TAG, "Failed to print reboot button discovery JSON");
+        cJSON_Delete(root);
+        return;
+    }
+    publish_discovery("button", uid, json_str);
+    cJSON_free(json_str);
+    cJSON_Delete(root);
+}
+
+// Button that clears every retained discovery config for this device and
+// reboots, so Home Assistant re-creates the entities under the current
+// entity_id scheme. Mirrors the web UI's reset button on the firmware-update
+// page. The button deletes itself along with the rest and comes back after the
+// reboot.
+static void publish_ha_reset_discovery(const char *device_id, const char *mac_suffix)
+{
+    char avail_topic[128];
+    char command_topic[128];
+    snprintf(avail_topic, sizeof(avail_topic), "pool/%s/availability", device_id);
+    snprintf(command_topic, sizeof(command_topic), "pool/%s/ha_reset", device_id);
+
+    char uid[80];
+    snprintf(uid, sizeof(uid), DISCOVERY_ID_PREFIX "_%s_ha_reset", mac_suffix);
+
+    cJSON *root = cJSON_CreateObject();
+    cJSON_AddStringToObject(root, "name", "System: Reset HA Entities");
+    cJSON_AddStringToObject(root, "command_topic", command_topic);
+    cJSON_AddStringToObject(root, "icon", "mdi:tag-multiple");
+    cJSON_AddStringToObject(root, "entity_category", "config");
+    add_entity_ids(root, "button", mac_suffix, uid, "ha_reset");
+    cJSON_AddStringToObject(root, "availability_topic", avail_topic);
+    cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
+
+    char *json_str = cJSON_PrintUnformatted(root);
+    if (!json_str) {
+        ESP_LOGE(TAG, "Failed to print HA reset button discovery JSON");
         cJSON_Delete(root);
         return;
     }
@@ -1678,8 +1890,9 @@ void mqtt_publish_discovery(void)
     publish_update_discovery(device_id, mac_suffix);
     publish_update_check_discovery(device_id, mac_suffix);
 
-    // Reboot button
+    // Reboot and HA-entity-reset buttons
     publish_reboot_discovery(device_id, mac_suffix);
+    publish_ha_reset_discovery(device_id, mac_suffix);
 
     // Note: Channels and lights are NOT published here.
     // They are published individually when first configured (see mqtt_publish.c)
