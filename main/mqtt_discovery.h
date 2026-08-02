@@ -18,9 +18,14 @@ void mqtt_publish_update_discovery_single(void);
 // dedicated discovery (mqtt_publish_heater*/mqtt_publish_light), so the raw
 // channel's state sensor, toggle button, and active binary_sensor would be
 // redundant (and the toggle command isn't the correct way to control them
-// anyway). The configured-power number, power sensor, and energy sensor are
-// still published either way.
-void mqtt_publish_channel_discovery_single(int channel_num, const char *channel_name, bool include_state_entities);
+// anyway). The configured-power number is still published either way — it's
+// how the user configures a wattage in the first place.
+// include_power_sensors: whether this channel currently has a power source
+// (channel_power_get_effective). False publishes a retraction for the power
+// and energy sensors instead of a config, so they don't sit at unknown on a
+// channel that can't report them; call again with true once a source appears.
+void mqtt_publish_channel_discovery_single(int channel_num, const char *channel_name,
+                                           bool include_state_entities, bool include_power_sensors);
 
 // Publish individual light discovery (called when light first configured or name changes)
 // multicolor_light_type: MULTICOLOR_LIGHT_TYPE_* — pass MULTICOLOR_LIGHT_TYPE_NONE

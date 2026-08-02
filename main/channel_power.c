@@ -90,7 +90,7 @@ bool channel_power_get_effective(const pool_state_t *state, uint8_t channel_id, 
         return true;
     }
 
-    uint16_t configured = s_configured_watts[channel_id - 1];
+    uint16_t configured = channel_power_get_configured(channel_id);
     if (configured == 0) {
         return false;  // Unconfigured — nothing to report
     }

@@ -364,27 +364,31 @@ void mqtt_publish_channel(const pool_state_t *current_state, uint8_t channel_id)
         display_name = channel->name;
     }
 
+    uint16_t configured_watts = channel_power_get_configured(channel_id);
+    uint16_t power_watts = 0;
+    bool power_watts_valid = channel_power_get_effective(current_state, channel_id, &power_watts);
+
     // Re-publish discovery if the display name changed since it was last
     // sent (e.g. the bus's channel-name broadcast arrived after an earlier
     // publish already used the type-name fallback). Unique IDs are stable
     // (channel number only), so this updates the entity's label in HA
-    // in place rather than creating a duplicate.
+    // in place rather than creating a duplicate. Also re-publish when the
+    // channel gains or loses a power source, since that decides whether the
+    // power and energy sensors exist at all.
     if (s_discovery_published.channels[idx] &&
-        strcmp(s_channel_discovery_name[idx], display_name) != 0) {
+        (strcmp(s_channel_discovery_name[idx], display_name) != 0 ||
+         s_last_power_watts_valid[idx] != power_watts_valid)) {
         s_discovery_published.channels[idx] = false;
     }
 
     // Publish discovery if this is the first time seeing this channel (or the name changed)
     if (!s_discovery_published.channels[idx]) {
-        mqtt_publish_channel_discovery_single(channel_id, display_name, include_state_entities);
+        mqtt_publish_channel_discovery_single(channel_id, display_name, include_state_entities,
+                                              power_watts_valid);
         s_discovery_published.channels[idx] = true;
         strncpy(s_channel_discovery_name[idx], display_name, sizeof(s_channel_discovery_name[idx]) - 1);
         s_channel_discovery_name[idx][sizeof(s_channel_discovery_name[idx]) - 1] = '\0';
     }
-
-    uint16_t configured_watts = channel_power_get_configured(channel_id);
-    uint16_t power_watts = 0;
-    bool power_watts_valid = channel_power_get_effective(current_state, channel_id, &power_watts);
 
     // Check if anything changed (bus-observed state, or power config/telemetry)
     bool state_changed =

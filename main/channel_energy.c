@@ -52,8 +52,15 @@ static void channel_energy_task(void *arg)
                 continue;  // No power source (telemetry or manual estimate) configured
             }
 
+            if (watts == 0) {
+                // Channel is off (or drawing nothing): the total can't have moved,
+                // so republishing it would just resend the value already retained
+                // on the broker every interval, forever.
+                continue;
+            }
+
             s_energy_kwh[ch - 1] += (watts / 1000.0) * interval_hours;
-            ESP_LOGI(TAG, "Channel %d: %u W -> %.4f kWh cumulative", ch, watts, s_energy_kwh[ch - 1]);
+            // ESP_LOGI(TAG, "Channel %d: %u W -> %.4f kWh cumulative", ch, watts, s_energy_kwh[ch - 1]);
             mqtt_publish_channel_energy(ch, s_energy_kwh[ch - 1]);
         }
     }
@@ -61,11 +68,9 @@ static void channel_energy_task(void *arg)
 
 void channel_energy_start(void)
 {
-    ESP_LOGI(TAG, "Starting channel energy accumulator (%.0fs interval)",
-             CHANNEL_ENERGY_INTERVAL_MS / 1000.0);
+    // ESP_LOGI(TAG, "Starting channel energy accumulator (%.0fs interval)",
+    //          CHANNEL_ENERGY_INTERVAL_MS / 1000.0);
     // 8192 to match tcp_bridge's decoder task: both copy the full ~3KB
-    // pool_state_t onto the stack (see the snapshot above), which a smaller
-    // stack (the original 3072 here) isn't enough to safely hold alongside
-    // normal call overhead.
+    // pool_state_t onto the stack (see the snapshot above)
     xTaskCreate(channel_energy_task, "chan_energy", 8192, NULL, 1, NULL);
 }
