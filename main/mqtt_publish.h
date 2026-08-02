@@ -33,6 +33,15 @@ void mqtt_publish_channel(const pool_state_t *current_state, uint8_t channel_id)
 // Called periodically by channel_energy's accumulator task.
 void mqtt_publish_channel_energy(uint8_t channel_id, double energy_kwh);
 
+// Publish the system baseline's configured/live wattage to
+// pool/<id>/system/power/state, along with its discovery. Call on MQTT connect
+// and whenever the configured baseline changes.
+void mqtt_publish_system_power(void);
+
+// Publish the system baseline's cumulative energy (kWh) to
+// pool/<id>/system/energy/state. Called by channel_energy's accumulator task.
+void mqtt_publish_system_energy(double energy_kwh);
+
 // Publish light zone state (1-4) from pool state
 void mqtt_publish_light(const pool_state_t *current_state, uint8_t zone);
 

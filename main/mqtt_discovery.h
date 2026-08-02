@@ -27,6 +27,12 @@ void mqtt_publish_update_discovery_single(void);
 void mqtt_publish_channel_discovery_single(int channel_num, const char *channel_name,
                                            bool include_state_entities, bool include_power_sensors);
 
+// Publish the system baseline power entities (the "Power: System" number, plus
+// the power and energy sensors when include_power_sensors is true — same
+// gating as a channel's pair). Republished on every MQTT connect and whenever
+// the baseline is changed, so it needs no first-seen tracking.
+void mqtt_publish_system_power_discovery_single(bool include_power_sensors);
+
 // Publish individual light discovery (called when light first configured or name changes)
 // multicolor_light_type: MULTICOLOR_LIGHT_TYPE_* — pass MULTICOLOR_LIGHT_TYPE_NONE
 // for non-multicolor zones; a known type adds the color effect list to the entity

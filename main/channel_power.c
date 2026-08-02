@@ -9,7 +9,12 @@ static const char *TAG = "CHANNEL_POWER";
 
 #define CHANNEL_POWER_NVS_NAMESPACE "channel_pwr"
 
+// NVS key for the system baseline. Per-channel keys are "w0".."w<N-1>", so a
+// non-numeric suffix can never collide with one.
+#define SYSTEM_POWER_NVS_KEY "wsys"
+
 static uint16_t s_configured_watts[MAX_CHANNELS];
+static uint16_t s_system_watts;
 
 void channel_power_init(void)
 {
@@ -28,7 +33,31 @@ void channel_power_init(void)
             s_configured_watts[i] = watts;
         }
     }
+
+    uint16_t system_watts = 0;
+    if (nvs_get_u16(nvs_handle, SYSTEM_POWER_NVS_KEY, &system_watts) == ESP_OK) {
+        s_system_watts = system_watts;
+    }
     nvs_close(nvs_handle);
+}
+
+// Write one wattage to NVS. Shared by the per-channel and system setters,
+// which differ only in the key and the cache they update.
+static esp_err_t save_watts(const char *key, uint16_t watts)
+{
+    nvs_handle_t nvs_handle;
+    esp_err_t err = nvs_open(CHANNEL_POWER_NVS_NAMESPACE, NVS_READWRITE, &nvs_handle);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to open NVS for writing: %s", esp_err_to_name(err));
+        return err;
+    }
+
+    err = nvs_set_u16(nvs_handle, key, watts);
+    if (err == ESP_OK) {
+        err = nvs_commit(nvs_handle);
+    }
+    nvs_close(nvs_handle);
+    return err;
 }
 
 uint16_t channel_power_get_configured(uint8_t channel_id)
@@ -45,21 +74,9 @@ esp_err_t channel_power_set_configured(uint8_t channel_id, uint16_t watts)
         return ESP_ERR_INVALID_ARG;
     }
 
-    nvs_handle_t nvs_handle;
-    esp_err_t err = nvs_open(CHANNEL_POWER_NVS_NAMESPACE, NVS_READWRITE, &nvs_handle);
-    if (err != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to open NVS for writing: %s", esp_err_to_name(err));
-        return err;
-    }
-
     char key[8];
     snprintf(key, sizeof(key), "w%d", channel_id - 1);
-    err = nvs_set_u16(nvs_handle, key, watts);
-    if (err == ESP_OK) {
-        err = nvs_commit(nvs_handle);
-    }
-    nvs_close(nvs_handle);
-
+    esp_err_t err = save_watts(key, watts);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "Failed to save channel %d power: %s", channel_id, esp_err_to_name(err));
         return err;
@@ -67,6 +84,24 @@ esp_err_t channel_power_set_configured(uint8_t channel_id, uint16_t watts)
 
     s_configured_watts[channel_id - 1] = watts;
     ESP_LOGI(TAG, "Channel %d configured power set to %u W", channel_id, watts);
+    return ESP_OK;
+}
+
+uint16_t channel_power_get_system(void)
+{
+    return s_system_watts;
+}
+
+esp_err_t channel_power_set_system(uint16_t watts)
+{
+    esp_err_t err = save_watts(SYSTEM_POWER_NVS_KEY, watts);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to save system power: %s", esp_err_to_name(err));
+        return err;
+    }
+
+    s_system_watts = watts;
+    ESP_LOGI(TAG, "System baseline power set to %u W", watts);
     return ESP_OK;
 }
 

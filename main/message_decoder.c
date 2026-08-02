@@ -3593,10 +3593,16 @@ static bool handle_channel_status(
                 ctx->pool_state->channels[ch_num - 1].active = (active != 0);
                 ctx->pool_state->channels[ch_num - 1].configured = true;
 
-                // If the Filter channel (CHANNEL_TYPE_FILTER) is no longer active 
-                // (e.g. turned Off manually, or turned off by a timer in Auto mode), 
+                // If the Filter channel (CHANNEL_TYPE_FILTER) is no longer active
+                // (e.g. turned Off manually, or turned off by a timer in Auto mode),
                 // the pump loses power and won't broadcast a speed of 0. We must set it here.
-                if (ch_type == CHANNEL_TYPE_FILTER && !active) {
+                // Only for an install that actually has a telemetry-reporting pump:
+                // pump_telemetry_seen is what says a CMD 0x3B broadcast has ever been
+                // decoded. Without that check, a plain single-speed pump — which never
+                // reports anything — would have speed/power marked valid the first time
+                // the Filter channel went inactive, publishing HA pump entities that
+                // can only ever read 0.
+                if (ch_type == CHANNEL_TYPE_FILTER && !active && ctx->pool_state->pump_telemetry_seen) {
                     if (ctx->pool_state->pump_speed != 0 || !ctx->pool_state->pump_speed_valid ||
                         ctx->pool_state->pump_power_watts != 0 || !ctx->pool_state->pump_power_watts_valid) {
                         ctx->pool_state->pump_speed = 0;

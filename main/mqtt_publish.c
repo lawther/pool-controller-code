@@ -451,6 +451,57 @@ void mqtt_publish_channel(const pool_state_t *current_state, uint8_t channel_id)
     ESP_LOGI(TAG, "Published channel %d: %s (%s)", channel_id, state_name, display_name);
 }
 
+// Publish the system baseline's configured wattage and live power, along with
+// the discovery that describes them. Both are cheap and this runs only on MQTT
+// connect and when the user changes the value, so it republishes
+// unconditionally rather than tracking what was last sent — which also means a
+// publish attempted while MQTT is down can't leave discovery permanently
+// unsent, since the next connect repeats it.
+void mqtt_publish_system_power(void)
+{
+    uint16_t watts = channel_power_get_system();
+
+    // A configured baseline is by definition always drawing, so live power is
+    // just the configured figure; 0 means unset, and the sensors are dropped.
+    mqtt_publish_system_power_discovery_single(watts != 0);
+
+    char device_id[32];
+    mqtt_get_device_id(device_id, sizeof(device_id));
+
+    char topic[128];
+    snprintf(topic, sizeof(topic), "pool/%s/system/power/state", device_id);
+
+    cJSON *root = cJSON_CreateObject();
+    cJSON_AddNumberToObject(root, "configured_watts", watts);
+    cJSON_AddNumberToObject(root, "power_watts", watts);
+    char *payload = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+
+    if (payload) {
+        mqtt_publish(topic, payload, 0, true);
+        free(payload);
+    }
+}
+
+void mqtt_publish_system_energy(double energy_kwh)
+{
+    char device_id[32];
+    mqtt_get_device_id(device_id, sizeof(device_id));
+
+    char topic[128];
+    snprintf(topic, sizeof(topic), "pool/%s/system/energy/state", device_id);
+
+    cJSON *root = cJSON_CreateObject();
+    cJSON_AddNumberToObject(root, "energy_kwh", energy_kwh);
+    char *payload = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+
+    if (payload) {
+        mqtt_publish(topic, payload, 0, true);
+        free(payload);
+    }
+}
+
 void mqtt_publish_channel_energy(uint8_t channel_id, double energy_kwh)
 {
     if (channel_id < 1 || channel_id > MAX_CHANNELS) {

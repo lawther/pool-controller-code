@@ -15,6 +15,7 @@ static const char *TAG = "CHANNEL_ENERGY";
 #define CHANNEL_ENERGY_INTERVAL_MS  (10 * 1000)
 
 static double s_energy_kwh[MAX_CHANNELS];
+static double s_system_energy_kwh;
 
 static void channel_energy_task(void *arg)
 {
@@ -62,6 +63,15 @@ static void channel_energy_task(void *arg)
             s_energy_kwh[ch - 1] += (watts / 1000.0) * interval_hours;
             // ESP_LOGI(TAG, "Channel %d: %u W -> %.4f kWh cumulative", ch, watts, s_energy_kwh[ch - 1]);
             mqtt_publish_channel_energy(ch, s_energy_kwh[ch - 1]);
+        }
+
+        // System baseline: the idle draw that belongs to no channel. It has no
+        // active state to gate on — if a baseline is configured, it is drawing,
+        // so this accumulates every interval the device is up.
+        uint16_t system_watts = channel_power_get_system();
+        if (system_watts > 0) {
+            s_system_energy_kwh += (system_watts / 1000.0) * interval_hours;
+            mqtt_publish_system_energy(s_system_energy_kwh);
         }
     }
 }

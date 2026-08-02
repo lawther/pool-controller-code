@@ -17,6 +17,15 @@ uint16_t channel_power_get_configured(uint8_t channel_id);
 // Persist a channel's configured wattage to NVS and update the cache.
 esp_err_t channel_power_set_configured(uint8_t channel_id, uint16_t watts);
 
+// Configured always-on baseline wattage for the system as a whole — the idle
+// draw that exists regardless of which channels are running (controller,
+// chlorinator standby, and so on). Unlike a channel it is never gated by an
+// active state: if it is set, it is drawing. 0 means unset.
+uint16_t channel_power_get_system(void);
+
+// Persist the system baseline wattage to NVS and update the cache.
+esp_err_t channel_power_set_system(uint16_t watts);
+
 // Resolve the live power draw for a channel (1-based):
 //   1. Real device telemetry, when available, always wins (currently the
 //      Filter channel's Viron XT variable-speed pump reading).

@@ -668,7 +668,7 @@ static void publish_channel_discovery(const char *device_id, const char *mac_suf
         snprintf(power_uid, sizeof(power_uid), DISCOVERY_ID_PREFIX "_%s_ch%d_config_power", mac_suffix, channel_num);
 
         char power_name[96];
-        snprintf(power_name, sizeof(power_name), "%s Configured Power", display_name);
+        snprintf(power_name, sizeof(power_name), "Power: %s", display_name);
 
         cJSON *root = cJSON_CreateObject();
         cJSON_AddStringToObject(root, "name", power_name);
@@ -782,6 +782,131 @@ static void publish_channel_discovery(const char *device_id, const char *mac_suf
             return;
         }
         publish_discovery("sensor", energy_uid, json_str);
+        cJSON_free(json_str);
+        cJSON_Delete(root);
+    }
+}
+
+// ======================================================
+// System Baseline Power Discovery
+// ======================================================
+
+// The always-on draw that isn't attributable to any one channel — the
+// controller itself, chlorinator standby, and so on. Mirrors a channel's
+// power trio (configurable wattage, live power, cumulative energy) but has
+// no active state: a configured baseline is always drawing, so its power
+// sensor simply reports the configured figure.
+static void publish_system_power_discovery(const char *device_id, const char *mac_suffix,
+                                           bool include_power_sensors)
+{
+    char avail_topic[128];
+    char state_topic[128];
+    snprintf(avail_topic, sizeof(avail_topic), "pool/%s/availability", device_id);
+    snprintf(state_topic, sizeof(state_topic), "pool/%s/system/power/state", device_id);
+
+    // Number for the configured baseline (Watts). Always published — it's how
+    // the baseline gets set in the first place, so gating it would leave no
+    // way to turn the sensors below on.
+    {
+        char command_topic[128];
+        snprintf(command_topic, sizeof(command_topic), "pool/%s/system/power/set", device_id);
+
+        char uid[80];
+        snprintf(uid, sizeof(uid), DISCOVERY_ID_PREFIX "_%s_system_config_power", mac_suffix);
+
+        cJSON *root = cJSON_CreateObject();
+        cJSON_AddStringToObject(root, "name", "Power: System");
+        cJSON_AddStringToObject(root, "icon", "mdi:flash-outline");
+        cJSON_AddStringToObject(root, "state_topic", state_topic);
+        cJSON_AddStringToObject(root, "command_topic", command_topic);
+        cJSON_AddStringToObject(root, "value_template", "{{ value_json.configured_watts }}");
+        cJSON_AddStringToObject(root, "unit_of_measurement", "W");
+        cJSON_AddNumberToObject(root, "min", 0);
+        cJSON_AddNumberToObject(root, "max", 10000);
+        cJSON_AddNumberToObject(root, "step", 1);
+        cJSON_AddStringToObject(root, "mode", "box");
+        cJSON_AddStringToObject(root, "entity_category", "config");
+        cJSON_AddStringToObject(root, "unique_id", uid);
+        cJSON_AddStringToObject(root, "object_id", uid);
+        cJSON_AddStringToObject(root, "availability_topic", avail_topic);
+        cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
+
+        char *json_str = cJSON_PrintUnformatted(root);
+        if (!json_str) {
+            ESP_LOGE(TAG, "Failed to print system configured power discovery JSON");
+            cJSON_Delete(root);
+            return;
+        }
+        publish_discovery("number", uid, json_str);
+        cJSON_free(json_str);
+        cJSON_Delete(root);
+    }
+
+    // Power and energy sensors, only once a baseline is actually configured —
+    // same reasoning as the per-channel pair (see publish_channel_discovery).
+    if (!include_power_sensors) {
+        char uid[80];
+        snprintf(uid, sizeof(uid), DISCOVERY_ID_PREFIX "_%s_system_power_sensor", mac_suffix);
+        remove_discovery("sensor", uid);
+        snprintf(uid, sizeof(uid), DISCOVERY_ID_PREFIX "_%s_system_energy", mac_suffix);
+        remove_discovery("sensor", uid);
+        return;
+    }
+
+    {
+        char uid[80];
+        snprintf(uid, sizeof(uid), DISCOVERY_ID_PREFIX "_%s_system_power_sensor", mac_suffix);
+
+        cJSON *root = cJSON_CreateObject();
+        cJSON_AddStringToObject(root, "name", "System Power");
+        cJSON_AddStringToObject(root, "device_class", "power");
+        cJSON_AddStringToObject(root, "state_class", "measurement");
+        cJSON_AddStringToObject(root, "unit_of_measurement", "W");
+        cJSON_AddStringToObject(root, "state_topic", state_topic);
+        cJSON_AddStringToObject(root, "value_template", "{{ value_json.power_watts }}");
+        cJSON_AddStringToObject(root, "unique_id", uid);
+        cJSON_AddStringToObject(root, "object_id", uid);
+        cJSON_AddStringToObject(root, "availability_topic", avail_topic);
+        cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
+
+        char *json_str = cJSON_PrintUnformatted(root);
+        if (!json_str) {
+            ESP_LOGE(TAG, "Failed to print system power sensor discovery JSON");
+            cJSON_Delete(root);
+            return;
+        }
+        publish_discovery("sensor", uid, json_str);
+        cJSON_free(json_str);
+        cJSON_Delete(root);
+    }
+
+    {
+        char energy_state_topic[128];
+        snprintf(energy_state_topic, sizeof(energy_state_topic),
+                 "pool/%s/system/energy/state", device_id);
+
+        char uid[80];
+        snprintf(uid, sizeof(uid), DISCOVERY_ID_PREFIX "_%s_system_energy", mac_suffix);
+
+        cJSON *root = cJSON_CreateObject();
+        cJSON_AddStringToObject(root, "name", "System Energy");
+        cJSON_AddStringToObject(root, "device_class", "energy");
+        cJSON_AddStringToObject(root, "state_class", "total_increasing");
+        cJSON_AddStringToObject(root, "unit_of_measurement", "kWh");
+        cJSON_AddStringToObject(root, "state_topic", energy_state_topic);
+        cJSON_AddStringToObject(root, "value_template", "{{ value_json.energy_kwh }}");
+        cJSON_AddStringToObject(root, "unique_id", uid);
+        cJSON_AddStringToObject(root, "object_id", uid);
+        cJSON_AddStringToObject(root, "availability_topic", avail_topic);
+        cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
+
+        char *json_str = cJSON_PrintUnformatted(root);
+        if (!json_str) {
+            ESP_LOGE(TAG, "Failed to print system energy sensor discovery JSON");
+            cJSON_Delete(root);
+            return;
+        }
+        publish_discovery("sensor", uid, json_str);
         cJSON_free(json_str);
         cJSON_Delete(root);
     }
@@ -1209,6 +1334,17 @@ void mqtt_publish_channel_discovery_single(int channel_num, const char *channel_
     ESP_LOGI(TAG, "Publishing discovery for channel %d: %s", channel_num, channel_name);
     publish_channel_discovery(device_id, mac_suffix, channel_num, channel_name,
                               include_state_entities, include_power_sensors);
+}
+
+void mqtt_publish_system_power_discovery_single(bool include_power_sensors)
+{
+    char device_id[32];
+    mqtt_get_device_id(device_id, sizeof(device_id));
+
+    char mac_suffix[DEVICE_MAC_SUFFIX_LEN];
+    device_get_mac_suffix(mac_suffix, sizeof(mac_suffix));
+
+    publish_system_power_discovery(device_id, mac_suffix, include_power_sensors);
 }
 
 void mqtt_publish_light_discovery_single(int zone_num, const char *zone_name, uint8_t multicolor_light_type)

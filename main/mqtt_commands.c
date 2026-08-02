@@ -60,17 +60,14 @@ static void handle_channel_command(int channel_id, const char *payload, int payl
     send_uart_command(cmd, sizeof(cmd));
 }
 
-// Set a channel's configured power estimate (Watts). This is local-only
-// config (not a bus register), so there's no read-back — persist to NVS and
-// republish the channel's state topic immediately. A value of 0 clears the
-// manual estimate (e.g. once a channel's device starts reporting its own
-// real power); see channel_power_get_effective.
-static void handle_channel_power_command(int channel_id, const char *payload, int payload_len)
+// Parse a wattage payload (a plain decimal integer, as HA's number entity
+// sends). Returns false and logs on anything unparseable or out of range.
+static bool parse_watts_payload(const char *payload, int payload_len, uint16_t *out_watts)
 {
     char watts_str[16];
     if (payload_len <= 0 || payload_len >= (int)sizeof(watts_str)) {
-        ESP_LOGE(TAG, "Channel %d power payload invalid length", channel_id);
-        return;
+        ESP_LOGE(TAG, "Power payload invalid length");
+        return false;
     }
     memcpy(watts_str, payload, payload_len);
     watts_str[payload_len] = '\0';
@@ -78,11 +75,27 @@ static void handle_channel_power_command(int channel_id, const char *payload, in
     char *endptr;
     long watts = strtol(watts_str, &endptr, 10);
     if (endptr == watts_str || *endptr != '\0' || watts < 0 || watts > UINT16_MAX) {
-        ESP_LOGE(TAG, "Invalid channel %d power value: \"%s\"", channel_id, watts_str);
+        ESP_LOGE(TAG, "Invalid power value: \"%s\"", watts_str);
+        return false;
+    }
+
+    *out_watts = (uint16_t)watts;
+    return true;
+}
+
+// Set a channel's configured power estimate (Watts). This is local-only
+// config (not a bus register), so there's no read-back — persist to NVS and
+// republish the channel's state topic immediately. A value of 0 clears the
+// manual estimate (e.g. once a channel's device starts reporting its own
+// real power); see channel_power_get_effective.
+static void handle_channel_power_command(int channel_id, const char *payload, int payload_len)
+{
+    uint16_t watts;
+    if (!parse_watts_payload(payload, payload_len, &watts)) {
         return;
     }
 
-    if (channel_power_set_configured((uint8_t)channel_id, (uint16_t)watts) != ESP_OK) {
+    if (channel_power_set_configured((uint8_t)channel_id, watts) != ESP_OK) {
         return;
     }
 
@@ -96,6 +109,24 @@ static void handle_channel_power_command(int channel_id, const char *payload, in
         mqtt_publish_channel(&s_pool_state, (uint8_t)channel_id);
         xSemaphoreGive(s_pool_state_mutex);
     }
+}
+
+// Set the system baseline wattage — the idle draw not attributable to any
+// channel. Local-only config like the per-channel estimate, so no bus write
+// and no read-back; persist and republish immediately. Needs no pool state,
+// hence no mutex.
+static void handle_system_power_command(const char *payload, int payload_len)
+{
+    uint16_t watts;
+    if (!parse_watts_payload(payload, payload_len, &watts)) {
+        return;
+    }
+
+    if (channel_power_set_system(watts) != ESP_OK) {
+        return;
+    }
+
+    mqtt_publish_system_power();
 }
 
 // ======================================================
@@ -621,6 +652,9 @@ void mqtt_handle_command(const char *topic, int topic_len, const char *data, int
         } else {
             ESP_LOGE(TAG, "Invalid heater topic: %s", cmd_topic);
         }
+    }
+    else if (strncmp(cmd_topic, "system/power/set", 16) == 0) {
+        handle_system_power_command(data, data_len);
     }
     else if (strncmp(cmd_topic, "mode/set", 8) == 0) {
         handle_mode_command(data, data_len);
