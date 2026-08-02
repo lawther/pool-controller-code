@@ -53,6 +53,38 @@ void register_requester_read_back(uint8_t reg_id, uint8_t slot)
     s_read_back_calls++;
 }
 
+// ======================================================
+// Channel power spies
+//
+// handle_channel_power_command() persists the configured wattage via
+// channel_power_set_configured() (main/channel_power.h) and republishes the
+// channel via mqtt_publish_channel() (main/mqtt_publish.h). Both pull in
+// NVS/MQTT plumbing the host build doesn't have, so stub them here instead
+// of linking the real modules.
+// ======================================================
+
+static uint8_t  s_power_channel_id = 0;
+static uint16_t s_power_watts      = 0;
+static int      s_power_set_calls  = 0;
+
+esp_err_t channel_power_set_configured(uint8_t channel_id, uint16_t watts)
+{
+    s_power_channel_id = channel_id;
+    s_power_watts = watts;
+    s_power_set_calls++;
+    return ESP_OK;
+}
+
+static uint8_t s_published_channel_id = 0;
+static int     s_publish_channel_calls = 0;
+
+void mqtt_publish_channel(const pool_state_t *current_state, uint8_t channel_id)
+{
+    (void)current_state;
+    s_published_channel_id = channel_id;
+    s_publish_channel_calls++;
+}
+
 static void uart_spy_reset(void)
 {
     memset(s_uart_buf, 0, sizeof(s_uart_buf));
@@ -62,6 +94,13 @@ static void uart_spy_reset(void)
     s_read_back_reg   = 0;
     s_read_back_slot  = 0;
     s_read_back_calls = 0;
+
+    s_power_channel_id = 0;
+    s_power_watts       = 0;
+    s_power_set_calls   = 0;
+
+    s_published_channel_id  = 0;
+    s_publish_channel_calls = 0;
 }
 
 // ======================================================
