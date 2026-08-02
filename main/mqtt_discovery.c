@@ -1228,8 +1228,10 @@ static void publish_ph_discovery(const char *device_id, const char *mac_suffix)
     cJSON *root = cJSON_CreateObject();
     cJSON_AddStringToObject(root, "name", "pH");
     cJSON_AddStringToObject(root, "state_topic", state_topic);
+    // pH is dimensionless: HA's `ph` device class accepts no unit at all
+    // (DEVICE_CLASS_UNITS maps it to {None}), so adding one costs the class.
+    cJSON_AddStringToObject(root, "device_class", "ph");
     cJSON_AddStringToObject(root, "state_class", "measurement");
-    cJSON_AddStringToObject(root, "unit_of_measurement", "pH");
     cJSON_AddStringToObject(root, "value_template", "{{ value_json.ph }}");
     add_entity_ids(root, "sensor", mac_suffix, uid, "ph");
     cJSON_AddStringToObject(root, "availability_topic", avail_topic);
@@ -1302,7 +1304,7 @@ static void publish_ph_setpoint_discovery(const char *device_id, const char *mac
     cJSON_AddStringToObject(root, "name", "pH Setpoint");
     cJSON_AddStringToObject(root, "state_topic", state_topic);
     cJSON_AddStringToObject(root, "value_template", "{{ value_json.ph_setpoint }}");
-    cJSON_AddStringToObject(root, "unit_of_measurement", "pH");
+    cJSON_AddStringToObject(root, "device_class", "ph");
     cJSON_AddStringToObject(root, "icon", "mdi:ph");
     add_entity_ids(root, "sensor", mac_suffix, uid, "ph_setpoint");
     cJSON_AddStringToObject(root, "availability_topic", avail_topic);
