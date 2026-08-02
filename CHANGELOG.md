@@ -16,8 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 ### Changed
+- The Filter channel's power sensor now updates as soon as pump telemetry arrives, instead of waiting for the channel's next state broadcast.
 ### Fixed
 ### Removed
+- Removed the standalone "Pump Power" sensor: it duplicated the Filter channel's power sensor, which reports the same pump reading and is paired with an energy sensor that integrates it into kWh for the Energy dashboard. Only a Filter channel can drive a variable-speed pump, so every install with pump telemetry has that channel. Use "Filter Power" and "Filter Energy" instead — a Riemann integral over the old sensor would double-count against "Filter Energy". The retained discovery config is cleared on upgrade, so Home Assistant removes the entity by itself.
 ### Deprecated
 ### Security
 

@@ -1428,26 +1428,18 @@ static void publish_pump_discovery(const char *device_id, const char *mac_suffix
     cJSON_free(json_str);
     cJSON_Delete(root);
 
-    // Pump Power Discovery
+    // The pump's power draw is reported by the Filter channel's power sensor,
+    // not by a sensor of its own. Only a Filter channel can drive a
+    // variable-speed pump, so an install with pump telemetry always has one,
+    // and channel_power_get_effective already hands that channel this exact
+    // reading — with an energy sensor integrating it into kWh for the Energy
+    // dashboard. A second Pump Power entity would carry the same watts under
+    // another name, inviting a double count for anyone integrating it
+    // themselves. Retract the config earlier firmware published so Home
+    // Assistant drops the entity instead of resurrecting it from the broker.
     char uid_power[64];
     snprintf(uid_power, sizeof(uid_power), DISCOVERY_ID_PREFIX "_%s_pump_power", mac_suffix);
-
-    cJSON *power_root = cJSON_CreateObject();
-    cJSON_AddStringToObject(power_root, "name", "Pump Power");
-    cJSON_AddStringToObject(power_root, "state_topic", state_topic);
-    cJSON_AddStringToObject(power_root, "value_template", "{{ value_json.power_watts }}");
-    cJSON_AddStringToObject(power_root, "unit_of_measurement", "W");
-    cJSON_AddStringToObject(power_root, "icon", "mdi:flash");
-    add_entity_ids(power_root, "sensor", mac_suffix, uid_power, "pump_power");
-    cJSON_AddStringToObject(power_root, "availability_topic", avail_topic);
-    cJSON_AddItemToObject(power_root, "device", build_device_cjson(device_id, mac_suffix));
-
-    char *power_json_str = cJSON_PrintUnformatted(power_root);
-    if (power_json_str) {
-        publish_discovery("sensor", uid_power, power_json_str);
-        cJSON_free(power_json_str);
-    }
-    cJSON_Delete(power_root);
+    remove_discovery("sensor", uid_power);
 }
 
 static void publish_service_mode_discovery(const char *device_id, const char *mac_suffix)
