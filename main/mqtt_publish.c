@@ -45,6 +45,7 @@ static bool s_power_fields_published[MAX_CHANNELS];
 static uint16_t s_last_configured_watts[MAX_CHANNELS];
 static bool s_last_power_watts_valid[MAX_CHANNELS];
 static uint16_t s_last_power_watts[MAX_CHANNELS];
+static bool s_last_power_from_telemetry[MAX_CHANNELS];
 
 // Display name each channel's discovery was last published with. Unique IDs
 // are stable (keyed on channel number only — see publish_channel_discovery),
@@ -367,6 +368,7 @@ void mqtt_publish_channel(const pool_state_t *current_state, uint8_t channel_id)
     uint16_t configured_watts = channel_power_get_configured(channel_id);
     uint16_t power_watts = 0;
     bool power_watts_valid = channel_power_get_effective(current_state, channel_id, &power_watts);
+    bool power_from_telemetry = channel_power_has_telemetry(current_state, channel_id);
 
     // Re-publish discovery if the display name changed since it was last
     // sent (e.g. the bus's channel-name broadcast arrived after an earlier
@@ -374,17 +376,20 @@ void mqtt_publish_channel(const pool_state_t *current_state, uint8_t channel_id)
     // (channel number only), so this updates the entity's label in HA
     // in place rather than creating a duplicate. Also re-publish when the
     // channel gains or loses a power source, since that decides whether the
-    // power and energy sensors exist at all.
+    // power and energy sensors exist at all, and when that source switches
+    // between device telemetry and the configured estimate, which decides
+    // whether the configured-power number is labelled as ignored.
     if (s_discovery_published.channels[idx] &&
         (strcmp(s_channel_discovery_name[idx], display_name) != 0 ||
-         s_last_power_watts_valid[idx] != power_watts_valid)) {
+         s_last_power_watts_valid[idx] != power_watts_valid ||
+         s_last_power_from_telemetry[idx] != power_from_telemetry)) {
         s_discovery_published.channels[idx] = false;
     }
 
     // Publish discovery if this is the first time seeing this channel (or the name changed)
     if (!s_discovery_published.channels[idx]) {
         mqtt_publish_channel_discovery_single(channel_id, display_name, include_state_entities,
-                                              power_watts_valid);
+                                              power_watts_valid, power_from_telemetry);
         s_discovery_published.channels[idx] = true;
         strncpy(s_channel_discovery_name[idx], display_name, sizeof(s_channel_discovery_name[idx]) - 1);
         s_channel_discovery_name[idx][sizeof(s_channel_discovery_name[idx]) - 1] = '\0';
@@ -398,10 +403,14 @@ void mqtt_publish_channel(const pool_state_t *current_state, uint8_t channel_id)
         s_last_published_state.channels[idx].active != channel->active ||
         strcmp(s_last_published_state.channels[idx].name, channel->name) != 0;
 
+    // The telemetry flag is included so a source switch always reaches the
+    // bookkeeping below. It re-runs discovery above, and leaving it unrecorded
+    // because nothing else moved would re-trigger that on every publish.
     bool power_changed =
         !s_power_fields_published[idx] ||
         s_last_configured_watts[idx] != configured_watts ||
         s_last_power_watts_valid[idx] != power_watts_valid ||
+        s_last_power_from_telemetry[idx] != power_from_telemetry ||
         (power_watts_valid && s_last_power_watts[idx] != power_watts);
 
     if (!state_changed && !power_changed) {
@@ -447,6 +456,7 @@ void mqtt_publish_channel(const pool_state_t *current_state, uint8_t channel_id)
     s_last_configured_watts[idx] = configured_watts;
     s_last_power_watts_valid[idx] = power_watts_valid;
     s_last_power_watts[idx] = power_watts;
+    s_last_power_from_telemetry[idx] = power_from_telemetry;
 
     ESP_LOGI(TAG, "Published channel %d: %s (%s)", channel_id, state_name, display_name);
 }

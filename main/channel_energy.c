@@ -71,7 +71,11 @@ static void channel_energy_task(void *arg)
 
             if (watts > 0) {
                 s_energy_kwh[ch - 1] += (watts / 1000.0) * interval_hours;
-                // ESP_LOGI(TAG, "Channel %d: %u W -> %.4f kWh cumulative", ch, watts, s_energy_kwh[ch - 1]);
+                // Debug level: this fires per active channel every interval, which
+                // would drown the log at INFO, but it's the only view of what the
+                // accumulator is crediting when a total looks wrong.
+                ESP_LOGD(TAG, "Channel %d: %u W -> %.4f kWh cumulative",
+                         (int)ch, (unsigned)watts, s_energy_kwh[ch - 1]);
                 s_energy_pending[ch - 1] = true;
             } else if (!s_energy_pending[ch - 1]) {
                 // Not drawing and nothing accumulated since the last publish:
@@ -104,9 +108,9 @@ static void channel_energy_task(void *arg)
 
 void channel_energy_start(void)
 {
-    // ESP_LOGI(TAG, "Starting channel energy accumulator (sample %.0fs, publish %.0fs)",
-    //          CHANNEL_ENERGY_SAMPLE_INTERVAL_MS / 1000.0,
-    //          CHANNEL_ENERGY_PUBLISH_INTERVAL_MS / 1000.0);
+    ESP_LOGI(TAG, "Starting channel energy accumulator (sample %.0fs, publish %.0fs)",
+             CHANNEL_ENERGY_SAMPLE_INTERVAL_MS / 1000.0,
+             CHANNEL_ENERGY_PUBLISH_INTERVAL_MS / 1000.0);
     // 8192 to match tcp_bridge's decoder task: both copy the full ~3KB
     // pool_state_t onto the stack (see the snapshot above)
     xTaskCreate(channel_energy_task, "chan_energy", 8192, NULL, 1, NULL);
