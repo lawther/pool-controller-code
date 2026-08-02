@@ -26,6 +26,13 @@ uint16_t channel_power_get_system(void);
 // Persist the system baseline wattage to NVS and update the cache.
 esp_err_t channel_power_set_system(uint16_t watts);
 
+// True when a channel's power comes from the device's own telemetry rather
+// than the manually configured estimate — currently the Filter channel once
+// its variable-speed pump has broadcast an actual wattage. The configured
+// estimate is ignored while this holds, which is why discovery labels the
+// channel's power number accordingly.
+bool channel_power_has_telemetry(const pool_state_t *state, uint8_t channel_id);
+
 // Resolve the live power draw for a channel (1-based):
 //   1. Real device telemetry, when available, always wins (currently the
 //      Filter channel's Viron XT variable-speed pump reading).

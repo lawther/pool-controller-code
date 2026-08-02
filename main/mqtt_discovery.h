@@ -39,8 +39,13 @@ void mqtt_publish_update_discovery_single(void);
 // (channel_power_get_effective). False publishes a retraction for the power
 // and energy sensors instead of a config, so they don't sit at unknown on a
 // channel that can't report them; call again with true once a source appears.
+// power_from_telemetry: whether that source is the channel's own device rather
+// than the configured estimate (channel_power_has_telemetry). Marks the
+// configured-power number as ignored in its label, since nothing reads it
+// while the device reports real watts.
 void mqtt_publish_channel_discovery_single(int channel_num, const char *channel_name,
-                                           bool include_state_entities, bool include_power_sensors);
+                                           bool include_state_entities, bool include_power_sensors,
+                                           bool power_from_telemetry);
 
 // Publish the system baseline power entities (the "Power: System" number, plus
 // the power and energy sensors when include_power_sensors is true — same
