@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
-- Added configurable per-channel power estimates and on-device energy accumulation, exposed to Home Assistant as editable power and read-only energy sensors for the Energy dashboard's Individual devices view
+- Added configurable power estimates and on-device energy accumulation, exposed to Home Assistant as editable power numbers and read-only energy sensors for the Energy dashboard's Individual devices view — per channel, plus a system baseline covering the idle draw that belongs to no channel (the controller itself, chlorinator standby, and so on) which accumulates continuously rather than being gated on a channel's active state; the power and energy sensors are only created once a channel or the baseline has watts configured.
 ### Changed
 ### Fixed
 ### Removed

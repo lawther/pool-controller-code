@@ -85,6 +85,25 @@ void mqtt_publish_channel(const pool_state_t *current_state, uint8_t channel_id)
     s_publish_channel_calls++;
 }
 
+// handle_system_power_command() takes the same shape for the system baseline:
+// persist via channel_power_set_system(), then republish.
+
+static uint16_t s_system_watts            = 0;
+static int      s_system_set_calls        = 0;
+static int      s_publish_system_calls    = 0;
+
+esp_err_t channel_power_set_system(uint16_t watts)
+{
+    s_system_watts = watts;
+    s_system_set_calls++;
+    return ESP_OK;
+}
+
+void mqtt_publish_system_power(void)
+{
+    s_publish_system_calls++;
+}
+
 static void uart_spy_reset(void)
 {
     memset(s_uart_buf, 0, sizeof(s_uart_buf));
@@ -101,6 +120,10 @@ static void uart_spy_reset(void)
 
     s_published_channel_id  = 0;
     s_publish_channel_calls = 0;
+
+    s_system_watts         = 0;
+    s_system_set_calls     = 0;
+    s_publish_system_calls = 0;
 }
 
 // ======================================================
@@ -279,6 +302,178 @@ void test_channel_out_of_range(void)
 {
     send_cmd("channel/99/set", "TOGGLE");
     TEST_ASSERT(s_uart_calls == 0, "channel/99/set: no UART write (out of range)");
+}
+
+// ======================================================
+// Channel power config tests
+//
+// "channel/N/set" and "channel/N/power/set" share a topic prefix and are
+// separated by an exact suffix-length match in mqtt_handle_command. These
+// pin that routing: the right handler runs, the wrong one doesn't, and a
+// near-miss suffix falls through to neither.
+// ======================================================
+
+void test_channel_power_set(void)
+{
+    send_cmd("channel/3/power/set", "750");
+
+    TEST_ASSERT(s_power_set_calls == 1, "channel/3/power/set: persists once");
+    TEST_ASSERT(s_power_channel_id == 3, "channel/3/power/set: correct channel");
+    TEST_ASSERT(s_power_watts == 750, "channel/3/power/set: correct wattage");
+    TEST_ASSERT(s_uart_calls == 0, "channel/3/power/set: local config, no bus write");
+}
+
+void test_channel_power_republishes(void)
+{
+    // The republish is guarded on s_pool_state_mutex, which the rest of this
+    // file leaves NULL (see the globals section). Point it at a dummy for the
+    // duration: xSemaphoreTake is stubbed to always succeed, and
+    // mqtt_publish_channel is a spy, so nothing real is touched.
+    static int dummy_mutex;
+    s_pool_state_mutex = &dummy_mutex;
+
+    send_cmd("channel/3/power/set", "750");
+
+    TEST_ASSERT(s_publish_channel_calls == 1, "channel/3/power/set: republishes channel");
+    TEST_ASSERT(s_published_channel_id == 3, "channel/3/power/set: republishes correct channel");
+
+    s_pool_state_mutex = NULL;
+}
+
+void test_channel_power_rejected_does_not_republish(void)
+{
+    static int dummy_mutex;
+    s_pool_state_mutex = &dummy_mutex;
+
+    send_cmd("channel/3/power/set", "abc");
+
+    TEST_ASSERT(s_publish_channel_calls == 0,
+                "channel/3/power/set abc: no republish even with a live mutex");
+
+    s_pool_state_mutex = NULL;
+}
+
+void test_channel_power_zero_clears(void)
+{
+    send_cmd("channel/3/power/set", "0");
+
+    // 0 is a meaningful value (clears the manual estimate), not a rejection.
+    TEST_ASSERT(s_power_set_calls == 1, "channel/3/power/set 0: persists");
+    TEST_ASSERT(s_power_watts == 0, "channel/3/power/set 0: wattage cleared");
+}
+
+void test_channel_power_max(void)
+{
+    send_cmd("channel/8/power/set", "65535");
+
+    TEST_ASSERT(s_power_set_calls == 1, "channel/8/power/set 65535: accepted at uint16 max");
+    TEST_ASSERT(s_power_watts == 65535, "channel/8/power/set 65535: correct wattage");
+}
+
+void test_channel_toggle_is_not_power(void)
+{
+    send_cmd("channel/3/set", "TOGGLE");
+
+    TEST_ASSERT(s_uart_calls == 1, "channel/3/set: routed to toggle");
+    TEST_ASSERT(s_power_set_calls == 0, "channel/3/set: does not reach the power handler");
+}
+
+void test_channel_power_out_of_range(void)
+{
+    send_cmd("channel/9/power/set", "750");
+
+    TEST_ASSERT(s_power_set_calls == 0, "channel/9/power/set: rejected (> MAX_CHANNELS)");
+}
+
+void test_channel_power_suffix_near_miss(void)
+{
+    send_cmd("channel/3/power/setx", "750");
+
+    TEST_ASSERT(s_power_set_calls == 0, "channel/3/power/setx: unrecognised suffix rejected");
+    TEST_ASSERT(s_uart_calls == 0, "channel/3/power/setx: no bus write either");
+}
+
+void test_channel_power_non_numeric(void)
+{
+    send_cmd("channel/3/power/set", "abc");
+
+    TEST_ASSERT(s_power_set_calls == 0, "channel/3/power/set abc: rejected");
+}
+
+void test_channel_power_trailing_garbage(void)
+{
+    send_cmd("channel/3/power/set", "750W");
+
+    // strtol would stop at 'W' and report 750 — the handler requires the
+    // whole payload to be consumed.
+    TEST_ASSERT(s_power_set_calls == 0, "channel/3/power/set 750W: partial parse rejected");
+}
+
+void test_channel_power_overflow(void)
+{
+    send_cmd("channel/3/power/set", "70000");
+
+    TEST_ASSERT(s_power_set_calls == 0, "channel/3/power/set 70000: rejected (> uint16)");
+}
+
+void test_channel_power_negative(void)
+{
+    send_cmd("channel/3/power/set", "-5");
+
+    TEST_ASSERT(s_power_set_calls == 0, "channel/3/power/set -5: rejected");
+}
+
+void test_channel_power_empty_payload(void)
+{
+    send_cmd("channel/3/power/set", "");
+
+    TEST_ASSERT(s_power_set_calls == 0, "channel/3/power/set empty: rejected");
+}
+
+// ======================================================
+// System baseline power tests
+// ======================================================
+
+void test_system_power_set(void)
+{
+    send_cmd("system/power/set", "45");
+
+    TEST_ASSERT(s_system_set_calls == 1, "system/power/set: persists once");
+    TEST_ASSERT(s_system_watts == 45, "system/power/set: correct wattage");
+    TEST_ASSERT(s_publish_system_calls == 1, "system/power/set: republishes");
+    TEST_ASSERT(s_power_set_calls == 0, "system/power/set: not routed to a channel");
+    TEST_ASSERT(s_uart_calls == 0, "system/power/set: local config, no bus write");
+}
+
+void test_system_power_zero_clears(void)
+{
+    send_cmd("system/power/set", "0");
+
+    TEST_ASSERT(s_system_set_calls == 1, "system/power/set 0: persists");
+    TEST_ASSERT(s_system_watts == 0, "system/power/set 0: baseline cleared");
+}
+
+void test_system_power_max(void)
+{
+    send_cmd("system/power/set", "65535");
+
+    TEST_ASSERT(s_system_set_calls == 1, "system/power/set 65535: accepted at uint16 max");
+    TEST_ASSERT(s_system_watts == 65535, "system/power/set 65535: correct wattage");
+}
+
+void test_system_power_non_numeric(void)
+{
+    send_cmd("system/power/set", "abc");
+
+    TEST_ASSERT(s_system_set_calls == 0, "system/power/set abc: rejected");
+    TEST_ASSERT(s_publish_system_calls == 0, "system/power/set abc: nothing republished");
+}
+
+void test_system_power_overflow(void)
+{
+    send_cmd("system/power/set", "70000");
+
+    TEST_ASSERT(s_system_set_calls == 0, "system/power/set 70000: rejected (> uint16)");
 }
 
 // ======================================================
@@ -587,6 +782,28 @@ int main(void)
     test_channel_1_toggle();
     test_channel_5_toggle();
     test_channel_out_of_range();
+
+    printf("\n--- Channel power config ---\n");
+    test_channel_power_set();
+    test_channel_power_republishes();
+    test_channel_power_rejected_does_not_republish();
+    test_channel_power_zero_clears();
+    test_channel_power_max();
+    test_channel_toggle_is_not_power();
+    test_channel_power_out_of_range();
+    test_channel_power_suffix_near_miss();
+    test_channel_power_non_numeric();
+    test_channel_power_trailing_garbage();
+    test_channel_power_overflow();
+    test_channel_power_negative();
+    test_channel_power_empty_payload();
+
+    printf("\n--- System baseline power ---\n");
+    test_system_power_set();
+    test_system_power_zero_clears();
+    test_system_power_max();
+    test_system_power_non_numeric();
+    test_system_power_overflow();
 
     printf("\n--- Mode Tests ---\n");
     test_mode_pool();

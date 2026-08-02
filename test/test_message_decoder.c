@@ -467,9 +467,12 @@ void test_channel_status_resets_pump_speed_when_filter_off(void)
 {
     init_test_context();
 
-    // Setup an existing pump speed
+    // Setup an existing pump speed. pump_telemetry_seen goes with it: a
+    // non-zero speed can only have come from handle_pump_speed, which sets
+    // both, and the zeroing below is gated on it.
     test_pool_state.pump_speed = 1500;
     test_pool_state.pump_speed_valid = true;
+    test_pool_state.pump_telemetry_seen = true;
 
     // Broadcast Channel Status with Filter (Ch1) in Auto mode (0x01) but Inactive (0x00)
     uint8_t msg[] = {
@@ -499,13 +502,19 @@ void test_channel_status_resets_pump_speed_when_filter_off(void)
     TEST_ASSERT(test_pool_state.pump_speed == 0, "pump_speed should be 0");
 }
 
-void test_channel_status_resets_pump_speed_valid_when_filter_off_without_previous_speed(void)
+// An install with a plain single-speed pump never broadcasts CMD 0x3B, so
+// pump_telemetry_seen stays false. The Filter-inactive zeroing must not fire
+// there: marking speed/power valid would invent readings out of nothing and
+// publish HA pump entities that can only ever read 0.
+void test_channel_status_does_not_fabricate_pump_speed_without_telemetry(void)
 {
     init_test_context();
 
-    // Setup an INVALID pump speed
+    // No pump telemetry has ever been decoded
     test_pool_state.pump_speed = 0;
     test_pool_state.pump_speed_valid = false;
+    test_pool_state.pump_power_watts_valid = false;
+    test_pool_state.pump_telemetry_seen = false;
 
     // Broadcast Channel Status with Filter (Ch1) in Auto mode (0x01) but Inactive (0x00)
     uint8_t msg[] = {
@@ -529,9 +538,13 @@ void test_channel_status_resets_pump_speed_valid_when_filter_off_without_previou
 
     TEST_ASSERT(decoded, "Channel status message should be decoded");
     
-    // Pump speed should be forced valid and 0 since Filter went to Inactive
-    TEST_ASSERT(test_pool_state.pump_speed_valid, "pump_speed_valid should be true even if it was false before");
-    TEST_ASSERT(test_pool_state.pump_speed == 0, "pump_speed should be 0");
+    // Both readings must stay invalid — there is no pump reporting them
+    TEST_ASSERT(!test_pool_state.pump_speed_valid,
+                "pump_speed_valid should stay false with no telemetry ever seen");
+    TEST_ASSERT(!test_pool_state.pump_power_watts_valid,
+                "pump_power_watts_valid should stay false with no telemetry ever seen");
+    TEST_ASSERT(!test_pool_state.pump_telemetry_seen,
+                "channel status should never set pump_telemetry_seen");
 }
 
 /**
@@ -1290,7 +1303,7 @@ int main(void)
     printf("\n--- Channel Status Tests ---\n");
     test_decode_channel_status_all_off();
     test_channel_status_resets_pump_speed_when_filter_off();
-    test_channel_status_resets_pump_speed_valid_when_filter_off_without_previous_speed();
+    test_channel_status_does_not_fabricate_pump_speed_without_telemetry();
     test_decode_channel_status_lights_active();
     test_decode_channel_status_multispeed_pump();
     test_decode_channel_toggle_gateway();
