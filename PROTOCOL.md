@@ -1959,7 +1959,7 @@ Observed in pump reporting firmware v5.1.
 **Notes:**
 
 - Encoding is **big-endian** (most-significant byte first), unlike the little-endian convention used elsewhere in this protocol. This likely reflects the pump's own native encoding.
-- Published to MQTT as `pool/{device_id}/pump/state` with JSON payload `{"pump": {"speed_rpm": <value>, "power_watts": <value>}}`.
+- Published to MQTT as `pool/{device_id}/pump/state` with JSON payload `{"speed_rpm": <value>, "power_watts": <value>}`.
 - Decoded in code by `handle_pump_speed`; values stored in `pool_state.pump_speed` and `pool_state.pump_power_watts` (and their `_valid` flags).
 - When buttons are pressed on the pump panel, [CMD `0x1B`](#0x1b--pump-button-activity-) bursts are emitted first; the next `0x3B` after the ~60 s interval reflects the newly committed speed.
 
