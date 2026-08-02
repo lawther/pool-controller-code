@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 ### Changed
+- Energy sensors now publish every 5 minutes instead of every 10 seconds, which was flooding Home Assistant's event log and recorder database with rows carrying no extra information. The accumulator still samples power every 10 seconds, so totals are unchanged; 5 minutes matches HA's long-term statistics resolution. A channel also publishes one final value on the sample where it stops drawing, so a run's total lands in the right time bucket
 ### Fixed
 ### Removed
 ### Deprecated
