@@ -474,7 +474,7 @@ void test_channel_status_resets_pump_speed_when_filter_off(void)
     // Broadcast Channel Status with Filter (Ch1) in Auto mode (0x01) but Inactive (0x00)
     uint8_t msg[] = {
         0x02, 0x00, 0x50, 0xFF, 0xFF, 0x80, 0x00,
-        0x0B, 0x25,  // Command / length (37)
+        0x0B, 0x10,  // Command / length (16)
         0x00,        // Header checksum 
         0x01,        // payload[0]: num_channels = 1
         0x01, 0x01, 0x00, // Ch1: Filter(0x01), Auto(0x01), Inactive(0x00)
@@ -502,7 +502,7 @@ void test_channel_status_resets_pump_speed_valid_when_filter_off_without_previou
     // Broadcast Channel Status with Filter (Ch1) in Auto mode (0x01) but Inactive (0x00)
     uint8_t msg[] = {
         0x02, 0x00, 0x50, 0xFF, 0xFF, 0x80, 0x00,
-        0x0B, 0x25,  // Command / length (37)
+        0x0B, 0x10,  // Command / length (16)
         0x00,        // Header checksum 
         0x01,        // payload[0]: num_channels = 1
         0x01, 0x01, 0x00, // Ch1: Filter(0x01), Auto(0x01), Inactive(0x00)
