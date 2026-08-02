@@ -1715,7 +1715,7 @@ static void publish_update_discovery(const char *device_id, const char *mac_suff
     snprintf(uid, sizeof(uid), DISCOVERY_ID_PREFIX "_%s_firmware", mac_suffix);
 
     cJSON *root = cJSON_CreateObject();
-    cJSON_AddStringToObject(root, "name", "Firmware");
+    cJSON_AddStringToObject(root, "name", "System: Update Firmware");
     cJSON_AddStringToObject(root, "device_class", "firmware");
     // State is a JSON payload carrying installed_version/latest_version and
     // in_progress/update_percentage (see firmware_update_publish_mqtt_state).
@@ -1761,7 +1761,7 @@ static void publish_update_check_discovery(const char *device_id, const char *ma
     snprintf(uid, sizeof(uid), DISCOVERY_ID_PREFIX "_%s_fw_check", mac_suffix);
 
     cJSON *root = cJSON_CreateObject();
-    cJSON_AddStringToObject(root, "name", "Check for firmware update");
+    cJSON_AddStringToObject(root, "name", "System: Check Updates");
     cJSON_AddStringToObject(root, "command_topic", command_topic);
     cJSON_AddStringToObject(root, "icon", "mdi:update");
     // Same section as the Firmware update entity it belongs with.
@@ -1794,7 +1794,7 @@ static void publish_reboot_discovery(const char *device_id, const char *mac_suff
     snprintf(uid, sizeof(uid), DISCOVERY_ID_PREFIX "_%s_reboot", mac_suffix);
 
     cJSON *root = cJSON_CreateObject();
-    cJSON_AddStringToObject(root, "name", "Reboot");
+    cJSON_AddStringToObject(root, "name", "System: Reboot");
     cJSON_AddStringToObject(root, "command_topic", command_topic);
     cJSON_AddStringToObject(root, "device_class", "restart");
     cJSON_AddStringToObject(root, "entity_category", "config");
@@ -1829,7 +1829,7 @@ static void publish_ha_reset_discovery(const char *device_id, const char *mac_su
     snprintf(uid, sizeof(uid), DISCOVERY_ID_PREFIX "_%s_ha_reset", mac_suffix);
 
     cJSON *root = cJSON_CreateObject();
-    cJSON_AddStringToObject(root, "name", "Reset Home Assistant entities");
+    cJSON_AddStringToObject(root, "name", "System: Reset HA Entities");
     cJSON_AddStringToObject(root, "command_topic", command_topic);
     cJSON_AddStringToObject(root, "icon", "mdi:tag-multiple");
     cJSON_AddStringToObject(root, "entity_category", "config");
