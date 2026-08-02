@@ -15,6 +15,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+### Changed
+### Fixed
+### Removed
+### Deprecated
+### Security
+
+## [1.13.0] - 2026-08-02
+### Added
 - Added configurable power estimates and on-device energy accumulation, exposed to Home Assistant as editable power numbers and read-only energy sensors for the Energy dashboard's Individual devices view — per channel, plus a system baseline covering the idle draw that belongs to no channel (the controller itself, chlorinator standby, and so on) which accumulates continuously rather than being gated on a channel's active state; the power and energy sensors are only created once a channel or the baseline has watts configured.
 - Added a "Reset entities" button — on the firmware update page beside Reboot, and as a Home Assistant button — that clears every retained discovery config belonging to this device and restarts, so Home Assistant deletes the entities and re-creates them from the configs published on the next connect. Entity IDs are only assigned when an entity is first registered, so this is what applies the naming change below to an existing install; it also clears entities left behind by earlier firmware, which HA otherwise keeps resurrecting from the broker's retained configs
 ### Changed
@@ -24,10 +32,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed the pH and pH Setpoint sensors losing their `ph` device class in Home Assistant, so they showed as plain numbers: the device class was dropped in favour of `unit_of_measurement: "pH"`, but HA's `ph` device class accepts no unit (`DEVICE_CLASS_UNITS` maps it to `{None}`) — pH is dimensionless, so a blank unit is the correct display, not a missing one. Both sensors now carry `device_class: ph` and no unit
 - Fixed Home Assistant ignoring the entity ID the firmware asks for: discovery published it as `object_id`, which HA 2026.4 replaced with `default_entity_id`, so on current HA the request was silently dropped and entity IDs were generated from the area, device and entity names instead. Both keys are now published, naming the same entity ID on either HA version
 - Fixed Home Assistant showing Pump Speed and Pump Power entities stuck at 0 on installs with no telemetry-reporting pump: the Filter-channel-inactive workaround added in 1.12.0 zeroes the pump's readings because a variable-speed pump loses power with the channel and cannot broadcast its own 0, but it marked both readings valid unconditionally — so on a plain single-speed pump, which never sends CMD 0x3B at all, the first inactive Filter broadcast invented readings from nothing and published the entities. The zeroing is now gated on a genuine pump telemetry message having been decoded (`pump_telemetry_seen`). Devices that already published the entities keep the retained discovery, so those need clearing in Home Assistant once
-### Removed
-### Deprecated
-### Security
-
 
 ## [1.12.0] - 2026-08-02
 ### Added
