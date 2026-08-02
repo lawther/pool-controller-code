@@ -10,21 +10,10 @@
 #include "cJSON.h"
 #include <stdio.h>
 #include <string.h>
-#include <ctype.h>
 
 static const char *TAG = "MQTT_DISCOVERY";
 
 #define DISCOVERY_ID_PREFIX "pool_controller"
-
-// Lowercase + spaces-to-underscores, for use in unique_id/object_id
-static void normalize_name(const char *in, char *out, size_t out_len)
-{
-    size_t i = 0;
-    for (; i < out_len - 1 && in[i] != '\0'; i++) {
-        out[i] = (in[i] == ' ') ? '_' : tolower((unsigned char)in[i]);
-    }
-    out[i] = '\0';
-}
 
 // Build a device cJSON object (caller must not free separately — embed in root)
 static cJSON *build_device_cjson(const char *device_id, const char *mac_suffix)
@@ -81,6 +70,22 @@ static void publish_discovery(const char *component, const char *object_id, cons
 
     mqtt_publish(topic, config_json, 1, true);
     ESP_LOGI(TAG, "Published discovery: %s/%s", component, object_id);
+}
+
+// Retract a discovery message: an empty retained payload on the config topic
+// tells HA to delete the entity and clears the broker's retained copy, so it
+// doesn't come back on the next HA restart. Harmless if nothing was ever
+// published there.
+static void remove_discovery(const char *component, const char *object_id)
+{
+    char device_id[32];
+    mqtt_get_device_id(device_id, sizeof(device_id));
+
+    char topic[256];
+    snprintf(topic, sizeof(topic), "homeassistant/%s/%s/%s/config", component, device_id, object_id);
+
+    mqtt_publish(topic, "", 1, true);
+    ESP_LOGI(TAG, "Removed discovery: %s/%s", component, object_id);
 }
 
 // ======================================================
@@ -327,7 +332,13 @@ static void publish_gas_heater_detail_discovery(const char *device_id, const cha
         cJSON_AddStringToObject(root, "availability_topic", avail_topic);
         cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
         char *json_str = cJSON_PrintUnformatted(root);
-        if (json_str) { publish_discovery("sensor", uid, json_str); cJSON_free(json_str); }
+        if (!json_str) {
+            ESP_LOGE(TAG, "Failed to print discovery JSON for %s", display_name);
+            cJSON_Delete(root);
+            return;
+        }
+        publish_discovery("sensor", uid, json_str);
+        cJSON_free(json_str);
         cJSON_Delete(root);
     }
 
@@ -345,7 +356,13 @@ static void publish_gas_heater_detail_discovery(const char *device_id, const cha
         cJSON_AddStringToObject(root, "availability_topic", avail_topic);
         cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
         char *json_str = cJSON_PrintUnformatted(root);
-        if (json_str) { publish_discovery("binary_sensor", uid, json_str); cJSON_free(json_str); }
+        if (!json_str) {
+            ESP_LOGE(TAG, "Failed to print discovery JSON for %s", display_name);
+            cJSON_Delete(root);
+            return;
+        }
+        publish_discovery("binary_sensor", uid, json_str);
+        cJSON_free(json_str);
         cJSON_Delete(root);
     }
 
@@ -362,7 +379,13 @@ static void publish_gas_heater_detail_discovery(const char *device_id, const cha
         cJSON_AddStringToObject(root, "availability_topic", avail_topic);
         cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
         char *json_str = cJSON_PrintUnformatted(root);
-        if (json_str) { publish_discovery("binary_sensor", uid, json_str); cJSON_free(json_str); }
+        if (!json_str) {
+            ESP_LOGE(TAG, "Failed to print discovery JSON for %s", display_name);
+            cJSON_Delete(root);
+            return;
+        }
+        publish_discovery("binary_sensor", uid, json_str);
+        cJSON_free(json_str);
         cJSON_Delete(root);
     }
 
@@ -386,7 +409,13 @@ static void publish_gas_heater_detail_discovery(const char *device_id, const cha
         cJSON_AddStringToObject(root, "availability_topic", avail_topic);
         cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
         char *json_str = cJSON_PrintUnformatted(root);
-        if (json_str) { publish_discovery("sensor", uid, json_str); cJSON_free(json_str); }
+        if (!json_str) {
+            ESP_LOGE(TAG, "Failed to print discovery JSON for %s", display_name);
+            cJSON_Delete(root);
+            return;
+        }
+        publish_discovery("sensor", uid, json_str);
+        cJSON_free(json_str);
         cJSON_Delete(root);
     }
 
@@ -405,7 +434,13 @@ static void publish_gas_heater_detail_discovery(const char *device_id, const cha
         cJSON_AddStringToObject(root, "availability_topic", avail_topic);
         cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
         char *json_str = cJSON_PrintUnformatted(root);
-        if (json_str) { publish_discovery("binary_sensor", uid, json_str); cJSON_free(json_str); }
+        if (!json_str) {
+            ESP_LOGE(TAG, "Failed to print discovery JSON for %s", display_name);
+            cJSON_Delete(root);
+            return;
+        }
+        publish_discovery("binary_sensor", uid, json_str);
+        cJSON_free(json_str);
         cJSON_Delete(root);
     }
 
@@ -424,7 +459,13 @@ static void publish_gas_heater_detail_discovery(const char *device_id, const cha
         cJSON_AddStringToObject(root, "availability_topic", avail_topic);
         cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
         char *json_str = cJSON_PrintUnformatted(root);
-        if (json_str) { publish_discovery("binary_sensor", uid, json_str); cJSON_free(json_str); }
+        if (!json_str) {
+            ESP_LOGE(TAG, "Failed to print discovery JSON for %s", display_name);
+            cJSON_Delete(root);
+            return;
+        }
+        publish_discovery("binary_sensor", uid, json_str);
+        cJSON_free(json_str);
         cJSON_Delete(root);
     }
 
@@ -442,7 +483,13 @@ static void publish_gas_heater_detail_discovery(const char *device_id, const cha
         cJSON_AddStringToObject(root, "availability_topic", avail_topic);
         cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
         char *json_str = cJSON_PrintUnformatted(root);
-        if (json_str) { publish_discovery("binary_sensor", uid, json_str); cJSON_free(json_str); }
+        if (!json_str) {
+            ESP_LOGE(TAG, "Failed to print discovery JSON for %s", display_name);
+            cJSON_Delete(root);
+            return;
+        }
+        publish_discovery("binary_sensor", uid, json_str);
+        cJSON_free(json_str);
         cJSON_Delete(root);
     }
 }
@@ -506,7 +553,8 @@ static void publish_mode_discovery(const char *device_id, const char *mac_suffix
 // ======================================================
 
 static void publish_channel_discovery(const char *device_id, const char *mac_suffix,
-                                      int channel_num, const char *channel_name)
+                                      int channel_num, const char *channel_name,
+                                      bool include_state_entities, bool include_power_sensors)
 {
     char avail_topic[128];
     char state_topic[128];
@@ -515,102 +563,350 @@ static void publish_channel_discovery(const char *device_id, const char *mac_suf
     snprintf(state_topic, sizeof(state_topic), "pool/%s/channel/%d/state", device_id, channel_num);
     snprintf(command_topic, sizeof(command_topic), "pool/%s/channel/%d/set", device_id, channel_num);
 
-    // Determine display name and normalized part for IDs
+    // Display name only — unique IDs below are keyed on the stable channel
+    // number alone, never on the name. The name can legitimately change
+    // between discovery publishes (e.g. it's empty until the bus's channel-
+    // name broadcast arrives, so an early publish falls back to the type
+    // name); if that mutable value were embedded in the unique_id, each
+    // change would register as a brand-new HA entity while the old one
+    // lingers as an orphaned duplicate (retained on the broker forever).
     char display_name[64];
-    char norm_name[32];
     if (channel_name && channel_name[0] != '\0') {
         snprintf(display_name, sizeof(display_name), "%s", channel_name);
-        normalize_name(channel_name, norm_name, sizeof(norm_name));
     } else {
         snprintf(display_name, sizeof(display_name), "Channel %d", channel_num);
-        norm_name[0] = '\0';
     }
 
     // Build unique IDs
     char sensor_uid[64];
     char button_uid[64];
     char active_uid[64];
-    if (norm_name[0] != '\0') {
-        snprintf(sensor_uid, sizeof(sensor_uid),
-                 DISCOVERY_ID_PREFIX "_%s_ch%d_%s", mac_suffix, channel_num, norm_name);
-        snprintf(button_uid, sizeof(button_uid),
-                 DISCOVERY_ID_PREFIX "_%s_ch%d_%s_toggle", mac_suffix, channel_num, norm_name);
-        snprintf(active_uid, sizeof(active_uid),
-                 DISCOVERY_ID_PREFIX "_%s_ch%d_%s_active", mac_suffix, channel_num, norm_name);
-    } else {
-        snprintf(sensor_uid, sizeof(sensor_uid),
-                 DISCOVERY_ID_PREFIX "_%s_ch%d", mac_suffix, channel_num);
-        snprintf(button_uid, sizeof(button_uid),
-                 DISCOVERY_ID_PREFIX "_%s_ch%d_toggle", mac_suffix, channel_num);
-        snprintf(active_uid, sizeof(active_uid),
-                 DISCOVERY_ID_PREFIX "_%s_ch%d_active", mac_suffix, channel_num);
+    snprintf(sensor_uid, sizeof(sensor_uid), DISCOVERY_ID_PREFIX "_%s_ch%d", mac_suffix, channel_num);
+    snprintf(button_uid, sizeof(button_uid), DISCOVERY_ID_PREFIX "_%s_ch%d_toggle", mac_suffix, channel_num);
+    snprintf(active_uid, sizeof(active_uid), DISCOVERY_ID_PREFIX "_%s_ch%d_active", mac_suffix, channel_num);
+
+    if (include_state_entities) {
+        // Sensor for state
+        {
+            cJSON *root = cJSON_CreateObject();
+            cJSON_AddStringToObject(root, "name", display_name);
+            cJSON_AddStringToObject(root, "state_topic", state_topic);
+            cJSON_AddStringToObject(root, "value_template", "{{ value_json.state }}");
+            cJSON_AddStringToObject(root, "unique_id", sensor_uid);
+            cJSON_AddStringToObject(root, "object_id", sensor_uid);
+            cJSON_AddStringToObject(root, "availability_topic", avail_topic);
+            cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
+
+            char *json_str = cJSON_PrintUnformatted(root);
+            if (!json_str) {
+                ESP_LOGE(TAG, "Failed to print channel sensor discovery JSON");
+                cJSON_Delete(root);
+                return;
+            }
+            publish_discovery("sensor", sensor_uid, json_str);
+            cJSON_free(json_str);
+            cJSON_Delete(root);
+        }
+
+        // Button for toggle
+        {
+            cJSON *root = cJSON_CreateObject();
+            cJSON_AddStringToObject(root, "name", display_name);
+            cJSON_AddStringToObject(root, "command_topic", command_topic);
+            cJSON_AddStringToObject(root, "payload_press", "TOGGLE");
+            cJSON_AddStringToObject(root, "unique_id", button_uid);
+            cJSON_AddStringToObject(root, "object_id", button_uid);
+            cJSON_AddStringToObject(root, "availability_topic", avail_topic);
+            cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
+
+            char *json_str = cJSON_PrintUnformatted(root);
+            if (!json_str) {
+                ESP_LOGE(TAG, "Failed to print channel button discovery JSON");
+                cJSON_Delete(root);
+                return;
+            }
+            publish_discovery("button", button_uid, json_str);
+            cJSON_free(json_str);
+            cJSON_Delete(root);
+        }
+
+        // Binary sensor for active state
+        {
+            char active_name[80];
+            snprintf(active_name, sizeof(active_name), "%s Active", display_name);
+
+            cJSON *root = cJSON_CreateObject();
+            cJSON_AddStringToObject(root, "name", active_name);
+            cJSON_AddStringToObject(root, "state_topic", state_topic);
+            cJSON_AddStringToObject(root, "value_template", "{{ 'ON' if value_json.active else 'OFF' }}");
+            cJSON_AddStringToObject(root, "unique_id", active_uid);
+            cJSON_AddStringToObject(root, "object_id", active_uid);
+            cJSON_AddStringToObject(root, "availability_topic", avail_topic);
+            cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
+
+            char *json_str = cJSON_PrintUnformatted(root);
+            if (!json_str) {
+                ESP_LOGE(TAG, "Failed to print channel active binary sensor discovery JSON");
+                cJSON_Delete(root);
+                return;
+            }
+            publish_discovery("binary_sensor", active_uid, json_str);
+            cJSON_free(json_str);
+            cJSON_Delete(root);
+        }
     }
 
-    // Sensor for state
+    // Number for the configured power estimate (Watts). 0 = unset — either
+    // never configured, or deliberately cleared because this channel's
+    // device reports its own real power (see channel_power_get_effective).
     {
+        char power_command_topic[128];
+        snprintf(power_command_topic, sizeof(power_command_topic),
+                 "pool/%s/channel/%d/power/set", device_id, channel_num);
+
+        char power_uid[80];
+        snprintf(power_uid, sizeof(power_uid), DISCOVERY_ID_PREFIX "_%s_ch%d_config_power", mac_suffix, channel_num);
+
+        char power_name[96];
+        snprintf(power_name, sizeof(power_name), "Power: %s", display_name);
+
         cJSON *root = cJSON_CreateObject();
-        cJSON_AddStringToObject(root, "name", display_name);
+        cJSON_AddStringToObject(root, "name", power_name);
+        cJSON_AddStringToObject(root, "icon", "mdi:flash-outline");
         cJSON_AddStringToObject(root, "state_topic", state_topic);
-        cJSON_AddStringToObject(root, "value_template", "{{ value_json.state }}");
-        cJSON_AddStringToObject(root, "unique_id", sensor_uid);
-        cJSON_AddStringToObject(root, "object_id", sensor_uid);
+        cJSON_AddStringToObject(root, "command_topic", power_command_topic);
+        cJSON_AddStringToObject(root, "value_template", "{{ value_json.configured_watts }}");
+        cJSON_AddStringToObject(root, "unit_of_measurement", "W");
+        cJSON_AddNumberToObject(root, "min", 0);
+        cJSON_AddNumberToObject(root, "max", 10000);
+        cJSON_AddNumberToObject(root, "step", 1);
+        cJSON_AddStringToObject(root, "mode", "box");
+        cJSON_AddStringToObject(root, "entity_category", "config");
+        cJSON_AddStringToObject(root, "unique_id", power_uid);
+        cJSON_AddStringToObject(root, "object_id", power_uid);
         cJSON_AddStringToObject(root, "availability_topic", avail_topic);
         cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
 
         char *json_str = cJSON_PrintUnformatted(root);
         if (!json_str) {
-            ESP_LOGE(TAG, "Failed to print channel sensor discovery JSON");
+            ESP_LOGE(TAG, "Failed to print channel configured power discovery JSON");
             cJSON_Delete(root);
             return;
         }
-        publish_discovery("sensor", sensor_uid, json_str);
+        publish_discovery("number", power_uid, json_str);
         cJSON_free(json_str);
         cJSON_Delete(root);
     }
 
-    // Button for toggle
+    // Power and energy sensors, only once the channel actually has a power
+    // source (real telemetry, or a configured estimate). Without one they
+    // could never report anything but unknown, so publishing them on a stock
+    // install would just litter HA with dead entities. mqtt_publish_channel
+    // re-runs discovery when the source appears or goes away, and the retract
+    // below also cleans up entities left by earlier firmware that published
+    // these unconditionally.
+    if (!include_power_sensors) {
+        char uid[80];
+        snprintf(uid, sizeof(uid), DISCOVERY_ID_PREFIX "_%s_ch%d_power_sensor", mac_suffix, channel_num);
+        remove_discovery("sensor", uid);
+        snprintf(uid, sizeof(uid), DISCOVERY_ID_PREFIX "_%s_ch%d_energy", mac_suffix, channel_num);
+        remove_discovery("sensor", uid);
+        return;
+    }
+
+    // Sensor for live power: real device telemetry when available (e.g. the
+    // Filter channel's variable-speed pump), else the configured estimate
+    // gated by active state.
     {
+        char power_sensor_uid[80];
+        snprintf(power_sensor_uid, sizeof(power_sensor_uid), DISCOVERY_ID_PREFIX "_%s_ch%d_power_sensor", mac_suffix, channel_num);
+
+        char power_sensor_name[80];
+        snprintf(power_sensor_name, sizeof(power_sensor_name), "%s Power", display_name);
+
         cJSON *root = cJSON_CreateObject();
-        cJSON_AddStringToObject(root, "name", display_name);
+        cJSON_AddStringToObject(root, "name", power_sensor_name);
+        cJSON_AddStringToObject(root, "device_class", "power");
+        cJSON_AddStringToObject(root, "state_class", "measurement");
+        cJSON_AddStringToObject(root, "unit_of_measurement", "W");
+        cJSON_AddStringToObject(root, "state_topic", state_topic);
+        cJSON_AddStringToObject(root, "value_template", "{{ value_json.power_watts }}");
+        cJSON_AddStringToObject(root, "unique_id", power_sensor_uid);
+        cJSON_AddStringToObject(root, "object_id", power_sensor_uid);
+        cJSON_AddStringToObject(root, "availability_topic", avail_topic);
+        cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
+
+        char *json_str = cJSON_PrintUnformatted(root);
+        if (!json_str) {
+            ESP_LOGE(TAG, "Failed to print channel power sensor discovery JSON");
+            cJSON_Delete(root);
+            return;
+        }
+        publish_discovery("sensor", power_sensor_uid, json_str);
+        cJSON_free(json_str);
+        cJSON_Delete(root);
+    }
+
+    // Energy sensor: cumulative kWh, integrated on-device from the effective
+    // power over time (see channel_energy.c). The accumulator lives in RAM
+    // only and resets to 0 on reboot; state_class total_increasing tells HA
+    // to treat a value drop as a meter reset rather than corrupt long-term
+    // statistics, so this is safe without NVS persistence.
+    {
+        char energy_state_topic[128];
+        snprintf(energy_state_topic, sizeof(energy_state_topic),
+                 "pool/%s/channel/%d/energy/state", device_id, channel_num);
+
+        char energy_uid[80];
+        snprintf(energy_uid, sizeof(energy_uid), DISCOVERY_ID_PREFIX "_%s_ch%d_energy", mac_suffix, channel_num);
+
+        char energy_name[96];
+        snprintf(energy_name, sizeof(energy_name), "%s Energy", display_name);
+
+        cJSON *root = cJSON_CreateObject();
+        cJSON_AddStringToObject(root, "name", energy_name);
+        cJSON_AddStringToObject(root, "device_class", "energy");
+        cJSON_AddStringToObject(root, "state_class", "total_increasing");
+        cJSON_AddStringToObject(root, "unit_of_measurement", "kWh");
+        cJSON_AddStringToObject(root, "state_topic", energy_state_topic);
+        cJSON_AddStringToObject(root, "value_template", "{{ value_json.energy_kwh }}");
+        cJSON_AddStringToObject(root, "unique_id", energy_uid);
+        cJSON_AddStringToObject(root, "object_id", energy_uid);
+        cJSON_AddStringToObject(root, "availability_topic", avail_topic);
+        cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
+
+        char *json_str = cJSON_PrintUnformatted(root);
+        if (!json_str) {
+            ESP_LOGE(TAG, "Failed to print channel energy sensor discovery JSON");
+            cJSON_Delete(root);
+            return;
+        }
+        publish_discovery("sensor", energy_uid, json_str);
+        cJSON_free(json_str);
+        cJSON_Delete(root);
+    }
+}
+
+// ======================================================
+// System Baseline Power Discovery
+// ======================================================
+
+// The always-on draw that isn't attributable to any one channel — the
+// controller itself, chlorinator standby, and so on. Mirrors a channel's
+// power trio (configurable wattage, live power, cumulative energy) but has
+// no active state: a configured baseline is always drawing, so its power
+// sensor simply reports the configured figure.
+static void publish_system_power_discovery(const char *device_id, const char *mac_suffix,
+                                           bool include_power_sensors)
+{
+    char avail_topic[128];
+    char state_topic[128];
+    snprintf(avail_topic, sizeof(avail_topic), "pool/%s/availability", device_id);
+    snprintf(state_topic, sizeof(state_topic), "pool/%s/system/power/state", device_id);
+
+    // Number for the configured baseline (Watts). Always published — it's how
+    // the baseline gets set in the first place, so gating it would leave no
+    // way to turn the sensors below on.
+    {
+        char command_topic[128];
+        snprintf(command_topic, sizeof(command_topic), "pool/%s/system/power/set", device_id);
+
+        char uid[80];
+        snprintf(uid, sizeof(uid), DISCOVERY_ID_PREFIX "_%s_system_config_power", mac_suffix);
+
+        cJSON *root = cJSON_CreateObject();
+        cJSON_AddStringToObject(root, "name", "Power: System");
+        cJSON_AddStringToObject(root, "icon", "mdi:flash-outline");
+        cJSON_AddStringToObject(root, "state_topic", state_topic);
         cJSON_AddStringToObject(root, "command_topic", command_topic);
-        cJSON_AddStringToObject(root, "payload_press", "TOGGLE");
-        cJSON_AddStringToObject(root, "unique_id", button_uid);
-        cJSON_AddStringToObject(root, "object_id", button_uid);
+        cJSON_AddStringToObject(root, "value_template", "{{ value_json.configured_watts }}");
+        cJSON_AddStringToObject(root, "unit_of_measurement", "W");
+        cJSON_AddNumberToObject(root, "min", 0);
+        cJSON_AddNumberToObject(root, "max", 10000);
+        cJSON_AddNumberToObject(root, "step", 1);
+        cJSON_AddStringToObject(root, "mode", "box");
+        cJSON_AddStringToObject(root, "entity_category", "config");
+        cJSON_AddStringToObject(root, "unique_id", uid);
+        cJSON_AddStringToObject(root, "object_id", uid);
         cJSON_AddStringToObject(root, "availability_topic", avail_topic);
         cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
 
         char *json_str = cJSON_PrintUnformatted(root);
         if (!json_str) {
-            ESP_LOGE(TAG, "Failed to print channel button discovery JSON");
+            ESP_LOGE(TAG, "Failed to print system configured power discovery JSON");
             cJSON_Delete(root);
             return;
         }
-        publish_discovery("button", button_uid, json_str);
+        publish_discovery("number", uid, json_str);
         cJSON_free(json_str);
         cJSON_Delete(root);
     }
 
-    // Binary sensor for active state
+    // Power and energy sensors, only once a baseline is actually configured —
+    // same reasoning as the per-channel pair (see publish_channel_discovery).
+    if (!include_power_sensors) {
+        char uid[80];
+        snprintf(uid, sizeof(uid), DISCOVERY_ID_PREFIX "_%s_system_power_sensor", mac_suffix);
+        remove_discovery("sensor", uid);
+        snprintf(uid, sizeof(uid), DISCOVERY_ID_PREFIX "_%s_system_energy", mac_suffix);
+        remove_discovery("sensor", uid);
+        return;
+    }
+
     {
-        char active_name[80];
-        snprintf(active_name, sizeof(active_name), "%s Active", display_name);
+        char uid[80];
+        snprintf(uid, sizeof(uid), DISCOVERY_ID_PREFIX "_%s_system_power_sensor", mac_suffix);
 
         cJSON *root = cJSON_CreateObject();
-        cJSON_AddStringToObject(root, "name", active_name);
+        cJSON_AddStringToObject(root, "name", "System Power");
+        cJSON_AddStringToObject(root, "device_class", "power");
+        cJSON_AddStringToObject(root, "state_class", "measurement");
+        cJSON_AddStringToObject(root, "unit_of_measurement", "W");
         cJSON_AddStringToObject(root, "state_topic", state_topic);
-        cJSON_AddStringToObject(root, "value_template", "{{ 'ON' if value_json.active else 'OFF' }}");
-        cJSON_AddStringToObject(root, "unique_id", active_uid);
-        cJSON_AddStringToObject(root, "object_id", active_uid);
+        cJSON_AddStringToObject(root, "value_template", "{{ value_json.power_watts }}");
+        cJSON_AddStringToObject(root, "unique_id", uid);
+        cJSON_AddStringToObject(root, "object_id", uid);
         cJSON_AddStringToObject(root, "availability_topic", avail_topic);
         cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
 
         char *json_str = cJSON_PrintUnformatted(root);
         if (!json_str) {
-            ESP_LOGE(TAG, "Failed to print channel active binary sensor discovery JSON");
+            ESP_LOGE(TAG, "Failed to print system power sensor discovery JSON");
             cJSON_Delete(root);
             return;
         }
-        publish_discovery("binary_sensor", active_uid, json_str);
+        publish_discovery("sensor", uid, json_str);
+        cJSON_free(json_str);
+        cJSON_Delete(root);
+    }
+
+    {
+        char energy_state_topic[128];
+        snprintf(energy_state_topic, sizeof(energy_state_topic),
+                 "pool/%s/system/energy/state", device_id);
+
+        char uid[80];
+        snprintf(uid, sizeof(uid), DISCOVERY_ID_PREFIX "_%s_system_energy", mac_suffix);
+
+        cJSON *root = cJSON_CreateObject();
+        cJSON_AddStringToObject(root, "name", "System Energy");
+        cJSON_AddStringToObject(root, "device_class", "energy");
+        cJSON_AddStringToObject(root, "state_class", "total_increasing");
+        cJSON_AddStringToObject(root, "unit_of_measurement", "kWh");
+        cJSON_AddStringToObject(root, "state_topic", energy_state_topic);
+        cJSON_AddStringToObject(root, "value_template", "{{ value_json.energy_kwh }}");
+        cJSON_AddStringToObject(root, "unique_id", uid);
+        cJSON_AddStringToObject(root, "object_id", uid);
+        cJSON_AddStringToObject(root, "availability_topic", avail_topic);
+        cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
+
+        char *json_str = cJSON_PrintUnformatted(root);
+        if (!json_str) {
+            ESP_LOGE(TAG, "Failed to print system energy sensor discovery JSON");
+            cJSON_Delete(root);
+            return;
+        }
+        publish_discovery("sensor", uid, json_str);
         cJSON_free(json_str);
         cJSON_Delete(root);
     }
@@ -1026,7 +1322,8 @@ void mqtt_publish_chlor_output_level_discovery_single(void) { publish_single(pub
 void mqtt_publish_pump_discovery_single(void)              { publish_single(publish_pump_discovery); }
 void mqtt_publish_service_mode_discovery_single(void)      { publish_single(publish_service_mode_discovery); }
 
-void mqtt_publish_channel_discovery_single(int channel_num, const char *channel_name)
+void mqtt_publish_channel_discovery_single(int channel_num, const char *channel_name,
+                                           bool include_state_entities, bool include_power_sensors)
 {
     char device_id[32];
     mqtt_get_device_id(device_id, sizeof(device_id));
@@ -1035,7 +1332,19 @@ void mqtt_publish_channel_discovery_single(int channel_num, const char *channel_
     device_get_mac_suffix(mac_suffix, sizeof(mac_suffix));
 
     ESP_LOGI(TAG, "Publishing discovery for channel %d: %s", channel_num, channel_name);
-    publish_channel_discovery(device_id, mac_suffix, channel_num, channel_name);
+    publish_channel_discovery(device_id, mac_suffix, channel_num, channel_name,
+                              include_state_entities, include_power_sensors);
+}
+
+void mqtt_publish_system_power_discovery_single(bool include_power_sensors)
+{
+    char device_id[32];
+    mqtt_get_device_id(device_id, sizeof(device_id));
+
+    char mac_suffix[DEVICE_MAC_SUFFIX_LEN];
+    device_get_mac_suffix(mac_suffix, sizeof(mac_suffix));
+
+    publish_system_power_discovery(device_id, mac_suffix, include_power_sensors);
 }
 
 void mqtt_publish_light_discovery_single(int zone_num, const char *zone_name, uint8_t multicolor_light_type)

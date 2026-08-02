@@ -16,6 +16,7 @@
 // Local headers
 #include "device_serial.h"
 #include "mqtt_discovery.h"
+#include "mqtt_publish.h"
 #include "mqtt_commands.h"
 #include "firmware_update.h"
 #include "led_helper.h"
@@ -176,9 +177,11 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
         mqtt_get_device_id(device_id, sizeof(device_id));
 
         char topic[128];
-        // Subscribe to channel commands (channels 1-MAX_CHANNELS)
+        // Subscribe to channel commands (channels 1-MAX_CHANNELS): toggle and power config
         for (int i = 1; i <= MAX_CHANNELS; i++) {
             snprintf(topic, sizeof(topic), "pool/%s/channel/%d/set", device_id, i);
+            esp_mqtt_client_subscribe(s_mqtt_client, topic, 0);
+            snprintf(topic, sizeof(topic), "pool/%s/channel/%d/power/set", device_id, i);
             esp_mqtt_client_subscribe(s_mqtt_client, topic, 0);
         }
 
@@ -201,6 +204,10 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
             snprintf(topic, sizeof(topic), "pool/%s/heater/%d/spa_setpoint/set", device_id, i);
             esp_mqtt_client_subscribe(s_mqtt_client, topic, 0);
         }
+
+        // Subscribe to the system baseline power config
+        snprintf(topic, sizeof(topic), "pool/%s/system/power/set", device_id);
+        esp_mqtt_client_subscribe(s_mqtt_client, topic, 0);
 
         // Subscribe to mode command
         snprintf(topic, sizeof(topic), "pool/%s/mode/set", device_id);
@@ -233,6 +240,11 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 
         // Publish availability online
         publish_availability(true);
+
+        // Publish the system baseline power (discovery + state). Unlike
+        // channels there's no bus event that would trigger it later, so it
+        // has to be republished on every connect.
+        mqtt_publish_system_power();
 
         // Publish current firmware-update state so the HA update entity
         // reflects any check that ran before MQTT connected.

@@ -15,6 +15,8 @@ idf_component_register(
         "lighting_colors.c"
         "message_decoder.c"
         "register_requester.c"
+        "channel_power.c"
+        "channel_energy.c"
         "unknown_buffer.c"
         "dns_server.c"
         "heap_monitor.c"

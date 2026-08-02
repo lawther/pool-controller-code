@@ -259,6 +259,15 @@ typedef struct {
     bool pump_speed_valid;
     uint16_t pump_power_watts; // Current pump power in Watts
     bool pump_power_watts_valid;
+    // True once a genuine Viron XT pump telemetry message (CMD 0x3B, source
+    // 0x00A0) has been decoded. Unlike pump_power_watts_valid, this is never
+    // set by the Filter-channel-inactive zeroing workaround below — it's the
+    // signal that "this install has a variable-speed pump reporting its own
+    // power," used (together with pump_power_watts_valid, since speed-only
+    // telemetry sets this flag without carrying a power figure) by
+    // channel_power_get_effective to prefer real telemetry over a manually
+    // configured wattage estimate.
+    bool pump_telemetry_seen;
 
     // Chlorinator
     uint16_t ph_setpoint;      // pH * 10 (e.g., 74 = 7.4)

@@ -19,6 +19,8 @@
 #include "tcp_bridge.h"
 #include "message_decoder.h"
 #include "register_requester.h"
+#include "channel_power.h"
+#include "channel_energy.h"
 #include "unknown_buffer.h"
 #include "heap_monitor.h"
 #include "firmware_update.h"
@@ -168,6 +170,10 @@ void app_main(void)
     // Initialize decoder context
     s_decoder_context.state_mutex = s_pool_state_mutex;
 
+    // Load per-channel configured power (NVS) before the decoder/publisher
+    // can run and needs to resolve effective channel power
+    channel_power_init();
+
     // Initialize hardware
     unknown_buffer_init();
     bus_init();
@@ -224,6 +230,10 @@ void app_main(void)
     }
 
     register_requester_start(&s_pool_state, s_pool_state_mutex);
+
+    // Periodically integrate each channel's effective power into a
+    // cumulative kWh total and publish it as an HA energy sensor.
+    channel_energy_start();
 
     // Periodically log heap stats so a slow leak or fragmentation trend is
     // visible in the log history before it can exhaust memory and crash.
