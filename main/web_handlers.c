@@ -3,6 +3,7 @@
 #include "wifi_provisioning.h"
 #include "pool_state.h"
 #include "mqtt_poolclient.h"
+#include "mqtt_discovery.h"
 #include "message_decoder.h"
 #include "unknown_buffer.h"
 #include "device_serial.h"
@@ -1318,8 +1319,8 @@ static esp_err_t update_get_handler(httpd_req_t *req)
         "<button type='button' id='ghInstall' hidden data-variant='success'>Install selected version</button>"
         "</div>"
         "<script>"
-        // Shared by the GitHub, manual-upload and reboot flows: count down
-        // while the device reboots, then reload the page.
+        // Shared by the GitHub, manual-upload, reboot and entity-reset flows:
+        // count down while the device reboots, then reload the page.
         "function rebootReload(el,msg){"
         "msg=msg||'Update successful!';"
         "el.setAttribute('data-variant','success');"
@@ -1471,6 +1472,29 @@ static esp_err_t update_get_handler(httpd_req_t *req)
         "fetch('/reboot',{method:'POST'}).then(r=>r.json()).then(function(d){"
         "rebootReload(s,'Reboot requested.');"
         "}).catch(function(){rebootReload(s,'Reboot requested.');});"
+        "});"
+        "</script>"
+
+        // ---- Home Assistant entities ---------------------------------------
+        "<h2 class='mt-4'>Home Assistant entities</h2>"
+        "<p>Delete this device's entities in Home Assistant and re-create them, "
+        "so they pick up the current entity ID naming. Any dashboards, "
+        "automations or history that reference the old entity IDs will need "
+        "updating. The device restarts to republish them.</p>"
+        "<button type='button' id='haResetBtn' data-variant='danger'>Reset entities</button>"
+        "<div id='haResetStatus' role='alert' hidden class='mt-4'></div>"
+        "<script>"
+        "document.getElementById('haResetBtn').addEventListener('click',function(){"
+        "if(!confirm('Delete and re-create the Home Assistant entities? Their entity IDs will change.'))return;"
+        "const s=document.getElementById('haResetStatus');"
+        "s.removeAttribute('hidden');"
+        "s.textContent='Clearing entities...';"
+        // The device restarts once the entities are cleared, so a failed
+        // request means the same thing here as it does for a reboot.
+        "fetch('/ha-reset',{method:'POST'}).then(r=>r.json()).then(function(d){"
+        "if(d.success){rebootReload(s,'Entities cleared.');}"
+        "else{s.textContent='Error: '+d.message;s.setAttribute('data-variant','danger');}"
+        "}).catch(function(){rebootReload(s,'Entities cleared.');});"
         "});"
         "</script>";
 
@@ -1738,6 +1762,27 @@ static esp_err_t reboot_post_handler(httpd_req_t *req)
     vTaskDelay(pdMS_TO_TICKS(TASK_DELAY_MS));
     esp_restart();
 
+    return ESP_OK;
+}
+
+// POST /ha-reset — clear this device's retained Home Assistant discovery
+// configs and restart, so HA re-creates the entities under the current
+// entity_id scheme. The device is unreachable from here on, same as /reboot.
+static esp_err_t ha_reset_post_handler(httpd_req_t *req)
+{
+    ESP_LOGI(TAG, "Home Assistant entity reset requested via web UI");
+
+    httpd_resp_set_type(req, "application/json; charset=UTF-8");
+    if (!mqtt_discovery_reset_start()) {
+        httpd_resp_send(req,
+                        "{\"success\":false,\"message\":\"MQTT is not connected\"}",
+                        HTTPD_RESP_USE_STRLEN);
+        return ESP_OK;
+    }
+
+    httpd_resp_send(req,
+                    "{\"success\":true,\"message\":\"Resetting entities...\"}",
+                    HTTPD_RESP_USE_STRLEN);
     return ESP_OK;
 }
 
@@ -2152,6 +2197,12 @@ static const httpd_uri_t reboot_post_uri = {
     .handler = reboot_post_handler
 };
 
+static const httpd_uri_t ha_reset_post_uri = {
+    .uri = "/ha-reset",
+    .method = HTTP_POST,
+    .handler = ha_reset_post_handler
+};
+
 static const httpd_uri_t test_decode_uri = {
     .uri = "/api/test_decode",
     .method = HTTP_POST,
@@ -2340,6 +2391,7 @@ esp_err_t web_handlers_register(httpd_handle_t server)
     httpd_register_uri_handler(server, &update_check_uri);
     httpd_register_uri_handler(server, &update_github_uri);
     httpd_register_uri_handler(server, &reboot_post_uri);
+    httpd_register_uri_handler(server, &ha_reset_post_uri);
     httpd_register_uri_handler(server, &test_decode_uri);
     httpd_register_uri_handler(server, &unknown_msgs_json_uri);
     httpd_register_uri_handler(server, &unknown_msgs_clear_uri);

@@ -229,8 +229,10 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
         snprintf(topic, sizeof(topic), "pool/%s/update/check", device_id);
         esp_mqtt_client_subscribe(s_mqtt_client, topic, 0);
 
-        // Subscribe to the reboot command
+        // Subscribe to the reboot and HA-entity-reset commands
         snprintf(topic, sizeof(topic), "pool/%s/reboot", device_id);
+        esp_mqtt_client_subscribe(s_mqtt_client, topic, 0);
+        snprintf(topic, sizeof(topic), "pool/%s/ha_reset", device_id);
         esp_mqtt_client_subscribe(s_mqtt_client, topic, 0);
 
         ESP_LOGI(TAG, "Subscribed to command topics");
@@ -259,6 +261,15 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
         break;
 
     case MQTT_EVENT_DATA:
+        // While an entity reset is running it owns the broker's discovery
+        // config topics, which it subscribed to itself. Checked before the log
+        // below: that subscription is a wildcard, so every retained discovery
+        // config on the broker arrives here, and logging each payload in full
+        // would hold up the client task for the length of the collect window.
+        if (mqtt_discovery_reset_handle_message(event->topic, event->topic_len, event->data_len)) {
+            break;
+        }
+
         ESP_LOGI(TAG, "MQTT data received: topic=%.*s, data=%.*s",
                  event->topic_len, event->topic,
                  event->data_len, event->data);
@@ -278,6 +289,10 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
             ESP_LOGI(TAG, "Reboot requested via MQTT");
             vTaskDelay(pdMS_TO_TICKS(TASK_DELAY_MS));  // let the log flush
             esp_restart();
+        } else if (event->topic_len >= 9 &&
+                   memcmp(event->topic + event->topic_len - 9, "/ha_reset", 9) == 0) {
+            ESP_LOGW(TAG, "Home Assistant entity reset requested via MQTT");
+            mqtt_discovery_reset_start();
         } else {
             // Handle pool control command
             mqtt_handle_command(event->topic, event->topic_len, event->data, event->data_len);
@@ -449,6 +464,34 @@ esp_err_t mqtt_publish(const char *topic, const char *payload, int qos, bool ret
     int msg_id = esp_mqtt_client_publish(s_mqtt_client, topic, payload, 0, qos, retain ? 1 : 0);
     if (msg_id < 0) {
         ESP_LOGE(TAG, "Failed to publish to %s", topic);
+        return ESP_FAIL;
+    }
+
+    return ESP_OK;
+}
+
+esp_err_t mqtt_subscribe(const char *topic, int qos)
+{
+    if (s_mqtt_client == NULL || !s_mqtt_connected) {
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    if (esp_mqtt_client_subscribe(s_mqtt_client, topic, qos) < 0) {
+        ESP_LOGE(TAG, "Failed to subscribe to %s", topic);
+        return ESP_FAIL;
+    }
+
+    return ESP_OK;
+}
+
+esp_err_t mqtt_unsubscribe(const char *topic)
+{
+    if (s_mqtt_client == NULL || !s_mqtt_connected) {
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    if (esp_mqtt_client_unsubscribe(s_mqtt_client, topic) < 0) {
+        ESP_LOGE(TAG, "Failed to unsubscribe from %s", topic);
         return ESP_FAIL;
     }
 

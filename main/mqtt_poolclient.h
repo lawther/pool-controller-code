@@ -27,6 +27,12 @@ void mqtt_get_device_id(char *device_id, size_t max_len);
 // Publish function (used by mqtt_publish.c)
 esp_err_t mqtt_publish(const char *topic, const char *payload, int qos, bool retain);
 
+// Subscribe/unsubscribe outside the fixed set of command topics taken out on
+// connect (used by the Home Assistant entity reset, which reads the broker's
+// retained discovery configs back for as long as it runs).
+esp_err_t mqtt_subscribe(const char *topic, int qos);
+esp_err_t mqtt_unsubscribe(const char *topic);
+
 // Load MQTT configuration from NVS
 bool mqtt_load_config(mqtt_config_t *config);
 
