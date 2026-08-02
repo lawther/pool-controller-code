@@ -78,8 +78,14 @@ bool channel_power_get_effective(const pool_state_t *state, uint8_t channel_id, 
 
     const channel_state_t *channel = &state->channels[channel_id - 1];
 
-    // Real device telemetry takes precedence over a manual estimate.
-    if (channel->type == CHANNEL_TYPE_FILTER && state->pump_telemetry_seen) {
+    // Real device telemetry takes precedence over a manual estimate — but only
+    // once an actual power figure has been received. The pump also broadcasts
+    // speed-only telemetry (CMD 0x3B with a 2-byte payload), which sets
+    // pump_telemetry_seen without ever populating pump_power_watts; taking this
+    // branch on that alone would report a permanent 0 W and lock out the manual
+    // estimate with no way for the user to correct it.
+    if (channel->type == CHANNEL_TYPE_FILTER &&
+        state->pump_telemetry_seen && state->pump_power_watts_valid) {
         *out_watts = state->pump_power_watts;
         return true;
     }

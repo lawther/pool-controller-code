@@ -19,16 +19,26 @@ static double s_energy_kwh[MAX_CHANNELS];
 static void channel_energy_task(void *arg)
 {
     (void)arg;
-    const double interval_hours = (CHANNEL_ENERGY_INTERVAL_MS / 1000.0) / 3600.0;
+    TickType_t last_tick = xTaskGetTickCount();
 
     for (;;) {
         vTaskDelay(pdMS_TO_TICKS(CHANNEL_ENERGY_INTERVAL_MS));
 
         if (!s_pool_state_mutex || xSemaphoreTake(s_pool_state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) != pdTRUE) {
-            continue;
+            continue;  // last_tick untouched — the next pass covers this interval too
         }
         pool_state_t snapshot = s_pool_state;
         xSemaphoreGive(s_pool_state_mutex);
+
+        // Integrate over the time that actually elapsed rather than the nominal
+        // interval: the loop body's own work adds to the delay, and this task
+        // runs at the lowest priority so it can be preempted for arbitrarily
+        // long. Crediting a fixed interval would always undercount, and the
+        // error compounds without bound in a cumulative meter. Unsigned
+        // subtraction gives the correct delta across tick-count wraparound.
+        TickType_t now_tick = xTaskGetTickCount();
+        double interval_hours = ((double)(TickType_t)(now_tick - last_tick) * portTICK_PERIOD_MS) / 3600000.0;
+        last_tick = now_tick;
 
         for (uint8_t ch = 1; ch <= MAX_CHANNELS; ch++) {
             const channel_state_t *channel = &snapshot.channels[ch - 1];

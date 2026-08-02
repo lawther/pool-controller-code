@@ -650,8 +650,7 @@ static void publish_channel_discovery(const char *device_id, const char *mac_suf
         cJSON_AddStringToObject(root, "state_class", "measurement");
         cJSON_AddStringToObject(root, "unit_of_measurement", "W");
         cJSON_AddStringToObject(root, "state_topic", state_topic);
-        cJSON_AddStringToObject(root, "value_template",
-                                "{{ value_json.power_watts if value_json.power_watts is not none else 'unknown' }}");
+        cJSON_AddStringToObject(root, "value_template", "{{ value_json.power_watts }}");
         cJSON_AddStringToObject(root, "unique_id", sensor_uid);
         cJSON_AddStringToObject(root, "object_id", sensor_uid);
         cJSON_AddStringToObject(root, "availability_topic", avail_topic);
