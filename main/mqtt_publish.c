@@ -308,15 +308,61 @@ void mqtt_publish_channel(const pool_state_t *current_state, uint8_t channel_id)
         return;
     }
 
-    // Skip heater and light zone channels — handled by their own publish functions
-    if (channel->type == CHANNEL_TYPE_HEATER || channel->type == CHANNEL_TYPE_LIGHT_ZONE) {
-        ESP_LOGI(TAG, "Skipping heater/light channel %d (type 0x%02X)", channel_id, channel->type);
-        return;
-    }
+    // Heater and light zone channel slots get their own state/toggle/active
+    // entities from mqtt_publish_heater*/mqtt_publish_light — publishing them
+    // again here would be redundant (and the toggle command isn't the right
+    // way to control them anyway). They still get power/energy tracking below.
+    bool include_state_entities = (channel->type != CHANNEL_TYPE_HEATER &&
+                                    channel->type != CHANNEL_TYPE_LIGHT_ZONE);
 
-    // Use channel name if set, otherwise fall back to type name
+    // Use channel name if set, otherwise fall back to type name. Light zone
+    // channels are the exception: the controller doesn't populate the raw
+    // channel name (0x7C+) for them, so the zone's real assigned name (e.g.
+    // "Pool", "Spa") is always preferred instead, from the separate
+    // lighting[] array (register 0xB0+). Light zones are numbered by
+    // configuration order among light-typed channels, not by physical
+    // channel slot — e.g. if channel 3 is the first (lowest-numbered)
+    // channel typed as a light zone, it's Light Zone 1 regardless of its
+    // channel number — so find this channel's rank among light-typed
+    // channels to get its lighting[] index.
     const char *type_name = get_channel_type_name(channel->type);
-    const char *display_name = (channel->name[0] != '\0') ? channel->name : type_name;
+    const char *display_name = type_name;
+    char heater_name_buf[16];  // only used in the CHANNEL_TYPE_HEATER branch below
+    if (channel->type == CHANNEL_TYPE_LIGHT_ZONE) {
+        int zone_rank = 0;
+        for (int i = 0; i < channel_id; i++) {
+            if (current_state->channels[i].configured &&
+                current_state->channels[i].type == CHANNEL_TYPE_LIGHT_ZONE) {
+                zone_rank++;
+            }
+        }
+        int zone_idx = zone_rank - 1;
+        if (zone_idx >= 0 && zone_idx < MAX_LIGHT_ZONES) {
+            const lighting_state_t *light = &current_state->lighting[zone_idx];
+            if (light->name_valid && light->name_id < LIGHT_ZONE_NAME_COUNT) {
+                display_name = LIGHT_ZONE_NAME_TABLE[light->name_id];
+            }
+        }
+    } else if (channel->type == CHANNEL_TYPE_HEATER) {
+        // Heaters have no per-unit custom name (pool_heater_t carries no
+        // name field) — mqtt_publish_heater/publish_heater_discovery always
+        // refer to them generically as "Heater N" by index. Match that here:
+        // rank this channel among heater-typed channels (same configuration-
+        // order reasoning as light zones above) to get its heater number.
+        int heater_rank = 0;
+        for (int i = 0; i < channel_id; i++) {
+            if (current_state->channels[i].configured &&
+                current_state->channels[i].type == CHANNEL_TYPE_HEATER) {
+                heater_rank++;
+            }
+        }
+        if (heater_rank >= 1 && heater_rank <= MAX_HEATERS) {
+            snprintf(heater_name_buf, sizeof(heater_name_buf), "Heater %d", heater_rank);
+            display_name = heater_name_buf;
+        }
+    } else if (channel->name[0] != '\0') {
+        display_name = channel->name;
+    }
 
     // Re-publish discovery if the display name changed since it was last
     // sent (e.g. the bus's channel-name broadcast arrived after an earlier
@@ -330,7 +376,7 @@ void mqtt_publish_channel(const pool_state_t *current_state, uint8_t channel_id)
 
     // Publish discovery if this is the first time seeing this channel (or the name changed)
     if (!s_discovery_published.channels[idx]) {
-        mqtt_publish_channel_discovery_single(channel_id, display_name);
+        mqtt_publish_channel_discovery_single(channel_id, display_name, include_state_entities);
         s_discovery_published.channels[idx] = true;
         strncpy(s_channel_discovery_name[idx], display_name, sizeof(s_channel_discovery_name[idx]) - 1);
         s_channel_discovery_name[idx][sizeof(s_channel_discovery_name[idx]) - 1] = '\0';

@@ -495,7 +495,8 @@ static void publish_mode_discovery(const char *device_id, const char *mac_suffix
 // ======================================================
 
 static void publish_channel_discovery(const char *device_id, const char *mac_suffix,
-                                      int channel_num, const char *channel_name)
+                                      int channel_num, const char *channel_name,
+                                      bool include_state_entities)
 {
     char avail_topic[128];
     char state_topic[128];
@@ -526,73 +527,75 @@ static void publish_channel_discovery(const char *device_id, const char *mac_suf
     snprintf(button_uid, sizeof(button_uid), DISCOVERY_ID_PREFIX "_%s_ch%d_toggle", mac_suffix, channel_num);
     snprintf(active_uid, sizeof(active_uid), DISCOVERY_ID_PREFIX "_%s_ch%d_active", mac_suffix, channel_num);
 
-    // Sensor for state
-    {
-        cJSON *root = cJSON_CreateObject();
-        cJSON_AddStringToObject(root, "name", display_name);
-        cJSON_AddStringToObject(root, "state_topic", state_topic);
-        cJSON_AddStringToObject(root, "value_template", "{{ value_json.state }}");
-        cJSON_AddStringToObject(root, "unique_id", sensor_uid);
-        cJSON_AddStringToObject(root, "object_id", sensor_uid);
-        cJSON_AddStringToObject(root, "availability_topic", avail_topic);
-        cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
+    if (include_state_entities) {
+        // Sensor for state
+        {
+            cJSON *root = cJSON_CreateObject();
+            cJSON_AddStringToObject(root, "name", display_name);
+            cJSON_AddStringToObject(root, "state_topic", state_topic);
+            cJSON_AddStringToObject(root, "value_template", "{{ value_json.state }}");
+            cJSON_AddStringToObject(root, "unique_id", sensor_uid);
+            cJSON_AddStringToObject(root, "object_id", sensor_uid);
+            cJSON_AddStringToObject(root, "availability_topic", avail_topic);
+            cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
 
-        char *json_str = cJSON_PrintUnformatted(root);
-        if (!json_str) {
-            ESP_LOGE(TAG, "Failed to print channel sensor discovery JSON");
+            char *json_str = cJSON_PrintUnformatted(root);
+            if (!json_str) {
+                ESP_LOGE(TAG, "Failed to print channel sensor discovery JSON");
+                cJSON_Delete(root);
+                return;
+            }
+            publish_discovery("sensor", sensor_uid, json_str);
+            cJSON_free(json_str);
             cJSON_Delete(root);
-            return;
         }
-        publish_discovery("sensor", sensor_uid, json_str);
-        cJSON_free(json_str);
-        cJSON_Delete(root);
-    }
 
-    // Button for toggle
-    {
-        cJSON *root = cJSON_CreateObject();
-        cJSON_AddStringToObject(root, "name", display_name);
-        cJSON_AddStringToObject(root, "command_topic", command_topic);
-        cJSON_AddStringToObject(root, "payload_press", "TOGGLE");
-        cJSON_AddStringToObject(root, "unique_id", button_uid);
-        cJSON_AddStringToObject(root, "object_id", button_uid);
-        cJSON_AddStringToObject(root, "availability_topic", avail_topic);
-        cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
+        // Button for toggle
+        {
+            cJSON *root = cJSON_CreateObject();
+            cJSON_AddStringToObject(root, "name", display_name);
+            cJSON_AddStringToObject(root, "command_topic", command_topic);
+            cJSON_AddStringToObject(root, "payload_press", "TOGGLE");
+            cJSON_AddStringToObject(root, "unique_id", button_uid);
+            cJSON_AddStringToObject(root, "object_id", button_uid);
+            cJSON_AddStringToObject(root, "availability_topic", avail_topic);
+            cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
 
-        char *json_str = cJSON_PrintUnformatted(root);
-        if (!json_str) {
-            ESP_LOGE(TAG, "Failed to print channel button discovery JSON");
+            char *json_str = cJSON_PrintUnformatted(root);
+            if (!json_str) {
+                ESP_LOGE(TAG, "Failed to print channel button discovery JSON");
+                cJSON_Delete(root);
+                return;
+            }
+            publish_discovery("button", button_uid, json_str);
+            cJSON_free(json_str);
             cJSON_Delete(root);
-            return;
         }
-        publish_discovery("button", button_uid, json_str);
-        cJSON_free(json_str);
-        cJSON_Delete(root);
-    }
 
-    // Binary sensor for active state
-    {
-        char active_name[80];
-        snprintf(active_name, sizeof(active_name), "%s Active", display_name);
+        // Binary sensor for active state
+        {
+            char active_name[80];
+            snprintf(active_name, sizeof(active_name), "%s Active", display_name);
 
-        cJSON *root = cJSON_CreateObject();
-        cJSON_AddStringToObject(root, "name", active_name);
-        cJSON_AddStringToObject(root, "state_topic", state_topic);
-        cJSON_AddStringToObject(root, "value_template", "{{ 'ON' if value_json.active else 'OFF' }}");
-        cJSON_AddStringToObject(root, "unique_id", active_uid);
-        cJSON_AddStringToObject(root, "object_id", active_uid);
-        cJSON_AddStringToObject(root, "availability_topic", avail_topic);
-        cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
+            cJSON *root = cJSON_CreateObject();
+            cJSON_AddStringToObject(root, "name", active_name);
+            cJSON_AddStringToObject(root, "state_topic", state_topic);
+            cJSON_AddStringToObject(root, "value_template", "{{ 'ON' if value_json.active else 'OFF' }}");
+            cJSON_AddStringToObject(root, "unique_id", active_uid);
+            cJSON_AddStringToObject(root, "object_id", active_uid);
+            cJSON_AddStringToObject(root, "availability_topic", avail_topic);
+            cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
 
-        char *json_str = cJSON_PrintUnformatted(root);
-        if (!json_str) {
-            ESP_LOGE(TAG, "Failed to print channel active binary sensor discovery JSON");
+            char *json_str = cJSON_PrintUnformatted(root);
+            if (!json_str) {
+                ESP_LOGE(TAG, "Failed to print channel active binary sensor discovery JSON");
+                cJSON_Delete(root);
+                return;
+            }
+            publish_discovery("binary_sensor", active_uid, json_str);
+            cJSON_free(json_str);
             cJSON_Delete(root);
-            return;
         }
-        publish_discovery("binary_sensor", active_uid, json_str);
-        cJSON_free(json_str);
-        cJSON_Delete(root);
     }
 
     // Number for the configured power estimate (Watts). 0 = unset — either
@@ -604,7 +607,7 @@ static void publish_channel_discovery(const char *device_id, const char *mac_suf
                  "pool/%s/channel/%d/power/set", device_id, channel_num);
 
         char power_uid[80];
-        snprintf(power_uid, sizeof(power_uid), DISCOVERY_ID_PREFIX "_%s_ch%d_power", mac_suffix, channel_num);
+        snprintf(power_uid, sizeof(power_uid), DISCOVERY_ID_PREFIX "_%s_ch%d_config_power", mac_suffix, channel_num);
 
         char power_name[96];
         snprintf(power_name, sizeof(power_name), "%s Configured Power", display_name);
@@ -1103,7 +1106,7 @@ void mqtt_publish_chlor_output_level_discovery_single(void) { publish_single(pub
 void mqtt_publish_pump_discovery_single(void)              { publish_single(publish_pump_discovery); }
 void mqtt_publish_service_mode_discovery_single(void)      { publish_single(publish_service_mode_discovery); }
 
-void mqtt_publish_channel_discovery_single(int channel_num, const char *channel_name)
+void mqtt_publish_channel_discovery_single(int channel_num, const char *channel_name, bool include_state_entities)
 {
     char device_id[32];
     mqtt_get_device_id(device_id, sizeof(device_id));
@@ -1112,7 +1115,7 @@ void mqtt_publish_channel_discovery_single(int channel_num, const char *channel_
     device_get_mac_suffix(mac_suffix, sizeof(mac_suffix));
 
     ESP_LOGI(TAG, "Publishing discovery for channel %d: %s", channel_num, channel_name);
-    publish_channel_discovery(device_id, mac_suffix, channel_num, channel_name);
+    publish_channel_discovery(device_id, mac_suffix, channel_num, channel_name, include_state_entities);
 }
 
 void mqtt_publish_light_discovery_single(int zone_num, const char *zone_name, uint8_t multicolor_light_type)

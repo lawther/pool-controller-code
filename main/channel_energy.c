@@ -33,12 +33,7 @@ static void channel_energy_task(void *arg)
         for (uint8_t ch = 1; ch <= MAX_CHANNELS; ch++) {
             const channel_state_t *channel = &snapshot.channels[ch - 1];
 
-            // Heater/light-zone channels are published through their own
-            // paths (never given power/energy discovery entities) — skip
-            // them here to match.
-            if (!channel->configured ||
-                channel->type == CHANNEL_TYPE_HEATER ||
-                channel->type == CHANNEL_TYPE_LIGHT_ZONE) {
+            if (!channel->configured) {
                 continue;
             }
 
