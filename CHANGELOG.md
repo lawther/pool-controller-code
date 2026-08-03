@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 ### Changed
+- Energy sensors now publish every 5 minutes instead of every 10 seconds, which was flooding Home Assistant's event log and recorder database with rows carrying no extra information. The accumulator still samples power every 10 seconds, so totals are unchanged; 5 minutes matches HA's long-term statistics resolution. A channel also publishes one final value on the sample where it stops drawing, so a run's total lands in the right time bucket
 - The Filter channel's power sensor now updates as soon as pump telemetry arrives, instead of waiting for the channel's next state broadcast.
 - A channel's configured power number is now labelled "Power: Filter (ignored: smart pump)" while the channel's own device reports real wattage, since the configured estimate is ignored in that case. It stays editable, and the suffix goes away if the reading does.
 ### Fixed
