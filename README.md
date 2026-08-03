@@ -10,89 +10,119 @@
 Code to listen on and control a Connect 10 pool controller.  I created it as a learning project and happy to collaborate with people who find it useful.
 This has been created by listening to the communications on the control bus, and decoding the instructions by trial and error.
 
-## Core components
+An ESP32-C6 daisy-chains into the Connect 10's RJ12 bus, decodes the traffic, and bridges it to Home Assistant over MQTT — giving you the pool's state and controls alongside the rest of your home automation.
+
+**Note** this is **not an official product** and does not come with support or any warranty and it is NOT connected to or supported by Fluidra.
+
+## Contents
+
+- [What It Does](#what-it-does)
+- [Hardware](#hardware)
+- [Setup](#setup) — connect, provision WiFi, connect Home Assistant
+- [Power and Energy Monitoring](#power-and-energy-monitoring)
+- [Web Interface](#web-interface)
+- [Bus Debugging](#bus-debugging) — TCP port, decoder testing, message counters
+- [Architecture](#architecture)
+- [Development](#development) — building, tests, releases, installer
+- [Related Documentation](#related-documentation)
+
+## What It Does
+
+Tested as working:
+
+**Reads from the bus**
+- Water temperature ✅
+- Channel, light and heater configuration ✅
+- Timers ✅
+- ORP/pH settings ✅
+- Config/state for the Internet Gateway ✅
+- Touchscreen and Internet Gateway firmware versions ✅
+- Pump speed and power from a Viron XT variable-speed pump ✅
+- Auto-requests missing timer and light config when the Internet Gateway is absent ✅
+
+**Controls**
+- Lights — state, colour, zone name, multicolor capability ✅
+- Channels — toggle On/Auto/Off ✅
+- Heater on/off ✅
+- Temperature set points for pool and spa ✅
+- Pool/Spa mode ✅
+- Valves ✅
+
+**Beyond the bus**
+- Home Assistant integration over MQTT, with auto-discovery ✅
+- [Power and energy tracking](#power-and-energy-monitoring) per channel, for Home Assistant's Energy dashboard ✅
+- Over-the-air firmware updates from GitHub releases ✅
+
+## Hardware
+
 1. [Controller code (this repo)](https://github.com/marklynch/pool-controller-code)
 2. [Circuit and PCB design](https://github.com/marklynch/pool-controller-pcb)
 3. ESP32-C6 - It's been designed around the [Waveshare ESP32-C6 Mini Development Board ](https://core-electronics.com.au/esp32-c6-mini-development-board-wifi6-bluetooth5.html)
 4. [Case for Pool Controller](https://github.com/marklynch/pool-controller-case)
 
-**Note** this is **not an official product** and does not come with support or any warranty.  Note it is NOT connected to or supported by Fluidra.
-
-## Current Status
-
-Tested as working:
-- Lights work fully — state, colour, zone name, multicolor capability ✅
-- Pool/Spa mode works ✅
-- Temperature set points for pool and spa work ✅
-- Heater on/off works ✅
-- Channel switching working - toggle On/Auto/Off ✅
-- Valves reading and switching working ✅
-- Reading of timers ✅
-- Reading of ORP/PH settings ✅
-- Reading of water temperature ✅
-- Reading config for channels, lights and heater ✅
-- Reading of config/state for Internet Gateway ✅
-- Reading of touchscreen and Internet Gateway firmware versions ✅
-- Auto-requests missing timer and light config when Internet Gateway is absent ✅
-
-
-## Getting Started
-
-The device has three connectors:
+The assembled device has three connectors:
 
 - **2 × RJ12 sockets** — for the pool control bus. Use a standard flat RJ12 cable to connect either socket to your Connect 10 system; this also powers the device. The two sockets are wired in parallel, so the second one can be used to daisy-chain another device (e.g. another controller, gateway, or accessory) on the same bus.
 - **1 × USB-C socket** — for manually flashing firmware and serial monitoring from a computer. It is **not** required for normal operation.
 
+## Setup
+
+### 1. Connect and power the device
+
 If the device hasn't been flashed yet, the quickest route is the [web installer](https://marklynch.github.io/pool-controller-code/) — plug the board into a computer over USB-C and flash the latest release from Chrome or Edge, no toolchain needed. After that, updates arrive over-the-air.
 
-To bring the device online for the first time:
+Then plug a flat RJ12 cable from the Connect 10 into either RJ12 socket. This both connects the device to the pool bus and powers it. Wait for the LED to turn **purple**, which means it's in provisioning mode and ready for WiFi setup.
 
-1. Plug a flat RJ12 cable from the Connect 10 into either RJ12 socket on the device. This both connects it to the pool bus and powers it. (Optional: run a second cable from the other RJ12 socket to daisy-chain the next device on the bus.)
-2. Wait for the LED to turn **purple**, which indicates the device is in provisioning mode and ready for WiFi setup (see [Initial Wifi Provisioning](#initial-wifi-provisioning) below).
-
-## Initial Wifi Provisioning
+### 2. Provision WiFi
 
 1. When the LED is **purple**, the device is in provisioning mode.
-2. On your phone, connect to the WiFi network named **`POOL_AABBCC`** (e.g. `POOL_A1B2C3`) — the `AABBCC` suffix is unique to each device. The password is **`poolsetup`**.
+2. On your phone, connect to the WiFi network named **`POOL_AABBCC`** (e.g. `POOL_A1B2C3`) — the `AABBCC` suffix is the last 3 bytes of the device's MAC address, unique to each device. The password is **`poolsetup`**.
 3. In your phone's browser navigate to **http://192.168.4.1** and choose your WiFi network and enter the password.
-4. The device will save the credentials and restart. The LED will turn white then green once connected.
+4. The device will save the credentials to the device and restart. The LED will turn white then green once connected.
 
-Once on your network the device is accessible at **`http://poolcontrol-AABBCC.local`** — using the same `AABBCC` suffix as the AP you provisioned through (e.g. `http://poolcontrol-A1B2C3.local`).
+Once on your network the device is accessible at **`http://poolcontrol-AABBCC.local`** — the same `AABBCC` suffix as the AP you provisioned through, so `POOL_A1B2C3` becomes `http://poolcontrol-A1B2C3.local`. That hostname is used throughout the rest of this document.
 
 **Note:** If the wrong password is entered the device will retry for about 30 seconds then return to provisioning mode.
 
 **Note:** To re-provision, erase the flash ("Erase Flash Memory from device" in your IDE) to clear the saved credentials.
 
-## Visual Feedback (LED Status):
+### 3. Connect Home Assistant
 
-### Persistent States (Solid Colors)
-* **Blue** - Startup (brief, during boot)
-* **Purple** - Unconfigured (no WiFi credentials, provisioning mode active)
-* **White** - WiFi connected, waiting for MQTT connection
-* **Green** - Fully operational (WiFi + MQTT connected) ✓
-* **Orange** - MQTT disconnected (WiFi ok, MQTT issue)
+Home Assistant is the main interface to the device. Point it at your MQTT broker:
 
-### Activity Indicators (Brief Flashes)
-* **Cyan flash** - RJ12 data received (RX)
-* **Magenta flash** - RJ12 data transmitted (TX)
+1. Browse to **`http://poolcontrol-AABBCC.local/mqtt_config`**.
+2. Tick **Enable MQTT**, then fill in **Broker Host/IP** and **Port** (1883 unless you've changed it). **Username** and **Password** are optional — leave them empty if your broker doesn't require them.
+3. Save. The LED turns **green** once the broker connects.
 
-### Boot Flow Examples
+The device publishes Home Assistant MQTT discovery configs on every connect, so the entities appear by themselves — no YAML. You'll get the pool's temperatures, channels, lights, heaters, valves and chlorinator readings, plus buttons for reboot, firmware update and entity reset.
 
-**First Boot (No WiFi):**
-1. Blue (startup)
-2. Purple (unconfigured - connect to AP)
-3. Connect to AP → Configure WiFi → Device restarts
+Two things are worth doing next:
 
-**Normal Boot (WiFi Configured):**
-1. Blue (startup)
-2. White (WiFi connected)
-3. Green (MQTT connected) ✓
+- Enter wattages for your equipment so the power and energy sensors come to life — see [Power and Energy Monitoring](#power-and-energy-monitoring).
+- Check the **Firmware** update entity, which offers over-the-air updates straight from GitHub releases — see [OTA_UPDATE.md](OTA_UPDATE.md).
 
-**MQTT Connection Issue:**
-1. Blue (startup)
-2. White (WiFi connected)
-3. Orange (MQTT failed to connect)
+### LED status reference
 
+**Persistent states (solid colors)**
+
+- **Blue** - Startup (brief, during boot)
+- **Purple** - Unconfigured (no WiFi credentials, provisioning mode active)
+- **White** - WiFi connected, waiting for MQTT connection
+- **Green** - Fully operational (WiFi + MQTT connected) ✅
+- **Orange** - MQTT disconnected (WiFi ok, MQTT issue)
+
+**Activity indicators (brief flashes)**
+
+- **Cyan flash** - RJ12 data received (RX)
+- **Magenta flash** - RJ12 data transmitted (TX)
+
+**Boot flow examples**
+
+| First boot (no WiFi) | Normal boot | MQTT connection issue |
+|---|---|---|
+| Blue (startup) | Blue (startup) | Blue (startup) |
+| Purple (connect to AP) | White (WiFi connected) | White (WiFi connected) |
+| Configure WiFi → restart | Green (MQTT connected) ✅ | Orange (MQTT failed) |
 
 ## Power and Energy Monitoring
 
@@ -148,18 +178,33 @@ Two things worth knowing:
 
 Accuracy is only as good as the numbers entered. For anything on the bus with real telemetry the figures are exact; for everything else they're a nameplate rating multiplied by the time the channel was active.
 
-## TCP Debug Connection (Port 7373)
+## Web Interface
+
+The device serves a small web UI and JSON API at `http://poolcontrol-AABBCC.local`:
+
+| Path | What it is |
+|------|------------|
+| `/` | Home page — system summary, hostname, message counters |
+| `/status_view` | Human-readable pool state |
+| `/status` | The same state as JSON, plus firmware version and [message counters](#message-counters) |
+| `/mqtt_config` | Broker settings — see [Setup step 3](#3-connect-home-assistant) |
+| `/update` | Firmware update — check/install from GitHub, or upload a `.bin` manually |
+| `/unknown_msgs_view` | Bus messages the decoder has no handler for, with a button to clear the buffer |
+| `/unknown_msgs` | The same buffer as JSON |
+| `/api/test_decode` | POST a hex frame to run it through the decoder — see [Testing message decoding](#testing-message-decoding) |
+| `/reboot`, `/ha-reset` | POST endpoints behind the Reboot and Reset entities buttons on the update page |
+
+`/wifi`, `/scan` and `/provision` are served only in provisioning mode, and are covered by [Setup step 2](#2-provision-wifi).
+
+## Bus Debugging
+
+### TCP debug port 7373
 
 The device exposes a raw TCP server on port 7373 that streams all bus traffic as hex and forwards any bytes you send back onto the bus. It also mirrors the device's log output, so you can monitor activity without a USB cable.
 
-Each device gets a unique mDNS hostname derived from the last 3 bytes of its MAC address:
-`poolcontrol-AABBCC.local` — where `AABBCC` matches the suffix of the provisioning AP name (`POOL_AABBCC`).
+Connect to it at the device's hostname — `poolcontrol-A1B2C3.local` for a device provisioned via `POOL_A1B2C3`.
 
-For example, if you provisioned via the `POOL_A1B2C3` network, the device will be accessible at `poolcontrol-A1B2C3.local`.
-
-### Mac / Linux
-
-Use `nc` (netcat), which is installed by default:
+**Mac / Linux** — use `nc` (netcat), which is installed by default:
 
 ```bash
 nc poolcontrol-A1B2C3.local 7373
@@ -181,32 +226,13 @@ To send a raw command to the bus, type the bytes as a hex string and press Enter
 02 00 F0 00 50 80 00 39 0F 0E E7 01 00 00 03
 ```
 
-### Windows
+**Windows** — three options:
 
-**Option 1 — PuTTY (recommended)**
+1. **PuTTY (recommended)** — [download it](https://www.chiark.greenend.org.uk/~sgtatham/putty/latest.html), set **Connection type** to **Raw**, enter `poolcontrol-A1B2C3.local` as the host and `7373` as the port, then click **Open**.
+2. **Telnet** — if the client is enabled (Control Panel → Programs → Turn Windows features on/off → Telnet Client): `telnet poolcontrol-A1B2C3.local 7373`
+3. **WSL** — use `nc` exactly as on Mac/Linux.
 
-1. Download [PuTTY](https://www.chiark.greenend.org.uk/~sgtatham/putty/latest.html) if you don't have it.
-2. Set **Connection type** to **Raw**.
-3. Enter `poolcontrol-A1B2C3.local` as the host and `7373` as the port.
-4. Click **Open**.
-
-**Option 2 — Telnet**
-
-If the Telnet client is enabled (Control Panel → Programs → Turn Windows features on/off → Telnet Client):
-
-```cmd
-telnet poolcontrol-A1B2C3.local 7373
-```
-
-**Option 3 — Windows Subsystem for Linux (WSL)**
-
-If WSL is installed, use `nc` exactly as on Mac/Linux:
-
-```bash
-nc poolcontrol-A1B2C3.local 7373
-```
-
-## Testing Message Decoding
+### Testing message decoding
 
 You can test individual messages against the decoder using the HTTP API endpoint:
 
@@ -241,7 +267,7 @@ I (12345) MSG_DECODER: [Controller -> Broadcast] Lighting zone 1 state - On
 
 This allows you to quickly test message patterns and verify decoder behavior without needing to send messages to the actual bus.
 
-## Message Counters
+### Message counters
 
 The device keeps global counters of all bus traffic, shown in the **Messages** row of the home page and in the `/status` JSON:
 
@@ -282,53 +308,7 @@ The three buckets are exclusive: `decoded + unknown + errors` equals the total t
 
 The frame-reassembly counters count discard *events*, not messages: a single corrupt stretch can increment `bad_control` once per stray `0x02` it contains, and `no_start_byte` counts whole-buffer discards. Treat them as bus-corruption indicators rather than exact message counts.
 
-## Host-based Tests
-
-The decoder can be exercised on the host (no device required) by replaying captured log files through `message_decoder.c`. Each `RX MSG: <hex>` line in a sample is fed into `decode_message()`, and the captured ESP_LOG output is diffed against the `MSG_DECODER:` lines that follow in the file (timestamps ignored). This catches behaviour drift between a captured trace and the current decoder.
-
-### Running
-
-```bash
-bash test/run_tests.sh
-```
-
-Builds and runs every `test/test_*.c` (except the skip list — see top of `run_tests.sh`), then replays every `*.txt` under `test/samples/`.
-
-From VS Code inside the devcontainer: **Cmd+Shift+P → "Tasks: Run Task"** lists:
-
-- **Run Tests** — full suite (unit + replay).
-- **Replay: all samples** — just the replay step.
-- **Replay: bless all samples** — rewrite expected output in every sample using the current decoder's output. Use after intentional decoder/logging changes, then review `git diff test/samples/` before committing.
-- **Replay: single file** / **Replay: bless single file** — same but prompted for a single path.
-- **Framing: run** — exercise the sliding-window frame parser against the goldens in `test/frames/`.
-- **Framing: bless goldens** — regenerate `test/frames/*_output.txt` from the current parser. Use after intentional framing changes, then review `git diff test/frames/` before committing.
-
-### Adding a regression sample
-
-1. Capture bus traffic into a log file (e.g. via the TCP debug port or `idf.py monitor`).
-2. Drop the file into `test/samples/`.
-3. Run **Replay: bless single file** against it — this normalises the expected output to the current decoder.
-4. Review with `git diff`, then commit. The file is now a regression test.
-
-### Frame parser (sliding window) tests
-
-The frame parser is tested separately from the decoder: each line of `test/frames/observed_error_frames.txt` (real bus captures) and `test/frames/synthetic_errors.txt` (synthetic, one per failure mode) is fed to the parser, and the ordered stream of resync events (`Resync:  <type>`) and decoded frames is diffed against the matching `--- Case N ---` block in the `*_output.txt` golden. On a mismatch the failure prints the source location as `path:line`.
-
-The goldens are blessable from the CLI, mirroring replay:
-
-```bash
-cd test
-gcc -I. -I.. -o run_framing test_framing.c log_capture.c && ./run_framing --bless; rm -f run_framing
-```
-
-After blessing, review `git diff test/frames/` — the diff is the exact record of how parser behaviour changed.
-
-### Improving "Unhandled" message logging
-
-When the decoder gains support for a previously-unknown command, replaying old samples surfaces it as a mismatch (e.g. `Unhandled CMD=0xXX` → real decode). Bless the affected samples and the diff in git is the exact documentation of what improved.
-
-
-## General architecture
+## Architecture
 
 ```mermaid
 flowchart TD
@@ -400,22 +380,32 @@ flowchart TD
     MQTTSub <-->|MQTT over WiFi| HA
 ```
 
-The system consists of an ESP32 C6 module that can be daisy chained into an existing connect 10 system via a RJ12 connection.
+An ESP32-C6 module daisy-chains into an existing Connect 10 system over RJ12, which both carries the bus and powers it. The bus interface hands raw UART bytes to the message decoder, which updates a mutex-protected pool state; that state is what the MQTT publishers and web handlers read from. Commands travel the other way — from Home Assistant or a TCP client — back onto the bus.
 
-It sets up a WiFi AP called `POOL_AABBCC` (where `AABBCC` is the last 3 bytes of the device's MAC address). Connecting to that AP and navigating to `192.168.4.1` opens the provisioning page. Once configured and on your network, the device is accessible at `poolcontrol-AABBCC.local` using the same suffix.
+Each box in the diagram is a module in `main/`, named after it — `bus.c`, `message_decoder.c`, `pool_state.c`, `tcp_bridge.c`, `register_requester.c`, `web_handlers.c`, `led_helper.c`, and the `mqtt_*.c` set.
 
-It uses MQTT to connect and publish information and receive information from Home Assistant.
+## Development
 
-## Building and Flashing
+### Building and flashing
 
-This project uses ESP-IDF v5.5+. See `CLAUDE.md` for build commands and architecture details.
+This project uses ESP-IDF v5.5+ with the environment sourced (`. $IDF_PATH/export.sh`).
 
 ```bash
 idf.py build          # Build the project
 idf.py flash monitor  # Flash to device and monitor output
 ```
 
-## Releases
+### Tests
+
+The decoder is tested on the host — no device required — by replaying captured bus logs through `message_decoder.c` and diffing the output, alongside conventional unit tests:
+
+```bash
+bash test/run_tests.sh
+```
+
+See [docs/testing.md](docs/testing.md) for the VS Code tasks, how to add a regression sample, blessing goldens after an intentional decoder change, and the frame-parser tests.
+
+### Releases
 
 Releases are produced by a GitHub Actions workflow (`.github/workflows/build.yml`) that fires on any tag matching `v*`. To cut a release:
 
@@ -437,61 +427,13 @@ The published release appears at `https://github.com/marklynch/pool-controller-c
 
 To re-test the workflow without cutting a real release, run it manually from the Actions tab (Build & Release → Run workflow). Manual runs build the firmware and upload it as a workflow artifact but do not create a GitHub Release.
 
-## Web Installer
+### Web installer
 
-<https://marklynch.github.io/pool-controller-code/> flashes the latest release onto an ESP32-C6 straight from the browser using [ESP Web Tools](https://github.com/esphome/esp-web-tools) and Web Serial — no ESP-IDF toolchain, no esptool. It needs desktop Chrome or Edge; Safari, Firefox and mobile browsers have no Web Serial support and get a "flash manually" fallback instead.
+<https://marklynch.github.io/pool-controller-code/> flashes the latest release onto an ESP32-C6 from desktop Chrome or Edge, with no toolchain. The page source is in `installer/`, but the published site is assembled by `installer/build-site.sh` rather than served as-is.
 
-The page offers the **5 most recent releases** in a version picker, defaulting to the latest. Picking an older one shows a rollback warning. ESP Web Tools reads the manifest at click time, so switching versions just re-points the install button at that version's manifest.
+See [docs/installer.md](docs/installer.md) for how the site is built and deployed, why ESP Web Tools is vendored rather than loaded from a CDN, and how to preview it locally.
 
-The page source lives in `installer/`:
-
-- `installer/index.html` — the installer page. Static; it reads `versions.json` at runtime to build the picker, so it needs no build step.
-- `installer/app.js` — the page's script. Kept out of the HTML so the page's CSP can be `script-src 'self'` with no `'unsafe-inline'`.
-- `installer/manifest.template.json` — the ESP Web Tools manifest, with `__VERSION__` / `__BINARY__` placeholders stamped once per offered version.
-- `installer/build-site.sh` — assembles the deployable site.
-- `installer/preview.sh` — builds it and serves it locally.
-
-The published site is *not* these files as-is. `build-site.sh` queries the recent releases, downloads each `pool-controller-full-<tag>.bin`, and emits per-version manifests plus a `versions.json` index — none of which exist in the repo. Both the workflow and `preview.sh` call that one script, so a local preview is exactly what gets deployed. Serving the binaries same-origin rather than linking them from the releases keeps the flasher's fetch simple.
-
-Releases without a `pool-controller-full-*.bin` asset are skipped, and the script keeps looking further back until it has 5 usable ones. Change the count via the `INSTALLER_VERSIONS` env in `pages.yml`; at ~1.5 MB per binary, 5 versions is roughly a 7.5 MB site.
-
-A deploy always publishes the newest 5 releases regardless of which tag triggered it, so re-running an old tag's build can't roll the public installer back to that version.
-
-### Vendored flasher
-
-ESP Web Tools is **vendored into the site**, not loaded from a CDN. The page holds a live Web Serial port and writes a full flash image, so the JavaScript it loads decides which bytes reach the device — that code is pinned and verified rather than resolved at page load from a third-party origin. A floating `@10` CDN range would mean every visitor executing whatever was published to npm most recently, with no review and no deploy step in between.
-
-`build-site.sh` downloads the exact `EWT_VERSION` tarball from the npm registry, checks it against the registry's published `dist.integrity` hash pinned in `EWT_INTEGRITY`, and unpacks it to `ewt/`. A mismatch aborts the build. To upgrade, bump both:
-
-```bash
-curl -s https://registry.npmjs.org/esp-web-tools/<version> | jq -r .dist.integrity
-```
-
-then re-test flashing on real hardware before merging.
-
-With every asset same-origin, the page sets a `default-src 'none'` CSP allowing `script-src 'self'` and no external origins, so nothing off-origin can inject code into the flashing page.
-
-**One-time setup:** in Settings → Pages, set the source to **GitHub Actions**. Setting it to "Deploy from a branch" cannot work — that serves the sources raw, with no `manifest.json` and no binary, and the page fails with *"Failed to download manifest"*. (`installer/` is named that way rather than `docs/` precisely so it isn't offered as a branch publishing directory.)
-
-### Deploy triggers
-
-- **Tag builds** — `workflow_run` on Build & Release, filtered to tags. Not `release: published`: releases published with the built-in `GITHUB_TOKEN` (as `build.yml` does) don't trigger further workflow runs, so that trigger would silently never fire.
-- **Pushes to `main` touching `installer/`** — republishes the page against the current latest release.
-- **Manual** — Actions tab → Deploy Web Installer → Run workflow, also against the latest release.
-
-Runs of Build & Release that aren't tag builds show up as *skipped* here. That's expected: there's no release for them to publish.
-
-### Testing locally
-
-```bash
-./installer/preview.sh                                   # latest 5 releases
-./installer/preview.sh --limit 2                         # fewer, quicker to download
-./installer/preview.sh --bin build/pool-controller-full.bin --version dev
-```
-
-This serves the assembled site on <http://localhost:8000>, which counts as a secure context, so the flasher really works. Requires `gh` unless you pass `--bin`. Opening `installer/index.html` from disk does **not** work — `manifest.json` and `versions.json` are generated, and `file://` can't fetch them anyway.
-
-## Documentation
+## Related Documentation
 
 ### [PROTOCOL.md](PROTOCOL.md) — Bus Protocol Reference
 
@@ -515,3 +457,9 @@ Describes the OTA update system. Covers:
 - **Safety** — Image validation before write, boot confirmation required by new firmware, rollback after 3 failed boots
 - **Version information** — Version string generated from `git describe` (e.g. `v1.0.0-5-g870d65b`)
 - **Security notes** — No authentication on the update endpoints currently; see the doc for recommended production hardening
+
+### Also in this repo
+
+- [docs/testing.md](docs/testing.md) — running and extending the host-based test suite
+- [docs/installer.md](docs/installer.md) — how the web installer is built, vendored and deployed
+- [CHANGELOG.md](CHANGELOG.md) — release history
