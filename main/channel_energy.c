@@ -21,9 +21,11 @@ static const char *TAG = "CHANNEL_ENERGY";
 
 static double s_energy_kwh[MAX_CHANNELS];
 static double s_system_energy_kwh;
+static double s_pump_energy_kwh;
 
 // Per-channel: energy has been accumulated that hasn't been published yet.
 static bool s_energy_pending[MAX_CHANNELS];
+static bool s_pump_energy_pending;
 
 static void channel_energy_task(void *arg)
 {
@@ -66,7 +68,7 @@ static void channel_energy_task(void *arg)
             uint16_t watts = 0;
             if (!channel->configured ||
                 !channel_power_get_effective(&snapshot, ch, &watts)) {
-                watts = 0;  // Unconfigured, or no power source (telemetry or manual estimate)
+                watts = 0;  // Unconfigured channel, or no configured wattage
             }
 
             if (watts > 0) {
@@ -91,6 +93,30 @@ static void channel_energy_task(void *arg)
                 mqtt_publish_channel_energy(ch, s_energy_kwh[ch - 1]);
                 s_energy_pending[ch - 1] = false;
             }
+        }
+
+        // The pump meters itself, so it accumulates on its own rather than
+        // through the channel that switches it — the Filter channel's
+        // configured estimate covers whatever else is wired to that channel,
+        // and folding the two together would leave no way to have both.
+        // pump_power_watts_valid gates this: the pump also sends speed-only
+        // telemetry, which never populates pump_power_watts. The decoder
+        // zeroes the reading when the Filter channel goes inactive (the pump
+        // loses power without broadcasting a final 0), so a run ends here the
+        // same way a channel switching off does.
+        bool pump_drawing = snapshot.pump_power_watts_valid && snapshot.pump_power_watts > 0;
+        if (pump_drawing) {
+            s_pump_energy_kwh += (snapshot.pump_power_watts / 1000.0) * interval_hours;
+            ESP_LOGD(TAG, "Pump: %u W -> %.4f kWh cumulative",
+                     (unsigned)snapshot.pump_power_watts, s_pump_energy_kwh);
+            s_pump_energy_pending = true;
+        }
+        // Same publish rule as a channel: on the interval, plus one final
+        // value on the sample where it stops drawing. Nothing accumulated
+        // since the last publish means the total can't have moved.
+        if (s_pump_energy_pending && (publish_due || !pump_drawing)) {
+            mqtt_publish_pump_energy(s_pump_energy_kwh);
+            s_pump_energy_pending = false;
         }
 
         // System baseline: the idle draw that belongs to no channel. It has no

@@ -128,7 +128,7 @@ Two things are worth doing next:
 
 The Connect 10 doesn't meter power. The one exception is a Viron XT variable-speed pump, which broadcasts its real wattage on the bus — everything else (lights, heaters, blowers, cleaners) draws whatever it draws with nothing on the bus to say so.
 
-So the device works from **wattage estimates you enter**, one per channel, plus a system baseline. From those it derives a live power sensor and a cumulative energy sensor per channel, which can be added to Home Assistant's Energy dashboard under **Individual devices**.
+So the device works from **wattage estimates you enter**, one per channel, plus a system baseline. From those it derives a live power sensor and a cumulative energy sensor per channel, which can be added to Home Assistant's Energy dashboard under **Individual devices**. The pump reports itself, through its own pair of sensors.
 
 ### Configuring wattages
 
@@ -141,42 +141,43 @@ Everything is configured from Home Assistant — there's no power configuration 
 
 Values are in Watts (0–10000). Wattages are saved to NVS, so they survive reboots and firmware updates.
 
-**0 means unset.** A channel with no configured wattage and no telemetry has no way to report anything, so its power and energy sensors aren't created at all — the number entity is all you'll see. Enter a wattage and the pair appears; set it back to 0 and they're removed again. The same applies to the system baseline.
+**0 means unset.** A channel with no configured wattage has no way to report anything, so its power and energy sensors aren't created at all — the number entity is all you'll see. Enter a wattage and the pair appears; set it back to 0 and they're removed again. The same applies to the system baseline.
 
 Look at the equipment's nameplate for a figure, or measure it with a plug-in energy meter if you want better than a nameplate rating.
 
 ### How power is resolved
 
-For each channel, in order:
-
-1. **Real telemetry, if the device reports it.** Currently only the Filter channel, once a Viron XT variable-speed pump has broadcast an actual wattage. The configured estimate is then ignored, and the number entity is relabelled `Power: Filter (ignored: smart pump)` to say so. It stays editable — swap in a single-speed pump and the estimate takes over again on the next boot.
-2. **The configured estimate, gated on the channel's active state.** Active → the configured figure; inactive → 0 W. A channel in Auto that a timer hasn't switched on reads 0 W.
+A channel reports **its configured estimate, gated on the channel's active state**: active → the configured figure; inactive → 0 W. A channel in Auto that a timer hasn't switched on reads 0 W.
 
 The system baseline has no active state to gate on: if a baseline is configured, it's drawing, so it reports its configured figure continuously.
 
+**The pump is separate.** A Viron XT variable-speed pump reports its own measured watts through `Pump Power` and `Pump Energy`, not through the Filter channel that switches it. So `Power: Filter` covers only the rest of what's wired to that channel — a chlorinator, say — while the pump's real reading comes through on its own. The two never overlap, so both can be used at once. If nothing else shares the channel, leave `Power: Filter` at 0.
+
 ### Entities
 
-Created per channel once it has a power source, and for the system baseline once one is configured:
+Created per channel once it has a configured wattage, for the system baseline once one is configured, and for the pump once it broadcasts a wattage:
 
 | Entity | Type | Notes |
 |--------|------|-------|
 | `<name> Power` | Sensor, W | Live draw as resolved above. `device_class: power`, `state_class: measurement` |
 | `<name> Energy` | Sensor, kWh | Cumulative total, integrated on-device. `device_class: energy`, `state_class: total_increasing` |
+| `Pump Power` | Sensor, W | The pump's own metered draw, straight off the bus — no estimate involved |
+| `Pump Energy` | Sensor, kWh | Cumulative total, integrated on-device from the above |
 
-Entity IDs follow the usual scheme — `number.pool_control_<mac>_channel_5_configured_power`, `sensor.pool_control_<mac>_channel_5_power`, `sensor.pool_control_<mac>_channel_5_energy`, and `system_configured_power` / `system_power` / `system_energy` for the baseline.
+Entity IDs follow the usual scheme — `number.pool_control_<mac>_channel_5_configured_power`, `sensor.pool_control_<mac>_channel_5_power`, `sensor.pool_control_<mac>_channel_5_energy`, `system_configured_power` / `system_power` / `system_energy` for the baseline, and `pump_power` / `pump_energy` for the pump.
 
 Wattages can also be set over MQTT directly, by publishing a number to `pool/<device_id>/channel/<N>/power/set` or `pool/<device_id>/system/power/set`.
 
 ### Energy accumulation
 
-The device integrates each channel's effective power into a running kWh total itself, rather than leaving it to a Home Assistant Riemann sum helper. The accumulator samples every **10 seconds** and publishes every **5 minutes**, plus one final value on the sample where a channel stops drawing so a run's total lands in the right time bucket. Sampling and publishing are deliberately separate: 10 seconds keeps a channel toggling mid-interval from skewing the total, while publishing that fast would flood HA's event log and recorder database with rows carrying no new information.
+The device integrates each channel's effective power — and the pump's reported watts — into a running kWh total itself, rather than leaving it to a Home Assistant Riemann sum helper. The accumulator samples every **10 seconds** and publishes every **5 minutes**, plus one final value on the sample where a channel stops drawing so a run's total lands in the right time bucket. Sampling and publishing are deliberately separate: 10 seconds keeps a channel toggling mid-interval from skewing the total, while publishing that fast would flood HA's event log and recorder database with rows carrying no new information.
 
 Two things worth knowing:
 
 - **Don't add a Riemann sum helper over the Power sensors.** The Energy sensors already integrate the same readings, and feeding both to the Energy dashboard double-counts.
 - **Totals reset to 0 on reboot.** The accumulator lives in RAM only. `state_class: total_increasing` tells Home Assistant to treat the drop as a meter reset rather than negative consumption, so long-term statistics stay intact — history before the reboot is kept, and accumulation resumes from zero.
 
-Accuracy is only as good as the numbers entered. For anything on the bus with real telemetry the figures are exact; for everything else they're a nameplate rating multiplied by the time the channel was active.
+Accuracy is only as good as the numbers entered. The pump's figures are exact, since they come from the pump itself; everything else is a nameplate rating multiplied by the time the channel was active.
 
 ## Web Interface
 

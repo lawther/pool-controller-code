@@ -15,7 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- Added a "Pump Energy" sensor: the cumulative kWh a Viron XT variable-speed pump has drawn, integrated on-device from its own reported watts. It is the one energy figure on the device that comes from real metering rather than an estimate. Published once the pump has broadcast a wattage — a pump that only ever sends speed-only telemetry gets neither this nor "Pump Power"
 ### Changed
+- The pump's power is now reported independently again, through "Pump Power" and "Pump Energy", instead of being folded into the Filter channel's power sensor. Merging them meant a channel had one power source or the other, so an install with a chlorinator (or anything else) sharing the Filter channel could not account for it: the pump's reading always won and the configured estimate was ignored. The two are now separate — "Power: Filter" covers whatever else is wired to that channel, the pump reports itself, and neither includes the other's watts, so both can be used at once. Leave "Power: Filter" at 0 if nothing else shares the channel
+- A channel's configured power number is labelled "Power: <name>" again, without the "(ignored: smart pump)" suffix — the estimate is no longer overridden by pump telemetry, so it is never ignored
 ### Fixed
 ### Removed
 ### Deprecated

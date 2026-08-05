@@ -45,7 +45,11 @@ static bool s_power_fields_published[MAX_CHANNELS];
 static uint16_t s_last_configured_watts[MAX_CHANNELS];
 static bool s_last_power_watts_valid[MAX_CHANNELS];
 static uint16_t s_last_power_watts[MAX_CHANNELS];
-static bool s_last_power_from_telemetry[MAX_CHANNELS];
+
+// Whether the pump's discovery was last published with its power and energy
+// sensors. They only exist once the pump has broadcast a wattage — it also
+// sends speed-only telemetry — so a flip has to re-run discovery.
+static bool s_pump_discovery_with_power;
 
 // Display name each channel's discovery was last published with. Unique IDs
 // are stable (keyed on channel number only — see publish_channel_discovery),
@@ -368,34 +372,30 @@ void mqtt_publish_channel(const pool_state_t *current_state, uint8_t channel_id)
     uint16_t configured_watts = channel_power_get_configured(channel_id);
     uint16_t power_watts = 0;
     bool power_watts_valid = channel_power_get_effective(current_state, channel_id, &power_watts);
-    bool power_from_telemetry = channel_power_has_telemetry(current_state, channel_id);
 
     // Re-publish discovery if the display name changed since it was last
     // sent (e.g. the bus's channel-name broadcast arrived after an earlier
     // publish already used the type-name fallback). Unique IDs are stable
     // (channel number only), so this updates the entity's label in HA
     // in place rather than creating a duplicate. Also re-publish when the
-    // channel gains or loses a power source, since that decides whether the
-    // power and energy sensors exist at all, and when that source switches
-    // between device telemetry and the configured estimate, which decides
-    // whether the configured-power number is labelled as ignored.
+    // channel gains or loses a configured wattage, since that decides whether
+    // the power and energy sensors exist at all.
     if (s_discovery_published.channels[idx] &&
         (strcmp(s_channel_discovery_name[idx], display_name) != 0 ||
-         s_last_power_watts_valid[idx] != power_watts_valid ||
-         s_last_power_from_telemetry[idx] != power_from_telemetry)) {
+         s_last_power_watts_valid[idx] != power_watts_valid)) {
         s_discovery_published.channels[idx] = false;
     }
 
     // Publish discovery if this is the first time seeing this channel (or the name changed)
     if (!s_discovery_published.channels[idx]) {
         mqtt_publish_channel_discovery_single(channel_id, display_name, include_state_entities,
-                                              power_watts_valid, power_from_telemetry);
+                                              power_watts_valid);
         s_discovery_published.channels[idx] = true;
         strncpy(s_channel_discovery_name[idx], display_name, sizeof(s_channel_discovery_name[idx]) - 1);
         s_channel_discovery_name[idx][sizeof(s_channel_discovery_name[idx]) - 1] = '\0';
     }
 
-    // Check if anything changed (bus-observed state, or power config/telemetry)
+    // Check if anything changed (bus-observed state, or the power config)
     bool state_changed =
         !s_last_published_state.channels[idx].configured ||
         s_last_published_state.channels[idx].type != channel->type ||
@@ -403,14 +403,10 @@ void mqtt_publish_channel(const pool_state_t *current_state, uint8_t channel_id)
         s_last_published_state.channels[idx].active != channel->active ||
         strcmp(s_last_published_state.channels[idx].name, channel->name) != 0;
 
-    // The telemetry flag is included so a source switch always reaches the
-    // bookkeeping below. It re-runs discovery above, and leaving it unrecorded
-    // because nothing else moved would re-trigger that on every publish.
     bool power_changed =
         !s_power_fields_published[idx] ||
         s_last_configured_watts[idx] != configured_watts ||
         s_last_power_watts_valid[idx] != power_watts_valid ||
-        s_last_power_from_telemetry[idx] != power_from_telemetry ||
         (power_watts_valid && s_last_power_watts[idx] != power_watts);
 
     if (!state_changed && !power_changed) {
@@ -456,7 +452,6 @@ void mqtt_publish_channel(const pool_state_t *current_state, uint8_t channel_id)
     s_last_configured_watts[idx] = configured_watts;
     s_last_power_watts_valid[idx] = power_watts_valid;
     s_last_power_watts[idx] = power_watts;
-    s_last_power_from_telemetry[idx] = power_from_telemetry;
 
     ESP_LOGI(TAG, "Published channel %d: %s (%s)", channel_id, state_name, display_name);
 }
@@ -778,10 +773,16 @@ void mqtt_publish_pump(const pool_state_t *current_state)
         return;  // No change, skip publish
     }
 
-    // Publish discovery on first valid reading
-    if (current_state->pump_speed_valid && !s_discovery_published.pump) {
-        mqtt_publish_pump_discovery_single();
+    // Publish discovery on first valid reading, and again if the pump's power
+    // and energy sensors gain a source: a pump that has only sent speed-only
+    // telemetry so far has no wattage to report, so those two are retracted
+    // until the first 4-byte broadcast arrives.
+    bool with_power = current_state->pump_power_watts_valid;
+    if (current_state->pump_speed_valid &&
+        (!s_discovery_published.pump || s_pump_discovery_with_power != with_power)) {
+        mqtt_publish_pump_discovery_single(with_power);
         s_discovery_published.pump = true;
+        s_pump_discovery_with_power = with_power;
     }
 
     char device_id[32];
@@ -818,6 +819,25 @@ void mqtt_publish_pump(const pool_state_t *current_state)
     s_last_published_state.pump_power_watts_valid = current_state->pump_power_watts_valid;
 
     ESP_LOGI(TAG, "Published pump: speed_rpm=%d", current_state->pump_speed);
+}
+
+void mqtt_publish_pump_energy(double energy_kwh)
+{
+    char device_id[32];
+    mqtt_get_device_id(device_id, sizeof(device_id));
+
+    char topic[128];
+    snprintf(topic, sizeof(topic), "pool/%s/pump/energy/state", device_id);
+
+    cJSON *root = cJSON_CreateObject();
+    cJSON_AddNumberToObject(root, "energy_kwh", energy_kwh);
+    char *payload = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+
+    if (payload) {
+        mqtt_publish(topic, payload, 0, true);
+        free(payload);
+    }
 }
 
 // ======================================================

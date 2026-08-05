@@ -9,9 +9,8 @@
 // Load the per-channel configured wattage cache from NVS. Call once at boot.
 void channel_power_init(void);
 
-// Configured wattage for a channel (1-based). 0 means unset — either never
-// configured, or deliberately cleared because the channel's device reports
-// its own real power (see channel_power_get_effective).
+// Configured wattage for a channel (1-based). 0 means unset, so the channel
+// has nothing to report and its power and energy sensors aren't created.
 uint16_t channel_power_get_configured(uint8_t channel_id);
 
 // Persist a channel's configured wattage to NVS and update the cache.
@@ -26,19 +25,15 @@ uint16_t channel_power_get_system(void);
 // Persist the system baseline wattage to NVS and update the cache.
 esp_err_t channel_power_set_system(uint16_t watts);
 
-// True when a channel's power comes from the device's own telemetry rather
-// than the manually configured estimate — currently the Filter channel once
-// its variable-speed pump has broadcast an actual wattage. The configured
-// estimate is ignored while this holds, which is why discovery labels the
-// channel's power number accordingly.
-bool channel_power_has_telemetry(const pool_state_t *state, uint8_t channel_id);
-
-// Resolve the live power draw for a channel (1-based):
-//   1. Real device telemetry, when available, always wins (currently the
-//      Filter channel's Viron XT variable-speed pump reading).
-//   2. Otherwise the manually configured wattage, gated by active state.
-//   3. If neither applies (no telemetry and configured == 0), there is
-//      nothing to report — returns false.
+// Resolve the live power draw for a channel (1-based): the manually
+// configured wattage, gated by active state. Returns false when the channel
+// has no configured wattage (0), since there is then nothing to report.
+//
+// A channel covers only the equipment estimated against it. A device that
+// meters itself reports separately and is never folded in here — the Viron XT
+// variable-speed pump publishes its own power and energy sensors (see
+// mqtt_publish_pump / channel_energy), leaving the Filter channel's estimate
+// free to cover a chlorinator or anything else wired to the same channel.
 bool channel_power_get_effective(const pool_state_t *state, uint8_t channel_id, uint16_t *out_watts);
 
 #endif // CHANNEL_POWER_H

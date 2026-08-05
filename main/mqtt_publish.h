@@ -48,8 +48,15 @@ void mqtt_publish_light(const pool_state_t *current_state, uint8_t zone);
 // Publish chlorinator data (pH and ORP) from pool state
 void mqtt_publish_chlorinator(const pool_state_t *current_state);
 
-// Publish pump telemetry (speed/RPM) from pool state
+// Publish pump telemetry (speed/RPM and, when the pump reports it, watts)
+// from pool state
 void mqtt_publish_pump(const pool_state_t *current_state);
+
+// Publish the pump's cumulative energy (kWh) to pool/<id>/pump/energy/state.
+// Called periodically by channel_energy's accumulator task. The pump meters
+// itself, so this total is independent of the Filter channel's — that one
+// covers only what the channel's configured estimate accounts for.
+void mqtt_publish_pump_energy(double energy_kwh);
 
 // Publish valve state by number (1-based) from pool state
 void mqtt_publish_valve(const pool_state_t *current_state, uint8_t valve_num);
