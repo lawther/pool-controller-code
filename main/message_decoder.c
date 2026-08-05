@@ -3694,18 +3694,6 @@ static bool handle_pump_speed(
 
     if (ctx->enable_mqtt) {
         mqtt_publish_pump(&snapshot);
-
-        // The Filter channel's power sensor is fed by this telemetry
-        // (channel_power_get_effective), but nothing republishes that channel
-        // until its own state broadcast arrives, which would leave the power
-        // reading a broadcast behind the pump. Refresh it here — publishing is
-        // change-gated, so this is a no-op when the watts haven't moved.
-        for (uint8_t ch = 1; ch <= MAX_CHANNELS; ch++) {
-            const channel_state_t *channel = &snapshot.channels[ch - 1];
-            if (channel->configured && channel->type == CHANNEL_TYPE_FILTER) {
-                mqtt_publish_channel(&snapshot, ch);
-            }
-        }
     }
 
     return true;

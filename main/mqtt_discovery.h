@@ -35,17 +35,13 @@ void mqtt_publish_update_discovery_single(void);
 // redundant (and the toggle command isn't the correct way to control them
 // anyway). The configured-power number is still published either way — it's
 // how the user configures a wattage in the first place.
-// include_power_sensors: whether this channel currently has a power source
-// (channel_power_get_effective). False publishes a retraction for the power
-// and energy sensors instead of a config, so they don't sit at unknown on a
-// channel that can't report them; call again with true once a source appears.
-// power_from_telemetry: whether that source is the channel's own device rather
-// than the configured estimate (channel_power_has_telemetry). Marks the
-// configured-power number as ignored in its label, since nothing reads it
-// while the device reports real watts.
+// include_power_sensors: whether this channel has a configured wattage to
+// report from (channel_power_get_effective). False publishes a retraction for
+// the power and energy sensors instead of a config, so they don't sit at
+// unknown on a channel that can't report them; call again with true once one
+// is configured.
 void mqtt_publish_channel_discovery_single(int channel_num, const char *channel_name,
-                                           bool include_state_entities, bool include_power_sensors,
-                                           bool power_from_telemetry);
+                                           bool include_state_entities, bool include_power_sensors);
 
 // Publish the system baseline power entities (the "Power: System" number, plus
 // the power and energy sensors when include_power_sensors is true — same
@@ -90,7 +86,14 @@ void mqtt_publish_orp_discovery_single(void);
 void mqtt_publish_ph_setpoint_discovery_single(void);
 void mqtt_publish_orp_setpoint_discovery_single(void);
 void mqtt_publish_chlor_output_level_discovery_single(void);
-void mqtt_publish_pump_discovery_single(void);
 void mqtt_publish_service_mode_discovery_single(void);
+
+// Publish the pump entities: the speed sensor always, plus the power and
+// energy sensors when include_power_sensors is true. The pump meters itself,
+// so these are its own entities rather than being folded into the Filter
+// channel that switches it — that channel's configured estimate covers
+// whatever else shares the channel. False retracts the pair (same gating as a
+// channel's), for a pump that only ever broadcasts speed-only telemetry.
+void mqtt_publish_pump_discovery_single(bool include_power_sensors);
 
 #endif // MQTT_DISCOVERY_H

@@ -105,24 +105,6 @@ esp_err_t channel_power_set_system(uint16_t watts)
     return ESP_OK;
 }
 
-bool channel_power_has_telemetry(const pool_state_t *state, uint8_t channel_id)
-{
-    if (!state || channel_id < 1 || channel_id > MAX_CHANNELS) {
-        return false;
-    }
-
-    const channel_state_t *channel = &state->channels[channel_id - 1];
-
-    // Real device telemetry takes precedence over a manual estimate — but only
-    // once an actual power figure has been received. The pump also broadcasts
-    // speed-only telemetry (CMD 0x3B with a 2-byte payload), which sets
-    // pump_telemetry_seen without ever populating pump_power_watts; taking this
-    // branch on that alone would report a permanent 0 W and lock out the manual
-    // estimate with no way for the user to correct it.
-    return channel->type == CHANNEL_TYPE_FILTER &&
-           state->pump_telemetry_seen && state->pump_power_watts_valid;
-}
-
 bool channel_power_get_effective(const pool_state_t *state, uint8_t channel_id, uint16_t *out_watts)
 {
     if (channel_id < 1 || channel_id > MAX_CHANNELS || !out_watts) {
@@ -130,11 +112,6 @@ bool channel_power_get_effective(const pool_state_t *state, uint8_t channel_id, 
     }
 
     const channel_state_t *channel = &state->channels[channel_id - 1];
-
-    if (channel_power_has_telemetry(state, channel_id)) {
-        *out_watts = state->pump_power_watts;
-        return true;
-    }
 
     uint16_t configured = channel_power_get_configured(channel_id);
     if (configured == 0) {

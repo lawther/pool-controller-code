@@ -753,8 +753,7 @@ static void publish_mode_discovery(const char *device_id, const char *mac_suffix
 
 static void publish_channel_discovery(const char *device_id, const char *mac_suffix,
                                       int channel_num, const char *channel_name,
-                                      bool include_state_entities, bool include_power_sensors,
-                                      bool power_from_telemetry)
+                                      bool include_state_entities, bool include_power_sensors)
 {
     char avail_topic[128];
     char state_topic[128];
@@ -853,9 +852,8 @@ static void publish_channel_discovery(const char *device_id, const char *mac_suf
         }
     }
 
-    // Number for the configured power estimate (Watts). 0 = unset — either
-    // never configured, or deliberately cleared because this channel's
-    // device reports its own real power (see channel_power_get_effective).
+    // Number for the configured power estimate (Watts). 0 = unset, which
+    // leaves the channel with nothing to report (see channel_power_get_effective).
     {
         char power_command_topic[128];
         snprintf(power_command_topic, sizeof(power_command_topic),
@@ -864,15 +862,8 @@ static void publish_channel_discovery(const char *device_id, const char *mac_suf
         char power_uid[80];
         snprintf(power_uid, sizeof(power_uid), DISCOVERY_ID_PREFIX "_%s_ch%d_config_power", mac_suffix, channel_num);
 
-        // Say so in the label when the estimate is being ignored, rather than
-        // leaving a number that silently does nothing: the channel's device
-        // reports its own wattage, so channel_power_get_effective never reads
-        // this value. The number stays editable — the reading can go away (a
-        // pump swapped for a single-speed one, on the next boot), at which
-        // point the estimate takes over again and the suffix disappears.
         char power_name[96];
-        snprintf(power_name, sizeof(power_name), "Power: %s%s", display_name,
-                 power_from_telemetry ? " (ignored: smart pump)" : "");
+        snprintf(power_name, sizeof(power_name), "Power: %s", display_name);
 
         cJSON *root = cJSON_CreateObject();
         cJSON_AddStringToObject(root, "name", power_name);
@@ -901,8 +892,8 @@ static void publish_channel_discovery(const char *device_id, const char *mac_suf
         cJSON_Delete(root);
     }
 
-    // Power and energy sensors, only once the channel actually has a power
-    // source (real telemetry, or a configured estimate). Without one they
+    // Power and energy sensors, only once the channel actually has a
+    // configured wattage to work from. Without one they
     // could never report anything but unknown, so publishing them on a stock
     // install would just litter HA with dead entities. mqtt_publish_channel
     // re-runs discovery when the source appears or goes away, and the retract
@@ -917,9 +908,7 @@ static void publish_channel_discovery(const char *device_id, const char *mac_suf
         return;
     }
 
-    // Sensor for live power: real device telemetry when available (e.g. the
-    // Filter channel's variable-speed pump), else the configured estimate
-    // gated by active state.
+    // Sensor for live power: the configured estimate, gated by active state.
     {
         char power_sensor_uid[80];
         snprintf(power_sensor_uid, sizeof(power_sensor_uid), DISCOVERY_ID_PREFIX "_%s_ch%d_power_sensor", mac_suffix, channel_num);
@@ -1402,10 +1391,11 @@ static void publish_chlor_output_level_discovery(const char *device_id, const ch
 }
 
 // ======================================================
-// Pump Speed Sensor Discovery
+// Pump Sensor Discovery (speed, power, energy)
 // ======================================================
 
-static void publish_pump_discovery(const char *device_id, const char *mac_suffix)
+static void publish_pump_discovery(const char *device_id, const char *mac_suffix,
+                                   bool include_power_sensors)
 {
     char avail_topic[128];
     char state_topic[128];
@@ -1436,18 +1426,80 @@ static void publish_pump_discovery(const char *device_id, const char *mac_suffix
     cJSON_free(json_str);
     cJSON_Delete(root);
 
-    // The pump's power draw is reported by the Filter channel's power sensor,
-    // not by a sensor of its own. Only a Filter channel can drive a
-    // variable-speed pump, so an install with pump telemetry always has one,
-    // and channel_power_get_effective already hands that channel this exact
-    // reading — with an energy sensor integrating it into kWh for the Energy
-    // dashboard. A second Pump Power entity would carry the same watts under
-    // another name, inviting a double count for anyone integrating it
-    // themselves. Retract the config earlier firmware published so Home
-    // Assistant drops the entity instead of resurrecting it from the broker.
-    char uid_power[64];
-    snprintf(uid_power, sizeof(uid_power), DISCOVERY_ID_PREFIX "_%s_pump_power", mac_suffix);
-    remove_discovery("sensor", uid_power);
+    // Power and energy sensors, only once the pump has actually broadcast a
+    // wattage — it also sends speed-only telemetry (CMD 0x3B with a 2-byte
+    // payload), and a pump that only ever does that would leave both entities
+    // sitting at unknown. Same reasoning as the per-channel pair (see
+    // publish_channel_discovery), including the retraction that cleans them up
+    // if the source never appears.
+    char power_uid[64];
+    char energy_uid[64];
+    snprintf(power_uid, sizeof(power_uid), DISCOVERY_ID_PREFIX "_%s_pump_power", mac_suffix);
+    snprintf(energy_uid, sizeof(energy_uid), DISCOVERY_ID_PREFIX "_%s_pump_energy", mac_suffix);
+
+    if (!include_power_sensors) {
+        remove_discovery("sensor", power_uid);
+        remove_discovery("sensor", energy_uid);
+        return;
+    }
+
+    // The pump's own metered draw, reported independently of the Filter
+    // channel that switches it. The channel's configured estimate covers
+    // whatever else is wired to that channel (a chlorinator, say) and never
+    // includes these watts, so the two don't overlap.
+    {
+        cJSON *power_root = cJSON_CreateObject();
+        cJSON_AddStringToObject(power_root, "name", "Pump Power");
+        cJSON_AddStringToObject(power_root, "device_class", "power");
+        cJSON_AddStringToObject(power_root, "state_class", "measurement");
+        cJSON_AddStringToObject(power_root, "state_topic", state_topic);
+        cJSON_AddStringToObject(power_root, "value_template", "{{ value_json.power_watts }}");
+        cJSON_AddStringToObject(power_root, "unit_of_measurement", "W");
+        cJSON_AddStringToObject(power_root, "icon", "mdi:flash");
+        add_entity_ids(power_root, "sensor", mac_suffix, power_uid, "pump_power");
+        cJSON_AddStringToObject(power_root, "availability_topic", avail_topic);
+        cJSON_AddItemToObject(power_root, "device", build_device_cjson(device_id, mac_suffix));
+
+        char *power_json_str = cJSON_PrintUnformatted(power_root);
+        if (!power_json_str) {
+            ESP_LOGE(TAG, "Failed to print pump power discovery JSON");
+            cJSON_Delete(power_root);
+            return;
+        }
+        publish_discovery("sensor", power_uid, power_json_str);
+        cJSON_free(power_json_str);
+        cJSON_Delete(power_root);
+    }
+
+    // Cumulative kWh, integrated on-device from the pump's reported watts
+    // (see channel_energy.c) — the one energy figure on this device that
+    // comes from real metering rather than an estimate. RAM-only, so
+    // total_increasing lets HA treat the reboot reset as a meter reset.
+    {
+        char energy_state_topic[128];
+        snprintf(energy_state_topic, sizeof(energy_state_topic), "pool/%s/pump/energy/state", device_id);
+
+        cJSON *energy_root = cJSON_CreateObject();
+        cJSON_AddStringToObject(energy_root, "name", "Pump Energy");
+        cJSON_AddStringToObject(energy_root, "device_class", "energy");
+        cJSON_AddStringToObject(energy_root, "state_class", "total_increasing");
+        cJSON_AddStringToObject(energy_root, "unit_of_measurement", "kWh");
+        cJSON_AddStringToObject(energy_root, "state_topic", energy_state_topic);
+        cJSON_AddStringToObject(energy_root, "value_template", "{{ value_json.energy_kwh }}");
+        add_entity_ids(energy_root, "sensor", mac_suffix, energy_uid, "pump_energy");
+        cJSON_AddStringToObject(energy_root, "availability_topic", avail_topic);
+        cJSON_AddItemToObject(energy_root, "device", build_device_cjson(device_id, mac_suffix));
+
+        char *energy_json_str = cJSON_PrintUnformatted(energy_root);
+        if (!energy_json_str) {
+            ESP_LOGE(TAG, "Failed to print pump energy discovery JSON");
+            cJSON_Delete(energy_root);
+            return;
+        }
+        publish_discovery("sensor", energy_uid, energy_json_str);
+        cJSON_free(energy_json_str);
+        cJSON_Delete(energy_root);
+    }
 }
 
 static void publish_service_mode_discovery(const char *device_id, const char *mac_suffix)
@@ -1501,12 +1553,21 @@ void mqtt_publish_orp_discovery_single(void)               { publish_single(publ
 void mqtt_publish_ph_setpoint_discovery_single(void)       { publish_single(publish_ph_setpoint_discovery); }
 void mqtt_publish_orp_setpoint_discovery_single(void)      { publish_single(publish_orp_setpoint_discovery); }
 void mqtt_publish_chlor_output_level_discovery_single(void) { publish_single(publish_chlor_output_level_discovery); }
-void mqtt_publish_pump_discovery_single(void)              { publish_single(publish_pump_discovery); }
 void mqtt_publish_service_mode_discovery_single(void)      { publish_single(publish_service_mode_discovery); }
 
+void mqtt_publish_pump_discovery_single(bool include_power_sensors)
+{
+    char device_id[32];
+    mqtt_get_device_id(device_id, sizeof(device_id));
+
+    char mac_suffix[DEVICE_MAC_SUFFIX_LEN];
+    device_get_mac_suffix(mac_suffix, sizeof(mac_suffix));
+
+    publish_pump_discovery(device_id, mac_suffix, include_power_sensors);
+}
+
 void mqtt_publish_channel_discovery_single(int channel_num, const char *channel_name,
-                                           bool include_state_entities, bool include_power_sensors,
-                                           bool power_from_telemetry)
+                                           bool include_state_entities, bool include_power_sensors)
 {
     char device_id[32];
     mqtt_get_device_id(device_id, sizeof(device_id));
@@ -1516,8 +1577,7 @@ void mqtt_publish_channel_discovery_single(int channel_num, const char *channel_
 
     ESP_LOGI(TAG, "Publishing discovery for channel %d: %s", channel_num, channel_name);
     publish_channel_discovery(device_id, mac_suffix, channel_num, channel_name,
-                              include_state_entities, include_power_sensors,
-                              power_from_telemetry);
+                              include_state_entities, include_power_sensors);
 }
 
 void mqtt_publish_system_power_discovery_single(bool include_power_sensors)

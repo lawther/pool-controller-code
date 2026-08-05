@@ -3,7 +3,9 @@
 
 // Starts a low-priority background task that periodically integrates each
 // channel's effective power (channel_power_get_effective) over time into a
-// cumulative kWh total and publishes it as an HA energy sensor.
+// cumulative kWh total and publishes it as an HA energy sensor. The system
+// baseline and the pump get the same treatment — the pump from its own
+// reported watts, separately from the channel that switches it.
 //
 // The accumulator is RAM-only — it resets to 0 on reboot rather than being
 // checkpointed to NVS. That's a deliberate trade-off to avoid flash wear from
