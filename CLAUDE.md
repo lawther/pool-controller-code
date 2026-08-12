@@ -23,7 +23,8 @@ Requires ESP-IDF v5.5+ with environment sourced (`. $IDF_PATH/export.sh`).
 
 ### Core Modules (`main/` directory)
 
-- **main.c**: Application entry point, WiFi management, provisioning, HTTP/TCP server startup
+- **main.c**: Application entry point and startup sequencing. Startup does not block on the network — it waits a bounded `WIFI_STARTUP_WAIT_MS` for an address, then brings up the bus bridge and local services regardless
+- **wifi_provisioning.c/.h**: WiFi station lifecycle, reconnect backoff, mDNS, HTTP server startup, and the rescue portal. A supervisor task owns portal start/stop, since switching WiFi mode from the event-loop task can wedge it
 - **bus.c/.h**: UART bus interface — init, read, and hex-string send (`bus_init`, `bus_read`, `bus_send_message`)
 - **tcp_bridge.c/.h**: TCP server (port 7373) that bridges UART data to/from network clients
 - **message_decoder.c/.h**: Pattern-matching decoder for protocol messages
@@ -40,8 +41,8 @@ Requires ESP-IDF v5.5+ with environment sourced (`. $IDF_PATH/export.sh`).
 
 ### Key Components
 
-- **WiFi Station**: Connects to configured network, auto-reconnects with exponential backoff (max 5 retries)
-- **WiFi Provisioning**: SoftAP mode with web-based WiFi credential configuration at http://192.168.4.1
+- **WiFi Station**: Connects to configured network and reconnects indefinitely with capped exponential backoff. Stored credentials are never cleared automatically — an unreachable AP is not evidence they are wrong
+- **WiFi Provisioning**: Rescue portal (SoftAP) with web-based credential configuration at http://192.168.4.1. Runs in APSTA alongside a still-retrying station and is torn down once that connects, so it is never a terminal state. Raised when no credentials are stored, or after the grace period in `config.h` (shorter when the AP actively rejects the credentials)
 - **Bus Interface**: 9600 baud on GPIO1 (RX) / GPIO2 (TX), TX inverted for transistor-based bus interface; encapsulated in `bus.c`
 - **TCP Bridge**: Port 7373, forwards UART data as hex strings to clients, accepts hex string commands from clients
 - **Protocol Decoder**: Pattern-matching decoder using `memcmp()` for known message types
