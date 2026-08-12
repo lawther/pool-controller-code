@@ -43,9 +43,33 @@
 #define WIFI_PROV_SOFTAP_IP            "192.168.4.1"
 #define WIFI_PROV_SOFTAP_PASSWORD      "poolsetup"     // Default password for provisioning AP
 #define WIFI_PROV_SOFTAP_SSID_PREFIX   "POOL_"         // Prefix for SoftAP SSID (followed by MAC address)
-#define WIFI_MAX_RETRY_ATTEMPTS        10              // Max connection attempts before clearing credentials
-#define WIFI_RETRY_DELAY_MS            15000           // Delay between retry attempts
-#define WIFI_RESTART_DELAY_MS          1000            // Delay before restart after clearing credentials
+// WiFi reconnection. Stored credentials are the source of truth and are never
+// cleared automatically: an AP that is missing or rebooting (power outage, a
+// router firmware update, the controller booting faster than the router) says
+// nothing about whether they are correct. A device that has credentials retries
+// forever, stepping through this backoff table and then repeating its last
+// entry, so a multi-hour outage costs almost nothing and heals by itself.
+#define WIFI_RETRY_BACKOFF_MS          { 1000, 2000, 5000, 15000, 30000, 60000 }
+
+// Rescue portal. So credentials can still be changed when the network is
+// genuinely gone (new router, new password, device moved), the SoftAP is
+// brought up *alongside* a station that keeps retrying underneath it, and is
+// taken down again the moment the station connects — it is never terminal.
+// Repeated authentication failures are positive evidence of stale credentials,
+// so they surface the portal sooner than an AP that is merely unreachable.
+#define WIFI_RESCUE_PORTAL_DELAY_MS    (15 * 60 * 1000) // Unreachable AP: offline this long
+#define WIFI_RESCUE_PORTAL_AUTH_MS     (2 * 60 * 1000)  // Rejected credentials: offline this long
+#define WIFI_AUTH_FAIL_THRESHOLD       3                // Consecutive auth failures before the shorter delay applies
+
+// WiFi supervisor task — owns rescue-portal start/stop, since the WiFi mode
+// switch must not run in the event-loop task.
+#define WIFI_SUPERVISOR_INTERVAL_MS    1000
+#define WIFI_SUPERVISOR_STACK          4096
+#define WIFI_SUPERVISOR_PRIORITY       4
+
+// How long startup waits for an address before carrying on. Bounded so the bus
+// bridge and local services come up whether or not the network does.
+#define WIFI_STARTUP_WAIT_MS           15000
 
 // WiFi Scanning
 #define WIFI_SCAN_TIME_MIN_MS          100     // Minimum scan time per channel

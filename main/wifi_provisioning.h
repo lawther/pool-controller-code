@@ -3,14 +3,19 @@
 
 #include "esp_err.h"
 #include <stdbool.h>
+#include <stdint.h>
 #include <esp_http_server.h>
 
 // All provisioning constants are defined in config.h
 
 /**
- * Initialize WiFi and provisioning system
- * - If credentials exist: connects to WiFi in station mode
- * - If no credentials: starts SoftAP for provisioning
+ * Initialize WiFi, start the HTTP server and start the WiFi supervisor.
+ *
+ * Returns as soon as the station has been started — it does not wait for a
+ * connection. If credentials exist the station retries them indefinitely with
+ * a capped backoff; credentials are never cleared automatically. The
+ * supervisor raises the rescue portal if there are no credentials at all, or
+ * if the station stays offline past the grace period in config.h.
  *
  * @return ESP_OK on success
  */
@@ -26,9 +31,12 @@ esp_err_t wifi_provisioning_init(void);
 esp_err_t wifi_credentials_save(const char *ssid, const char *password);
 
 /**
- * Check if device is in provisioning mode
+ * Check if the rescue portal is up
  *
- * @return true if in provisioning mode (SoftAP active)
+ * The portal runs alongside a station that is still retrying the configured
+ * network, and is taken down automatically once that connection succeeds.
+ *
+ * @return true if the rescue portal (SoftAP) is active
  */
 bool wifi_is_provisioning_active(void);
 
@@ -55,10 +63,17 @@ const char* wifi_get_device_ip(void);
 const char* wifi_get_mdns_hostname(void);
 
 /**
- * Wait for WiFi connection
- * Blocks until WiFi is connected or provisioning is active
+ * Wait up to timeout_ms for a WiFi connection.
+ *
+ * Bounded on purpose: the bus bridge and the rest of the device must start
+ * whether or not the network is available. Returns early if the rescue portal
+ * comes up. The station keeps retrying in the background regardless of the
+ * result, so a false return is not terminal.
+ *
+ * @param timeout_ms maximum time to wait, in milliseconds
+ * @return true if WiFi connected within the timeout
  */
-void wifi_wait_for_connection(void);
+bool wifi_wait_for_connection(uint32_t timeout_ms);
 
 /**
  * Register HTTP server handle for web interface
