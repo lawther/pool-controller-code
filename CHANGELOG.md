@@ -15,6 +15,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+### Changed
+### Fixed
+### Removed
+### Deprecated
+### Security
+
+## [1.15.0] - 2026-08-16
+### Added
 - The WiFi station now retries a configured network forever, backing off 1s → 2s → 5s → 15s → 30s and then holding at 60s. Previously it gave up after 10 attempts at a fixed 15s interval, so roughly two and a half minutes of downtime was enough to end the attempt entirely
 ### Changed
 - The SoftAP is now a rescue portal rather than a destination. It runs in APSTA alongside a station that keeps retrying the configured network underneath it, and it is taken down automatically the moment that connection succeeds — so even a device that does surface the portal heals by itself when the network returns, with no visit to the pool equipment. It appears after 15 minutes offline, or after 2 minutes if the access point has actively rejected the stored credentials three times running (a changed password), which is the case where waiting helps nobody. A missing access point never shortens that wait, because a missing access point is what a router reboot looks like
@@ -22,9 +30,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - The controller no longer erases its own WiFi credentials during a network outage. After 10 failed reconnects it used to blank the stored SSID and password and reboot, which left it in SoftAP mode permanently and needing manual reprovisioning on site. Any outage past about two and a half minutes triggered it — a router firmware update, or a power cut where the controller finished booting before the router did. Stored credentials are now treated as the source of truth and are never cleared automatically: an access point that is missing or rebooting says nothing about whether they are correct
 - mDNS services are only registered on the first connection instead of on every reconnect, which matters now that reconnects are routine rather than terminal
-### Removed
-### Deprecated
-### Security
 
 ## [1.14.0] - 2026-08-05
 ### Added
