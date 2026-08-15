@@ -199,10 +199,15 @@ void app_main(void)
     // update entity's state; the check task itself waits for the network.
     firmware_update_init();
 
-    // Wait for WiFi connection or stay in provisioning mode
-    wifi_wait_for_connection();
-
-    // If we get here, WiFi is connected and HTTP server is running
+    // Give the network a brief chance to come up so the startup log can name
+    // the device's address, but never block on it: the bus bridge and the
+    // local services must run whether or not WiFi is available, and the
+    // station keeps retrying in the background either way.
+    if (wifi_wait_for_connection(WIFI_STARTUP_WAIT_MS)) {
+        ESP_LOGI(TAG, "WiFi connected - device IP: %s", wifi_get_device_ip());
+    } else {
+        ESP_LOGW(TAG, "WiFi not up yet - continuing startup without it");
+    }
 
     // Start NTP time sync
     esp_sntp_config_t sntp_config = ESP_NETIF_SNTP_DEFAULT_CONFIG(NTP_SERVER);
@@ -224,7 +229,6 @@ void app_main(void)
     esp_err_t bridge_err = tcp_bridge_start(&bridge_config);
     if (bridge_err == ESP_OK) {
         ESP_LOGI(TAG, "TCP bridge started on port %d", TCP_BRIDGE_PORT);
-        ESP_LOGI(TAG, "Device IP: %s", wifi_get_device_ip());
     } else {
         ESP_LOGE(TAG, "Failed to start TCP bridge: %s", esp_err_to_name(bridge_err));
     }
