@@ -4,6 +4,7 @@
 #include "mqtt_publish.h"
 #include "register_requester.h"
 #include "unknown_buffer.h"
+#include "filter_pump_type.h"
 #include "esp_log.h"
 #include <stdlib.h>
 #include <string.h>
@@ -134,8 +135,9 @@ static const char *MSG_TYPE_ICI_HEATER_TEMP_SETTING = "02 00 74 FF FF 80 00 17 0
 static const char *MSG_TYPE_CHLOR_STATUS_A = "02 00 90 FF FF 80 00 12 0D 2F";
 static const char *MSG_TYPE_CHLOR_STATUS_B = "02 00 84 FF FF 80 00 12 0D 23";
 
-// Chlorinator unicast to Touch screen (CMD 0x0F) — sets pump speed
-static const char *MSG_TYPE_CHLOR_SET_PUMP_MODE = "02 00 84 00 50 80 00 0F 0E 73";
+// Chlorinator pump control (CMD 0x0F) is dispatched source-agnostically in
+// dispatch_message() — see PROTOCOL.md command `0x0F`. Both the 0x0084 Viron
+// and 0x0081 VX 11S v3 chlorinators are confirmed sources.
 
 // VX 11S v3 Chlorinator CMD 0x12 status broadcast (meaning unknown; payload always 0x00 in captures)
 static const char *MSG_TYPE_VX11S_STATUS = "02 00 81 FF FF 80 00 12 0D 20";
@@ -332,16 +334,6 @@ const uint8_t* multicolor_light_color_codes(uint8_t light_type, int *count) {
             return NULL;
     }
 }
-
-// Channel state names
-const char *CHANNEL_STATE_NAMES[] = {
-    "Off",          // 0
-    "Auto",         // 1
-    "On",           // 2
-    "Low Speed",    // 3
-    "Medium Speed", // 4
-    "High Speed",   // 5
-};
 
 // Lighting state names
 const char *LIGHTING_STATE_NAMES[] = {
@@ -2506,14 +2498,14 @@ static bool handle_vx11s_status(
 }
 
 /**
- * Handler: Chlorinator set pump mode unicast
- * Pattern: "02 00 84 00 50 80 00 0F 0E 73"
- * Log-only — no pool_state update since the touch screen will talk to the pump,
- * and the pump will announce its own speed.
+ * Handler: Chlorinator pump control unicast (CMD 0x0F) — source-agnostic.
+ * Log-only — no pool_state update since the Touchscreen applies the state and
+ * broadcasts it back via CMD 0x0B, which is what we record.
  *
- * 2-byte payload: first byte is fixed 0x01 (purpose unknown),
- * second byte is pump mode/speed: 0x00=Off, 0x01=Auto, 0x02=Manual,
- * 0x03=Low, 0x04=Medium, 0x05=High.
+ * 2-byte payload: {1-based channel index, target state}. The state uses the
+ * CMD 0x0B Channel State code space (CHANNEL_STATE_NAMES), extended pump
+ * speeds included. Only pump-driven channels act on it; see PROTOCOL.md
+ * command `0x0F`.
  */
 static bool handle_chlor_set_pump_mode(
     const uint8_t *data, int len,
@@ -2523,26 +2515,18 @@ static bool handle_chlor_set_pump_mode(
 {
     if (payload_len != 2) return false;
 
-    // Payload 0 is always 0x01, meaning unknown
-    // Payload 1 is always <=5, meaning speed
-    if (payload[0] != 0x01 || payload[1] > 5) {
-        ESP_LOGW(TAG, "%s Chlorinator set pump mode - UNEXPECTED VALUE: payload=0x%02X 0x%02X (expected 0x01 [0x00-0x05])", addr_info, payload[0], payload[1]);
+    uint8_t channel_num = payload[0];   // 1-based
+    uint8_t state = payload[1];
+
+    if (channel_num < 1 || channel_num > MAX_CHANNELS || state >= CHANNEL_STATE_COUNT) {
+        ESP_LOGW(TAG, "%s Chlorinator pump control - UNEXPECTED VALUE: channel=0x%02X state=0x%02X (expected channel 0x01-0x%02X, state 0x00-0x%02X)",
+                 addr_info, channel_num, state, MAX_CHANNELS, CHANNEL_STATE_COUNT - 1);
         record_undocumented(data, len);
         return true;
     }
 
-    uint8_t mode = payload[1];
-    const char *mode_name;
-    switch (mode) {
-        case 0x00: mode_name = "Off";  break;
-        case 0x01: mode_name = "Auto"; break;
-        case 0x02: mode_name = "Manual"; break;
-        case 0x03: mode_name = "Low";  break;
-        case 0x04: mode_name = "Medium"; break;
-        case 0x05: mode_name = "High";  break;
-    }
-
-    ESP_LOGI(TAG, "%s Chlorinator pump mode - %s (0x%02X)", addr_info, mode_name, mode);
+    ESP_LOGI(TAG, "%s Chlorinator pump control - channel %u -> %s (0x%02X)",
+             addr_info, channel_num, CHANNEL_STATE_NAMES[state], state);
 
     return true;
 }
@@ -3553,6 +3537,7 @@ static bool handle_channel_status(
     uint8_t channels_to_publish[MAX_CHANNELS] = {0};
     int num_to_publish = 0;
     bool publish_pump = false;
+    int filter_state = -1;  // Filter channel's reported state, -1 if it has none
 
     // Update pool state
     pool_state_t state_snapshot;
@@ -3593,6 +3578,11 @@ static bool handle_channel_status(
                 ctx->pool_state->channels[ch_num - 1].active = (active != 0);
                 ctx->pool_state->channels[ch_num - 1].configured = true;
 
+
+                if (ch_type == CHANNEL_TYPE_FILTER) {
+                    filter_state = state;
+                }
+
                 // If the Filter channel (CHANNEL_TYPE_FILTER) is no longer active
                 // (e.g. turned Off manually, or turned off by a timer in Auto mode),
                 // the pump loses power and won't broadcast a speed of 0. We must set it here.
@@ -3625,6 +3615,13 @@ static bool handle_channel_status(
         ctx->pool_state->last_update_ms = xTaskGetTickCount() * portTICK_PERIOD_MS;
         state_snapshot = *ctx->pool_state;
         xSemaphoreGive(ctx->state_mutex);
+    }
+
+    // Learn whether the Filter channel drives a multi-speed pump. Done outside
+    // the state mutex because a change writes NVS, and before the publish below
+    // so the channel's MQTT options are already correct when it goes out.
+    if (filter_state >= 0) {
+        filter_pump_type_learn((uint8_t)filter_state);
     }
 
     // Publish all channels using snapshot (outside mutex)
@@ -3856,6 +3853,16 @@ bool decode_message(const uint8_t *data, int len, message_decoder_context_t *ctx
     if (ctx->state_mutex && !(src_hi == 0xFF && src_lo == 0xFF)) {
         if (xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) == pdTRUE) {
             find_or_insert_seen_device_locked(ctx->pool_state, src_hi, src_lo);
+            // Latch the chlorinator we can impersonate for CMD 0x0F. Our own
+            // injected frames are echoed back to us, but they already carry
+            // this address, so seeing one is a no-op rather than drift.
+            // Note we restrict this to known good device source addresses
+            // 0x0081 and 0x0084 until we have evidence that other chlorinators
+            // eg 0x0090 work with no side effects.
+            if (src_hi == 0x00 && (src_lo == 0x81 || src_lo == 0x84)) {
+                ctx->pool_state->chlor_src_hi = src_hi;
+                ctx->pool_state->chlor_src_lo = src_lo;
+            }
             xSemaphoreGive(ctx->state_mutex);
         }
     }
@@ -3911,6 +3918,13 @@ static bool dispatch_message(
     // source.
     if (cmd == 0x10) {
         return handle_channel_toggle_cmd(data, len, payload, payload_len, addr_info, ctx);
+    }
+
+    // Chlorinator pump control (CMD 0x0F) — source-agnostic. The Touchscreen
+    // does not check which chlorinator the frame claims to come from; both
+    // 0x0084 (Viron) and 0x0081 (VX 11S v3) are confirmed sources.
+    if (cmd == 0x0F) {
+        return handle_chlor_set_pump_mode(data, len, payload, payload_len, addr_info, ctx);
     }
 
     // Water temperature reading — CMD 0x16 (canonical) and CMD 0x31 (alt/
@@ -4125,11 +4139,6 @@ static bool dispatch_message(
     // VX 11S v3 CMD 0x12 status broadcast (payload meaning unknown)
     if (match_pattern(data, len, MSG_TYPE_VX11S_STATUS)) {
         return handle_vx11s_status(data, len, payload, payload_len, addr_info, ctx);
-    }
-
-    // Chlorinator pump mode unicast (§345, issue #23)
-    if (match_pattern(data, len, MSG_TYPE_CHLOR_SET_PUMP_MODE)) {
-        return handle_chlor_set_pump_mode(data, len, payload, payload_len, addr_info, ctx);
     }
 
     // Gateway messages
