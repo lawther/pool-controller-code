@@ -102,6 +102,12 @@ static const char *MSG_TYPE_TOUCHSCREEN_UNKNOWN2 =  "02 00 50 FF FF 80 00 27 0D 
 static const char *MSG_TYPE_TOUCHSCREEN_UNKNOWN3 =  "02 00 50 FF FF 80 00 05 0D E2";
 static const char *MSG_TYPE_VALVE_STATE =           "02 00 50 FF FF 80 00 27 13 0A";
 
+// Motorised valve actuators (Touchscreen 0x0050 -> Internal Control 0x007F),
+// emitted as a pair on every mode change. See PROTOCOL.md commands `0x1A` and
+// `0x41`.
+static const char *MSG_TYPE_PRE_VALVE_FRAME =       "02 00 50 00 7F 00 00 1A 0B F6";
+static const char *MSG_TYPE_VALVE_ACTUATOR_CMD =    "02 00 50 00 7F 80 00 41 0E A0";
+
 // Water temperature reading (CMD 0x16) is dispatched source-agnostically in
 // dispatch_message() — see PROTOCOL.md command `0x16`. Observed from the
 // Connect 8/10 Controller (0x0062, LEN 0x0E, 2-byte payload temp1+temp2),
@@ -492,6 +498,7 @@ const char* get_device_name(uint8_t addr_hi, uint8_t addr_lo, char *fallback_buf
             case 0x50: return "Touch Screen";
             case 0x62: return "Connect 8/10";
             case 0x6F: return "Internal Channels";
+            case 0x7F: return "Internal Control";
             case 0x70: return "Genus Heater";
             case 0x72: return "HiNRG Gas Heater";
             case 0x74: return "ICI Gas Heater";
@@ -2666,6 +2673,68 @@ static bool handle_light_resync(
 }
 
 /**
+ * Handler: Pre-valve-command frame (CMD 0x1A) — log-only
+ *
+ * Zero-payload unicast from the Touchscreen (0x0050) to Internal Control
+ * (0x007F), sent ~120 ms before every CMD 0x41 valve actuator command.
+ * Purpose is unknown — no reply from 0x007F has ever been observed.
+ * Logged only so it stops being reported as unknown.
+ */
+static bool handle_pre_valve_frame(
+    const uint8_t *data, int len,
+    const uint8_t *payload, int payload_len,
+    const char *addr_info,
+    message_decoder_context_t *ctx)
+{
+    ESP_LOGI(TAG, "%s Pre-valve-command frame", addr_info);
+
+    // No payload check here, deliberately: a 0x1A that matches the pattern is
+    // byte-for-byte identical every time. The pattern pins bytes 0-9, framing
+    // slices the frame at the LEN byte (which the pattern pins to 0x0B) and
+    // requires the last byte to be ETX, so there is no byte left to vary. Any
+    // 0x1A that differs fails the pattern and is recorded as UNHANDLED by
+    // decode_message instead.
+    return true;
+}
+
+/**
+ * Handler: Valve actuator command (CMD 0x41) — log-only
+ *
+ * Unicast from the Touchscreen (0x0050) to Internal Control (0x007F) that
+ * drives a group of motorised valve actuators to one of their two endpoints on
+ * a mode change. The position byte names an endpoint, not a flow path: a
+ * three-position toggle on the actuator body reverses which way it travels for
+ * a given command, so identical payloads plumb differently across installs.
+ */
+static bool handle_valve_actuator_cmd(
+    const uint8_t *data, int len,
+    const uint8_t *payload, int payload_len,
+    const char *addr_info,
+    message_decoder_context_t *ctx)
+{
+    if (payload_len < 2) return false;
+
+    uint8_t position = payload[0];
+    uint8_t group    = payload[1];
+
+    ESP_LOGI(TAG, "%s Valve actuator command - group %d, position %d", addr_info, group, position);
+
+    // Flag anything not yet observed for the unknown-messages page. The
+    // actuators have two cam-limited endpoints and only positions 0x00/0x01
+    // have been seen. Group is only ever 0x01, and is checked against that
+    // rather than an upper bound: the controller has four actuator sockets
+    // but the pool/spa pair is ganged, so at most three groups could exist -
+    // and whether the two auxiliary sockets are addressable here at all is
+    // unknown. A frame naming any other group is the observation that would
+    // settle it, so it should not pass silently.
+    if ((group != 0x01) || (position > 1)) {
+        record_undocumented(data, len);
+    }
+
+    return true;
+}
+
+/**
  * Handler: Solar setpoint broadcast (CMD 0x2D) — log-only
  * Dispatched on the CMD byte alone (source-agnostic).
  *
@@ -4160,6 +4229,14 @@ static bool dispatch_message(
 
     if (match_pattern(data, len, MSG_TYPE_VALVE_STATE)) {
         return handle_valve_state(data, len, payload, payload_len, addr_info, ctx);
+    }
+
+    if (match_pattern(data, len, MSG_TYPE_PRE_VALVE_FRAME)) {
+        return handle_pre_valve_frame(data, len, payload, payload_len, addr_info, ctx);
+    }
+
+    if (match_pattern(data, len, MSG_TYPE_VALVE_ACTUATOR_CMD)) {
+        return handle_valve_actuator_cmd(data, len, payload, payload_len, addr_info, ctx);
     }
 
     if (match_pattern(data, len, MSG_TYPE_TOUCHSCREEN_UNKNOWN2)) {
