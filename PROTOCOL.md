@@ -16,8 +16,8 @@ This document describes the proprietary serial protocol used by the Connect 10 p
   - [0x0A — Firmware Version ✅](#0x0a--firmware-version-)
   - [0x0B — Channel Status ✅](#0x0b--channel-status-)
   - [0x0D — Active Channels Bitmask ✅](#0x0d--active-channels-bitmask-)
-  - [0x0F — Chlorinator Set Pump Speed ✅](#0x0f--chlorinator-set-pump-speed-)
-  - [0x10 — Channel Toggle Command ⚠️](#0x10--channel-toggle-command-️)
+  - [0x0F — Chlorinator Pump Control ✅](#0x0f--chlorinator-pump-control-)
+  - [0x10 — Channel Toggle Command ✅](#0x10--channel-toggle-command-)
   - [0x12 — Device Status ⚠️](#0x12--device-status-️)
   - [0x14 — Mode (Spa/Pool) ✅](#0x14--mode-spapool-)
   - [0x15 — Mode Set Command (Spa/Pool) ✅](#0x15--mode-set-command-spapool-)
@@ -132,8 +132,8 @@ Click any CMD in the first column to jump to the full section in [Commands](#com
 | [`0x0A`](#0x0a--firmware-version-)                             | Firmware Version                    | `0x0050`, `0x0062`, `0x0070`, `0x0081`, `0x0084`, `0x00A0`, `0x00F0` → Broadcast | Same `{major, minor}` payload across all sources; dispatched on CMD byte alone              | Yes (unified handler)   |
 | [`0x0B`](#0x0b--channel-status-)                               | Channel Status                      | `0x0050` → Broadcast                                                   |                                                                                             | Yes                     |
 | [`0x0D`](#0x0d--active-channels-bitmask-)                      | Active Channels Bitmask             | `0x0050` → `0x006F` Internal Channels                                  | Unicast                                                                                     | Yes                     |
-| [`0x0F`](#0x0f--chlorinator-set-pump-speed-)                | Chlorinator Set Pump Speed     | `0x0084` → `0x0050`                                                            | The Chlorinator requests the Touch Screen to set pump speed (Off/Auto/Manual/Low/Medium/High)                                                               | Yes                     |
-| [`0x10`](#0x10--channel-toggle-command-️)                      | Channel Toggle Command              | `0x00F0`, `0x0062` → Broadcast                                         | Same 1-byte channel-index payload from either source; dispatched on CMD byte alone         | Yes (unified handler)   |
+| [`0x0F`](#0x0f--chlorinator-pump-control-)                | Chlorinator Pump Control   | `0x0081`, `0x0084` → `0x0050`                                                            | `{channel, state}` — sets a **pump-driven** channel to a named state directly (Off/Auto/On/Low/Med/High)     | Yes                     |
+| [`0x10`](#0x10--channel-toggle-command-)                      | Channel Toggle Command              | `0x00F0`, `0x0062` → Broadcast                                         | Same 1-byte channel-index payload from either source; dispatched on CMD byte alone         | Yes (unified handler)   |
 | [`0x12`](#0x12--device-status-️)                               | Device Status                       | `0x0050`, `0x0062`, `0x0070`, `0x0074`, `0x0081`, `0x0084`, `0x0090`, `0x00F0` → Broadcast | Payload layout differs per source                                                           | Yes (per-source)        |
 | [`0x14`](#0x14--mode-spapool-)                                 | Mode (Spa/Pool)                     | `0x0050` → Broadcast                                                   |                                                                                             | Yes                     |
 | [`0x15`](#0x15--mode-set-command-spapool-)                     | Mode Set Command (Spa/Pool)         | `0x0050` → Broadcast                                                   | Sets the mode; same encoding as the `0x14` status (Spa=`0x00`, Pool=`0x01`)                 | Yes                     |
@@ -387,31 +387,82 @@ Reports which channels are currently active. Unicast from the Touchscreen (`0x00
 
 ---
 
-### 0x0F — Chlorinator Set Pump Speed ✅
+### 0x0F — Chlorinator Pump Control ✅
 
-Inter-device unicast from the Viron Chlorinator (`0x0084`) to the Touchscreen (`0x0050`) requesting setting current pump mode.
+Unicast to the Touchscreen (`0x0050`) setting a channel directly to a named state. This is a Chlorinator device (`0x0084` or `0x0081`) asking for pump flow. Byte 10 selects the channel and byte 11 the state. It is not limited to the filter channel — it can drive the simple on/off Cleaning channel too. 
 
-**Pattern:** `02 00 84 00 50 80 00 0F 0E 73`
+This sets the internal channel status of the Touchscreen (it broadcasts this via `0x0B`), and then the Touchscreen sends its normal commands to control the pump (via `0x18`).
+
+It does **not** control every channel: lights and the blower ignore it entirely (see below). 
+
+The Touchscreen does not check that the source address belongs to a chlorinator it has actually seen on the bus: it has been confirmed working both as `0x0084` on a bus where no such device exists, and also as `0x0081` on a system where that device does exist.
+
+**Pattern:** `02 00 84 00 50 80 00 0F 0E 73` 
 
 **Data Fields:**
 
-- Byte 10: Always `0x01` (purpose unknown)
-- Byte 11: Pump mode/speed value:
+- Byte 10: Target circuit, **1-based** — `0x01` = channel 1 (Filter), `0x02` = channel 2 (Cleaning). Only pump-driven channels respond; see below
+- Byte 11: Target state, using the [0x0B](#0x0b--channel-status-) Channel State code space:
   - `0x00` = Off
   - `0x01` = Auto
-  - `0x02` = Manual / On
+  - `0x02` = Manual / On (on a multi-speed channel the Touchscreen normalises this to `0x05` High Speed)
   - `0x03` = Low Speed
   - `0x04` = Medium Speed
   - `0x05` = High Speed
 
 **Notes:**
 
-- Handled in `message_decoder.c` (`handle_chlor_set_pump_mode`) as a log-only message (no state updates or MQTT publishing since the pump announces its own speed).
+- Handled in `message_decoder.c` (`handle_chlor_set_pump_mode`), dispatched on the CMD byte alone since either chlorinator address may source it. Log-only: the Touchscreen applies the state and broadcasts it back via [0x0B](#0x0b--channel-status-), which is what updates state.
+- **Byte 11 uses the same code space as the [0x0B](#0x0b--channel-status-) Channel States**, extended speeds included. The only message that sets a channel's state *persistently* — [0x10](#0x10--channel-toggle-command-) only cycles it, and [0x18](#0x18--pump-speed-command-) sets the pump's RPM directly but gets overwritten by the Touchscreen's next broadcast.
+
+#### Direct channel-state control ✅
+
+Here are some examples of setting a channel to a state:
+
+| Injected                                    | Prior state (live) | Requested  | Resulting `0x0B` | Resulting `0x18` |
+|---------------------------------------------|--------------------|------------|------------------|------------------|
+| `02 00 81 00 50 80 00 0F 0E 70 01 05 06 03` | Low Speed          | Ch1 High   | High Speed       | High Speed       |
+| `02 00 81 00 50 80 00 0F 0E 70 01 04 05 03` | High Speed         | Ch1 Medium | Medium Speed     | Medium Speed     |
+| `02 00 81 00 50 80 00 0F 0E 70 01 00 01 03` | Medium Speed       | Ch1 Off    | Off              | Nothing sent     |
+| `02 00 81 00 50 80 00 0F 0E 70 01 03 04 03` | Off                | Ch1 Low    | Low Speed        | Low Speed        |
+
+
+Note that every request landed on exactly the state asked for, independent of where it started from. 
+
+The Touchscreen's response sequence is the same one it emits for its own state changes:
+
+```
++0 ms         0x0F injected
++150..170 ms  0x0D Active channels bitmask updated
++330..730 ms  0x0B Channel status carries the new state
++~450 ms      0x18 unicast to the pump with the matching speed preset (pump channels only)
+```
+
+This is the way to reach a specific pump speed without cycling — in particular it avoids the toggle ring's unavoidable transit through **Auto** (going up from Off) and through **High** (coming down from Medium), both of which start the pump.
+
+**Byte 10 selects the target, but does not reach every channel.** Injecting byte 10 = `0x02` with state `0x02` (On) turned on **channel 2 (Cleaning)**:
+
+```
+02 00 84 00 50 80 00 0F 0E 73 02 02 04 03    channel 2 → On
++168 ms   0x0D Active channels 0x02  [------2-]
++337 ms   0x0B Ch2: Cleaning (2) = On (Active)
+```
+
+But the same frame shape aimed at other channels is **silently ignored** — accepted on the wire, parsed by the Touchscreen, and acted on not at all:
+
+| Byte 10 | Channel | Type | Result |
+|---------|---------|------|--------|
+| `0x01` | 1 Filter Pump | Filter (`0x01`) | ✅ state set |
+| `0x02` | 2 Cleaning | Cleaning (`0x02`) | ✅ state set |
+| `0x03` | 3 pool light | Custom Name (`0x12`) | ❌ no effect |
+| `0x06` | 6 Blower | Blower (`0x09`) | ❌ no effect |
+
+The two that are tested to work are the install's two **pump-driven** circuits; the two that don't are a light and a blower. So byte 10 is a 1-based index into channels, but the Touchscreen only honours the command for channels whose type drives a pump. 
 
 
 ---
 
-### 0x10 — Channel Toggle Command ⚠️
+### 0x10 — Channel Toggle Command ✅
 
 Cycles a channel through its available states (Auto → On → Off, or On → Off depending on channel type). Sent by the Internet Gateway (`0x00F0`) for remote toggles, and broadcast by the Connect 8/10 controller (`0x0062`) when a channel button is pressed on the controller itself. The payload is identical from either source — a single channel-index byte.
 
@@ -422,14 +473,15 @@ Cycles a channel through its available states (Auto → On → Off, or On → Of
 
 **Examples (Gateway-sourced):**
 
-| Channel    | Index | Command                                   | States        |
-| ---------- | ----- | ----------------------------------------- | ------------- |
-| Filter     | 0x00  | `02 00 F0 FF FF 80 00 10 0D 8D 00 00 03`  | Auto, On, Off |
-| Cleaning   | 0x01  | `02 00 F0 FF FF 80 00 10 0D 8D 01 01 03`  | Auto, On, Off |
-| Pool Light | 0x02  | `02 00 F0 FF FF 80 00 10 0D 8D 02 02 03`  | Auto, On, Off |
-| Spa Light  | 0x03  | `02 00 F0 FF FF 80 00 10 0D 8D 03 03 03`  | Auto, On, Off |
-| Jets       | 0x04  | `02 00 F0 FF FF 80 00 10 0D 8D 04 04 03`  | On, Off       |
-| Blower     | 0x05  | `02 00 F0 FF FF 80 00 10 0D 8D 05 05 03`  | On, Off       |
+| Channel                    | Index | Command                                   | States        |
+| -------------------------- | ----- | ----------------------------------------- | ------------- |
+| Filter (single speed pump) | 0x00  | `02 00 F0 FF FF 80 00 10 0D 8D 00 00 03`  | Auto, On, Off |
+| Filter (multi speed pump)  | 0x00  | `02 00 F0 FF FF 80 00 10 0D 8D 00 00 03`  | Auto, Low, Med, High, Off |
+| Cleaning                   | 0x01  | `02 00 F0 FF FF 80 00 10 0D 8D 01 01 03`  | Auto, On, Off |
+| Pool Light                 | 0x02  | `02 00 F0 FF FF 80 00 10 0D 8D 02 02 03`  | Auto, On, Off |
+| Spa Light                  | 0x03  | `02 00 F0 FF FF 80 00 10 0D 8D 03 03 03`  | Auto, On, Off |
+| Jets                       | 0x04  | `02 00 F0 FF FF 80 00 10 0D 8D 04 04 03`  | On, Off       |
+| Blower                     | 0x05  | `02 00 F0 FF FF 80 00 10 0D 8D 05 05 03`  | On, Off       |
 
 **Examples (controller-sourced, channel buttons pressed on the Connect 10):**
 
@@ -463,6 +515,8 @@ Index `N` is channel `N+1` (`0x00`–`0x07` = Channels 1–8). Channel functions
 - Each send **cycles** the channel to its next state; it does not set a specific state
 - Channels with Auto support cycle: Auto → On → Off → Auto → ...
 - Channels without Auto cycle: On → Off → On → ...
+- Multi-speed pump channels expand the single "On" step into three speeds, cycling
+  **Off (`0x00`) → Auto (`0x01`) → Low (`0x03`) → Medium (`0x04`) → High (`0x05`) → Off** — see below
 - The controller broadcasts the new channel state after processing the toggle
 
 **Notes:**
@@ -472,7 +526,18 @@ Index `N` is channel `N+1` (`0x00`–`0x07` = Channels 1–8). Channel functions
 - Channel index is 0-based and corresponds to the channel's position in the controller configuration.
 - The controller-sourced broadcast informs other bus devices (Gateway, Touchscreen) of toggles made at the controller's physical buttons; it is followed by the usual [Channel Status (0x0B)](#0x0b--channel-status-) update.
 - Decoded in code by `handle_channel_toggle_cmd` — dispatched on the CMD byte alone (source-agnostic), log-only, no `pool_state` update (state comes from the follow-up `0x0B`).
-- ⚠️ Multi-speed pump channels report extended states `0x03`–`0x05` (On at Low/Med/High — see [Channel States](#0x0b--channel-status-)), but how this command cycles through them has not been captured. Status is ⚠️ pending characterisation of how multi-speed channels respond to this command.
+- Multi-speed pump channels report extended states `0x03`–`0x05` (On at Low/Med/High — see [Channel States](#0x0b--channel-status-)). Six consecutive toggles of a Filter channel driving a `0x00A0` Viron XT pump walked the full cycle and wrapped:
+
+  | Toggle | New state | Channel Status (`0x0B`)                 | Follow-up `0x18` to pump |
+  |--------|-----------|-----------------------------------------|--------------------------|
+  | 1      | `0x00`    | Off (Inactive)                          | none sent                |
+  | 2      | `0x01`    | Auto (Active/Inactive depends on timers)| depends on timers        |
+  | 3      | `0x03`    | Low Speed (Active)                      | `0x00` Low               |
+  | 4      | `0x04`    | Medium Speed (Active)                   | `0x01` Med               |
+  | 5      | `0x05`    | High Speed (Active)                     | `0x02` High              |
+  | 6      | `0x00`    | Off (Inactive)                          | none sent                |
+
+- To reach a state **without** cycling use [0x0F](#0x0f--chlorinator-pump-control-), which names the target state directly.
 
 ---
 
@@ -922,6 +987,8 @@ Examples:
 
 Inter-device unicast sent by the controller (Touchscreen `0x0050` or Viron Chlorinator `0x0084`) to the Viron XT Pump (`0x00A0`) to set the pump speed. The controller sends this periodically (approx. every 60 seconds) and whenever the speed needs to change (e.g., due to timers or manual mode changes).
 
+It is only sent to control the pump when its channel is active/on - this command cannnot be used to turn a pump channel on or off. 
+
 **Pattern:** `02 00 50 00 A0 80 00 18 0D 97` (Touchscreen)
 **Pattern:** `02 00 84 00 A0 80 00 18 0D CB` (Chlorinator)
 
@@ -949,6 +1016,7 @@ Inter-device unicast sent by the controller (Touchscreen `0x0050` or Viron Chlor
 - The Touchscreen sends this command to implement its timers
 - The speed value mirrors the driving channel's extended state in the [Channel Status (0x0B)](#0x0b--channel-status-) broadcast: channel states `0x03`/`0x04`/`0x05` (On at Low/Med/High) map to speed `0x00`/`0x01`/`0x02`, with the `0x18` unicast following the channel broadcast within ~130 ms.
 - The `0x0090` RolaChem chlorinator variant has not been observed using this command; the `0x18` traffic appears specific to the `0x0084` Viron / `0x00A0` Viron XT Pump two-module chlorinator topology.
+- **Sets the pump's speed directly, but not the Touchscreen's state.** Injecting `0x18` works immediately on the pump, but then the Touchscreen overwrites it on its next cycle. Use [0x0F](#0x0f--chlorinator-pump-control-) to set the channel state the Touchscreen uses to send `0x18` *from*.
 
 ---
 
@@ -1298,7 +1366,7 @@ Carries live per-valve state. Each valve occupies 3 bytes (configured flag, stat
 
 ### 0x28 — Valve Control Command ✅
 
-Sent by the Internet Gateway (`0x00F0`) to set a valve to a specific state directly. Unlike the [Channel Toggle Command (0x10)](#0x10--channel-toggle-command-️) which cycles through states, this sets the target state explicitly. No handler in `message_decoder.c` — documented only.
+Sent by the Internet Gateway (`0x00F0`) to set a valve to a specific state directly. Unlike the [Channel Toggle Command (0x10)](#0x10--channel-toggle-command-) which cycles through states, this sets the target state explicitly. No handler in `message_decoder.c` — documented only.
 
 **Pattern:** `02 00 F0 FF FF 80 00 28 0E A6`
 
@@ -2124,7 +2192,7 @@ The register ID and slot together determine the message meaning. The slot distin
 | `0x64`-`0x65` ⚠️| `0x00`| Unknown                | Only `0x01` observed. Repeats ~every 8 minutes   |
 | `0x6C`–`0x73`  | `0x02` | Channel Types          | 1-byte type code (see [0x0B](#0x0b--channel-status-) channel types)    |
 | `0x7C`–`0x83`  | `0x02` | Channel Names          | Null-terminated ASCII string                     |
-| `0x8C`–`0x93`  | `0x02` | Channel State          | 1-byte value (0=Off, 1=Auto, 2=On) — read-only; writes ignored by controller |
+| `0x8C`–`0x93`  | `0x02` | Channel State          | 1-byte value (0=Off, 1=Auto, 2=On, 3=Low, 4=Med, 5=High) — same code space as [0x0B](#0x0b--channel-status-) Channel States; read-only, writes ignored by controller |
 | `0x90`–`0x97`  | `0x01` | Light Zone Enabled     | 1-byte flag (`0x01`=zone configured, `0x00`=not configured) — see note below |
 | `0xA0`–`0xA7`  | `0x01` | Light Zone Multicolor  | 1-byte flag (`0x00`=No, `0x01`=Yes)              |
 | `0xAC`-`0xAF` ⚠️| `0x0D`| Unknown                | Only `0xFF` observed. Repeats ~every 8 minutes   |
@@ -2193,9 +2261,13 @@ The register ID and slot together determine the message meaning. The slot distin
                               ^^ Channel 1 (0x8C)
                                  ^^ Slot 0x02 (State)
                                     ^^ Value: 0x02 = On
+
+02 00 50 FF FF 80 00 38 0F 17 8C 02 05 93 03
+                                    ^^ Value: 0x05 = On, High Speed (multi-speed channel)
 ```
 
-State values: `0x00` = Off, `0x01` = Auto, `0x02` = On
+State values: `0x00` = Off, `0x01` = Auto, `0x02` = On, `0x03` = On/Low, `0x04` = On/Medium, `0x05` = On/High.
+Identical to the [0x0B Channel States](#0x0b--channel-status-) code space — a channel driving a multi-speed pump reports `0x03`–`0x05` here in place of the plain `0x02`.
 
 > Read-only — write commands (`0x3A`) targeting these registers are silently ignored.
 
@@ -2318,7 +2390,7 @@ Configured zones are rebroadcast regularly; unconfigured zones are only broadcas
 | …        | …       | —             | —             | ✅ read-only   |
 | `0x93`   | 8       | —             | —             | ✅ read-only   |
 
-> Channel state is **read-only** via the register system. To change channel state, use the [Channel Toggle Command (0x10)](#0x10--channel-toggle-command-️).
+> Channel state is **read-only** via the register system. To change channel state, use the [Channel Toggle Command (0x10)](#0x10--channel-toggle-command-).
 
 Channel Category (`0xF5`–`0xFC`, slot `0x01`): `0xF5` = Channel 1, `0xF6` = Channel 2, … `0xFC` = Channel 8.
 
