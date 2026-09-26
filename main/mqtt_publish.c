@@ -49,6 +49,11 @@ static bool s_last_power_watts_valid[MAX_CHANNELS];
 // Pump type the Filter channel's pump-mode select was last published with, so
 // a change can force a re-publish with the right option list.
 static filter_pump_type_t s_last_filter_pump_type = FILTER_PUMP_TYPE_UNKNOWN;
+
+// Whether each channel's discovery was last published with the pump-mode
+// select, so a re-typed channel re-runs discovery and the select is added or
+// retracted even when its display name stays the same.
+static bool s_channel_discovery_pump_select[MAX_CHANNELS];
 static uint16_t s_last_power_watts[MAX_CHANNELS];
 
 // Whether the pump's discovery was last published with its power and energy
@@ -387,13 +392,15 @@ void mqtt_publish_channel(const pool_state_t *current_state, uint8_t channel_id)
     // the power and energy sensors exist at all.
     // The pump-mode select's option list depends on the learned pump type, so
     // a change there (typically once, the first time the pump runs) has to
-    // reach HA as a fresh discovery payload.
+    // reach HA as a fresh discovery payload, and so does the channel gaining or
+    // losing the select altogether when it is re-typed.
     bool pump_mode_select = (channel->type == CHANNEL_TYPE_FILTER);
     filter_pump_type_t filter_pump_type = filter_pump_type_get();
 
     if (s_discovery_published.channels[idx] &&
         (strcmp(s_channel_discovery_name[idx], display_name) != 0 ||
          s_last_power_watts_valid[idx] != power_watts_valid ||
+         s_channel_discovery_pump_select[idx] != pump_mode_select ||
          (pump_mode_select && s_last_filter_pump_type != filter_pump_type))) {
         s_discovery_published.channels[idx] = false;
     }
@@ -405,6 +412,7 @@ void mqtt_publish_channel(const pool_state_t *current_state, uint8_t channel_id)
         if (pump_mode_select) {
             s_last_filter_pump_type = filter_pump_type;
         }
+        s_channel_discovery_pump_select[idx] = pump_mode_select;
         s_discovery_published.channels[idx] = true;
         strncpy(s_channel_discovery_name[idx], display_name, sizeof(s_channel_discovery_name[idx]) - 1);
         s_channel_discovery_name[idx][sizeof(s_channel_discovery_name[idx]) - 1] = '\0';
