@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - Direct speed control of the filter pump exposed through MQTT. This works for both single speed and multi speed pumps. When pump state is broadcast for the first time, the system learns what type of pump is installd. This is then stored in NVS so the correct options are presented after a reboot.
+- For the first time this bridge device has been given a device ID. It uses the device ID `0xAC1D`, and the log presents this as 'Pool Controller ESP32'. Currently we only apply this to CMD `0x0F` for pump speed control, instead of impersonating a chlorinator device. 
 ### Changed
 - Channel speed states are now reported as "Low", "Medium" and "High" instead of "Low Speed", "Medium Speed" and "High Speed", on the MQTT channel state topic and in the web status JSON. Home Assistant automations or templates that compare against the old strings need updating
 ### Fixed

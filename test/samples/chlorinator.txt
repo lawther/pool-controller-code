@@ -34,3 +34,10 @@ I (23:31:10.103) MSG_DECODER: [VX 11S v3 Salt Chlorinator -> Touch Screen] Chlor
 # Byte 10 is a 1-based channel index: channel 2 (Cleaning).
 I (23:31:14.201) MSG_DECODER: RX MSG: 02 00 84 00 50 80 00 0F 0E 73 02 02 04 03
 I (23:31:14.203) MSG_DECODER: [Viron Chlorinator -> Touch Screen] Chlorinator pump control - channel 2 -> On (0x02)
+
+I (03:33:11.501) MQTT_COMMANDS: Channel 1 mode command: Low
+I (03:33:11.502) MQTT_COMMANDS: Setting channel 1 to Low (0x03)
+I (03:33:11.503) BUS: TX: 02 AC 1D 00 50 80 00 0F 0E B8 01 03 04 03 (14 bytes)
+I (03:33:11.523) BUS: TX complete: 14 bytes written and transmitted
+I (03:33:11.534) MSG_DECODER: RX MSG: 02 AC 1D 00 50 80 00 0F 0E B8 01 03 04 03 
+I (03:33:11.535) MSG_DECODER: [Pool Controller ESP32 -> Touch Screen] Chlorinator pump control - channel 1 -> Low (0x03)

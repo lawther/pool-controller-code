@@ -86,21 +86,11 @@ static void handle_channel_mode_command(int channel_id, const char *payload, int
         return;
     }
 
-    // Claim the chlorinator address most recently seen on this bus. The
-    // Touchscreen does not validate it, but a real address keeps captures honest.
-    uint8_t src_hi = CHLOR_SRC_DEFAULT_HI, src_lo = CHLOR_SRC_DEFAULT_LO;
-    if (s_pool_state_mutex &&
-        xSemaphoreTake(s_pool_state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) == pdTRUE) {
-        src_hi = s_pool_state.chlor_src_hi;
-        src_lo = s_pool_state.chlor_src_lo;
-        xSemaphoreGive(s_pool_state_mutex);
-    }
-
     // Pattern: 02 [SRC_HI] [SRC_LO] 00 50 80 00 0F 0E [HDR_CK] [CHANNEL] [STATE] [DATA_CK] 03
     // Channel is 1-based here, unlike the toggle command's 0-based index.
     uint8_t cmd[] = {
         0x02,             // START
-        src_hi, src_lo,   // SOURCE: chlorinator
+        SELF_DEVICE_ID_HI, SELF_DEVICE_ID_LO,   // SOURCE: this firmware (Pool Controller ESP32)
         0x00, 0x50,       // DEST: Touchscreen
         0x80, 0x00,       // CONTROL
         0x0F, 0x0E,       // CMD, LEN
