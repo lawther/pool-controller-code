@@ -142,8 +142,9 @@ static const char *MSG_TYPE_CHLOR_STATUS_A = "02 00 90 FF FF 80 00 12 0D 2F";
 static const char *MSG_TYPE_CHLOR_STATUS_B = "02 00 84 FF FF 80 00 12 0D 23";
 
 // Chlorinator pump control (CMD 0x0F) is dispatched source-agnostically in
-// dispatch_message() — see PROTOCOL.md command `0x0F`. Both the 0x0084 Viron
-// and 0x0081 VX 11S v3 chlorinators are confirmed sources.
+// dispatch_message() — see PROTOCOL.md command `0x0F`. The 0x0084 Viron and
+// 0x0081 VX 11S v3 chlorinators are confirmed sources on the bus; this
+// firmware also originates it unconditionally as 0xAC1D.
 
 // VX 11S v3 Chlorinator CMD 0x12 status broadcast (meaning unknown; payload always 0x00 in captures)
 static const char *MSG_TYPE_VX11S_STATUS = "02 00 81 FF FF 80 00 12 0D 20";
@@ -485,6 +486,7 @@ static bool update_state_only(
 const char* get_device_name(uint8_t addr_hi, uint8_t addr_lo, char *fallback_buf, size_t buf_size)
 {
     if (addr_hi == 0xFF && addr_lo == 0xFF) return "Broadcast";
+    if (addr_hi == SELF_DEVICE_ID_HI && addr_lo == SELF_DEVICE_ID_LO) return "Pool Controller ESP32";
     if (addr_hi == 0x00) {
         switch (addr_lo) {
             case 0x50: return "Touch Screen";
@@ -3922,16 +3924,6 @@ bool decode_message(const uint8_t *data, int len, message_decoder_context_t *ctx
     if (ctx->state_mutex && !(src_hi == 0xFF && src_lo == 0xFF)) {
         if (xSemaphoreTake(ctx->state_mutex, pdMS_TO_TICKS(MUTEX_TIMEOUT_MS)) == pdTRUE) {
             find_or_insert_seen_device_locked(ctx->pool_state, src_hi, src_lo);
-            // Latch the chlorinator we can impersonate for CMD 0x0F. Our own
-            // injected frames are echoed back to us, but they already carry
-            // this address, so seeing one is a no-op rather than drift.
-            // Note we restrict this to known good device source addresses
-            // 0x0081 and 0x0084 until we have evidence that other chlorinators
-            // eg 0x0090 work with no side effects.
-            if (src_hi == 0x00 && (src_lo == 0x81 || src_lo == 0x84)) {
-                ctx->pool_state->chlor_src_hi = src_hi;
-                ctx->pool_state->chlor_src_lo = src_lo;
-            }
             xSemaphoreGive(ctx->state_mutex);
         }
     }

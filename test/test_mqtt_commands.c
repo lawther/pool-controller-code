@@ -699,35 +699,17 @@ void test_light_color_unknown(void)
 // Channel pump-mode tests (CMD 0x0F direct state set)
 // ======================================================
 
-// The frame claims the chlorinator address most recently seen on the bus; the
-// default until one has been heard is 0x0084, which is confirmed working even
-// on a bus where no such device exists.
-// The pump-mode handler reads the latched source under the pool-state mutex,
-// which the rest of this file deliberately leaves NULL. Hand it a non-NULL
-// token for these tests (xSemaphoreTake above succeeds regardless) and put it
-// back afterwards so the other groups keep their skip-the-lookup behaviour.
-static void pump_mode_setup(uint8_t src_lo)
-{
-    s_pool_state_mutex = (SemaphoreHandle_t)1;
-    s_pool_state.chlor_src_hi = 0x00;
-    s_pool_state.chlor_src_lo = src_lo;
-}
-
-static void pump_mode_teardown(void)
-{
-    s_pool_state_mutex = NULL;
-}
-
+// The frame unconditionally claims this firmware's own device address,
+// 0xAC1D (Pool Controller ESP32) — see SELF_DEVICE_ID_HI/LO in pool_state.h.
 void test_channel_mode_high_speed(void)
 {
-    pump_mode_setup(0x84);
     send_cmd("channel/1/mode/set", "High");
 
-    // Header checksum = sum(bytes 0-8) = 02+00+84+00+50+80+00+0F+0E = 0x73
+    // Header checksum = sum(bytes 0-8) = 02+AC+1D+00+50+80+00+0F+0E = 0xB8
     // Data checksum = channel (1) + state (5) = 0x06
     uint8_t expected[] = {
-        0x02, 0x00, 0x84, 0x00, 0x50, 0x80, 0x00,
-        0x0F, 0x0E, 0x73,
+        0x02, 0xAC, 0x1D, 0x00, 0x50, 0x80, 0x00,
+        0x0F, 0x0E, 0xB8,
         0x01, 0x05,
         0x06,
         0x03
@@ -738,30 +720,26 @@ void test_channel_mode_high_speed(void)
                 "channel/1/mode/set High: correct bytes");
 }
 
-// A latched 0x0081 source changes the header checksum too, so this also covers
-// the checksum being computed rather than copied from a fixed pattern.
-void test_channel_mode_uses_latched_chlorinator(void)
+void test_channel_mode_off(void)
 {
-    pump_mode_setup(0x81);
     send_cmd("channel/1/mode/set", "Off");
 
-    // Header checksum = 02+00+81+00+50+80+00+0F+0E = 0x70
+    // Header checksum = 02+AC+1D+00+50+80+00+0F+0E = 0xB8
     uint8_t expected[] = {
-        0x02, 0x00, 0x81, 0x00, 0x50, 0x80, 0x00,
-        0x0F, 0x0E, 0x70,
+        0x02, 0xAC, 0x1D, 0x00, 0x50, 0x80, 0x00,
+        0x0F, 0x0E, 0xB8,
         0x01, 0x00,
         0x01,
         0x03
     };
     TEST_ASSERT(s_uart_calls == 1, "channel/1/mode/set Off: exactly one UART write");
     TEST_ASSERT(memcmp(s_uart_buf, expected, sizeof(expected)) == 0,
-                "channel/1/mode/set Off: uses the latched 0x0081 source");
+                "channel/1/mode/set Off: correct bytes");
 }
 
 // Unlike the toggle command's 0-based index, byte 10 here is 1-based.
 void test_channel_mode_channel_is_one_based(void)
 {
-    pump_mode_setup(0x84);
     send_cmd("channel/2/mode/set", "Auto");
 
     TEST_ASSERT(s_uart_calls == 1, "channel/2/mode/set Auto: exactly one UART write");
@@ -910,10 +888,9 @@ int main(void)
 
     printf("\n--- Channel Pump Mode Tests ---\n");
     test_channel_mode_high_speed();
-    test_channel_mode_uses_latched_chlorinator();
+    test_channel_mode_off();
     test_channel_mode_channel_is_one_based();
     test_channel_mode_unknown_payload();
-    pump_mode_teardown();
 
     printf("\n--- Valve Tests ---\n");
     test_valve_1_on();
