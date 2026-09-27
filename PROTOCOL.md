@@ -100,8 +100,71 @@ uint8_t data_checksum = sum & 0xFF;
 
 ### Device Addresses
 
+A 16-bit bus address splits into a **12-bit device family** (upper 12 bits) and a **4-bit model** within that family (low nibble). The Touchscreen shows an address it has no name for as `Other Device (<family>,<model>)` in decimal, e.g. `0x00D2` → `Other Device (13,2)` and `0xAC1D` → `Other Device (2753,13)`. Changing only the low nibble (`0xAC1D` → `0xAC1E`) changes only the second number (`(2753,14)`).
+
+The low nibble is a model, not an instance number: each family is a list of related products, and the heaters and chlorinators each hold several different products.
+
+#### Observed on the bus
+
 | Address  | Device            | Description                       |
 | -------- | ----------------- | --------------------------------- |
+| `0x0050` | Touch Screen      | Touch screen interface            |
+| `0x0062` | Connect 8/10      | Main pool controller (Connect 10) |
+| `0x006F` | Internal Channels | Internal messages for active channels sent to this address |
+| `0x0070` | Genus Heater      | Active i25 Evo electric heater    |
+| `0x0072` | HiNRG Gas Heater  | Astral/Fluidra HiNRG gas pool heater |
+| `0x0074` | ICI Gas Heater    | Astral/Fluidra ICI 400B NG gas pool heater |
+| `0x007F` | Internal Control | Controller-internal sub-address the Touchscreen writes to. Carries the heater-setpoint pair ([0x19](#0x19--temperature-setpoint-command-) slot `0x03`) and the valve actuator commands ([0x1A](#0x1a--pre-valve-command-frame-️) / [0x41](#0x41--valve-actuator-command-️)). Never observed transmitting. |
+| `0x0081` | VX 11S v3 Salt Chlorinator | Salt chlorinator (VX 11S v3)|
+| `0x0084` | Viron Chlorinator | Chemistry/chlorinator module (alternate variant; mutually exclusive with `0x0090`) |
+| `0x0090` | RolaChem          | Chemistry/chlorinator module      |
+| `0x00A0` | Viron Pump        | Viron XT Variable Speed Pump      |
+| `0x00F0` | Internet Gateway  | Internet gateway module           |
+| `0xFFFF` | Broadcast         | Broadcast to all devices          |
+
+#### Touchscreen device name table
+
+Mapped by broadcasting a [0x0A](#0x0a--firmware-version-) Firmware Version frame (`02 00 <lo> FF FF 80 00 0A 0E <hdr_ck> 01 09 0A 03`) from each address and reading the name the Touchscreen lists for it. Names are as the Touchscreen spells them. "Other Device" rows are addresses the Touchscreen has no name for; the table is not necessarily contiguous (see `0x0073` / `0x0074`).
+
+| Family | Address  | Touchscreen name          | Notes |
+| ------ | -------- | ------------------------- | ----- |
+| 6      | `0x0060` | Relay Board               | |
+| 6      | `0x0061` | Plus 4 Relay Board        | |
+| 7      | `0x0070` | Genus Heater              | Observed on the bus |
+| 7      | `0x0071` | Viron Heater              | |
+| 7      | `0x0072` | HiNRG Heater              | Observed on the bus |
+| 7      | `0x0073` | Other Device (7,3)        | `0x0074` (ICI Gas Heater) is observed on the bus but was not tested here |
+| 8      | `0x0080` | VX Chlorinator TM         | |
+| 8      | `0x0081` | VX Chlorinator NT         | Observed on the bus as a VX 11S v3 |
+| 8      | `0x0082` | E-Series Chlorinator      | |
+| 8      | `0x0083` | US VX Chlorinator         | |
+| 8      | `0x0084` | Viron Chlorinator         | Observed on the bus |
+| 8      | `0x0085` | Other Device (8,5)        | |
+| 9      | `0x0090` | RolaChem                  | Observed on the bus |
+| 9      | `0x0091` | Other Device (9,1)        | |
+| 9      | `0x0092` | Other Device (9,2)        | |
+| 10     | `0x00A0` | P300 Three Speed Pump     | Observed on the bus as a Viron XT variable-speed pump |
+| 10     | `0x00A1` | Solar Pump                | |
+| 10     | `0x00A2` | Viron Three-speed Pump    | |
+| 10     | `0x00A3` | Other Device (10,3)       | |
+| 11     | `0x00B0` | Genus II FM Reciever      | |
+| 11     | `0x00B1` | Wireless Transciever      | |
+| 11     | `0x00B2` | RF Handheld Remote        | |
+| 11     | `0x00B3` | Other Device (11,3)       | |
+| 12     | `0x00C0` | Spa Remote TM             | |
+| 12     | `0x00C1` | Spa Remote NT             | |
+| 12     | `0x00C2` | Plus 4 Controller         | |
+| 12     | `0x00C3` | Other Device (12,3)       | |
+| 13     | `0x00D0` | Solar Controller          | |
+| 13     | `0x00D1` | Solar Roof Sensor         | |
+| 13     | `0x00D2` | Other Device (13,2)       | |
+| 14     | `0x00E0` | Other Device (14,0)       | No named models |
+| 15     | `0x00F0` | Internet Gateway          | Observed on the bus |
+| 15     | `0x00F1` | Other Device (15,1)       | |
+
+Not yet mapped: families 0–5 (the Touchscreen is `0x0050`), `0x0062`–`0x006F` (Connect 8/10 and Internal Channels), `0x0074`–`0x007F`, `0x0086`+, `0x0093`+, and anything above `0x00FF`.
+
+-------- | ----------------- | --------------------------------- |
 | `0x0050` | Touch Screen      | Touch screen interface            |
 | `0x0062` | Connect 8/10      | Main pool controller (Connect 10) |
 | `0x006F` | Internal Channels | Internal messages for active channels sent to this address |

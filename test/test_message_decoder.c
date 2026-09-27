@@ -340,6 +340,14 @@ void test_device_name_lookup(void)
     name = get_device_name(0x00, 0x90, buf, sizeof(buf));
     TEST_ASSERT(strcmp(name, "RolaChem") == 0, "0x0090 should be 'RolaChem'");
 
+    // Named from the Touchscreen's device table; the next model in the same
+    // family has no name there, so it stays unknown.
+    name = get_device_name(0x00, 0xD1, buf, sizeof(buf));
+    TEST_ASSERT(strcmp(name, "Solar Roof Sensor") == 0, "0x00D1 should be 'Solar Roof Sensor'");
+
+    name = get_device_name(0x00, 0xD2, buf, sizeof(buf));
+    TEST_ASSERT(strcmp(name, "Unknown 0x00D2") == 0, "0x00D2 should be unknown");
+
     name = get_device_name(0xFF, 0xFF, buf, sizeof(buf));
     TEST_ASSERT(strcmp(name, "Broadcast") == 0, "0xFFFF should be 'Broadcast'");
 

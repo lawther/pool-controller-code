@@ -487,17 +487,36 @@ const char* get_device_name(uint8_t addr_hi, uint8_t addr_lo, char *fallback_buf
     if (addr_hi == 0xFF && addr_lo == 0xFF) return "Broadcast";
     if (addr_hi == 0x00) {
         switch (addr_lo) {
+            // Low nibble is the model within a family (upper 12 bits) — see
+            // PROTOCOL.md, Device Addresses. Names for addresses not yet seen
+            // on a bus come from the Touchscreen's own device name table.
             case 0x50: return "Touch Screen";
+            case 0x60: return "Relay Board";
+            case 0x61: return "Plus 4 Relay Board";
             case 0x62: return "Connect 8/10";
             case 0x6F: return "Internal Channels";
             case 0x7F: return "Internal Control";
             case 0x70: return "Genus Heater";
+            case 0x71: return "Viron Heater";
             case 0x72: return "HiNRG Gas Heater";
             case 0x74: return "ICI Gas Heater";
+            case 0x80: return "VX Chlorinator TM";
             case 0x81: return "VX 11S v3 Salt Chlorinator";
+            case 0x82: return "E-Series Chlorinator";
+            case 0x83: return "US VX Chlorinator";
             case 0x84: return "Viron Chlorinator";
             case 0x90: return "RolaChem";
             case 0xA0: return "Viron XT Pump";
+            case 0xA1: return "Solar Pump";
+            case 0xA2: return "Viron Three-speed Pump";
+            case 0xB0: return "Genus II FM Receiver";
+            case 0xB1: return "Wireless Transceiver";
+            case 0xB2: return "RF Handheld Remote";
+            case 0xC0: return "Spa Remote TM";
+            case 0xC1: return "Spa Remote NT";
+            case 0xC2: return "Plus 4 Controller";
+            case 0xD0: return "Solar Controller";
+            case 0xD1: return "Solar Roof Sensor";
             case 0xF0: return "Internet Gateway";
         }
     }
