@@ -124,10 +124,62 @@ The low nibble is a model, not an instance number: each family is a list of rela
 
 #### Touchscreen device name table
 
-Mapped by broadcasting a [0x0A](#0x0a--firmware-version-) Firmware Version frame (`02 00 <lo> FF FF 80 00 0A 0E <hdr_ck> 01 09 0A 03`) from each address and reading the name the Touchscreen lists for it. Names are as the Touchscreen spells them. "Other Device" rows are addresses the Touchscreen has no name for; the table is not necessarily contiguous (see `0x0073` / `0x0074`).
+Mapped on a Touchscreen running firmware 2.8 by broadcasting a [0x0A](#0x0a--firmware-version-) Firmware Version frame (`02 00 <lo> FF FF 80 00 0A 0E <hdr_ck> 01 09 0A 03`) from each address and reading the name the Touchscreen lists for it. "Other Device" rows are addresses the Touchscreen has no name for. The table is not complete: the ICI Gas Heater is a real device at `0x0074` but shows as `Other Device (7,4)`.
 
-| Family | Address  | Touchscreen name          | Notes |
-| ------ | -------- | ------------------------- | ----- |
+The families group by function:
+
+| Family | Function                     | Address  | Touchscreen name          | Notes |
+| ------ | ---------------------------- | -------- | ------------------------- | ----- |
+| 0–3    | _(none named)_               | `0x0000`, `0x0010`, `0x0020`, `0x0030` | Other Device (n,0) | |
+| 4      | Lighting controllers         | `0x0040` | Delta Lighting            | |
+|        |                              | `0x0041` | Connect Lite              | |
+|        |                              | `0x0042` | Other Device (4,2)        | |
+| 5      | Touchscreen                  | `0x0050` | Other Device (5,0)        | The Touchscreen's own address; it does not list itself by name |
+| 6      | Main controllers and relay boards | `0x0060` | Relay Board          | |
+|        |                              | `0x0061` | Plus 4 Relay Board        | |
+|        |                              | `0x0062` | Connect 8/10              | Observed on the bus |
+|        |                              | `0x0063` | Connect Lite Plus         | |
+|        |                              | `0x0064` | Other Device (6,4)        | |
+| 7      | Heaters                      | `0x0070` | Genus Heater              | Observed on the bus |
+|        |                              | `0x0071` | Viron Heater              | |
+|        |                              | `0x0072` | HiNRG Heater              | Observed on the bus |
+|        |                              | `0x0073` | Other Device (7,3)        | |
+|        |                              | `0x0074` | Other Device (7,4)        | Observed on the bus as an ICI Gas Heater |
+| 8      | Chlorinators                 | `0x0080` | VX Chlorinator TM         | |
+|        |                              | `0x0081` | VX Chlorinator NT         | Observed on the bus as a VX 11S v3 |
+|        |                              | `0x0082` | E-Series Chlorinator      | |
+|        |                              | `0x0083` | US VX Chlorinator         | |
+|        |                              | `0x0084` | Viron Chlorinator         | Observed on the bus |
+|        |                              | `0x0085` | Other Device (8,5)        | |
+| 9      | Chemistry controllers        | `0x0090` | RolaChem                  | Observed on the bus |
+|        |                              | `0x0091`, `0x0092` | Other Device (9,n) | |
+| 10     | Pumps                        | `0x00A0` | P300 Three Speed Pump     | Observed on the bus as a Viron XT variable-speed pump |
+|        |                              | `0x00A1` | Solar Pump                | |
+|        |                              | `0x00A2` | Viron Three-speed Pump    | |
+|        |                              | `0x00A3` | Other Device (10,3)       | |
+| 11     | Wireless / RF                | `0x00B0` | Genus II FM Receiver      | |
+|        |                              | `0x00B1` | Wireless Transceiver      | |
+|        |                              | `0x00B2` | RF Handheld Remote        | |
+|        |                              | `0x00B3` | Other Device (11,3)       | |
+| 12     | Wired remotes and expansion  | `0x00C0` | Spa Remote TM             | |
+|        |                              | `0x00C1` | Spa Remote NT             | |
+|        |                              | `0x00C2` | Plus 4 Controller         | |
+|        |                              | `0x00C3` | Other Device (12,3)       | |
+| 13     | Solar                        | `0x00D0` | Solar Controller          | |
+|        |                              | `0x00D1` | Solar Roof Sensor         | |
+|        |                              | `0x00D2` | Other Device (13,2)       | |
+| 14     | _(none named)_               | `0x00E0` | Other Device (14,0)       | |
+| 15     | Internet Gateway             | `0x00F0` | Internet Gateway          | Observed on the bus |
+|        |                              | `0x00F1` | Other Device (15,1)       | |
+
+Other patterns:
+
+- **Model `F` is an internal sub-address**, not a product: `0x006F` (Internal Channels) and `0x007F` (Internal Control) are both written to by the Touchscreen and never transmit.
+- **Model 0 / model 1 pairs are product generations**: VX Chlorinator TM / NT (`0x0080` / `0x0081`) and Spa Remote TM / NT (`0x00C0` / `0x00C1`).
+- **Product lines span families by role**: Plus 4 has a relay board (`0x0061`) and a controller (`0x00C2`); Connect Lite is a lighting controller (`0x0041`) while Connect Lite Plus is a main controller (`0x0063`).
+- **Newer hardware reuses older addresses**: the Viron XT variable-speed pump talks as the P300 Three Speed Pump (`0x00A0`), and the VX 11S v3 as the VX Chlorinator NT (`0x0081`).
+
+------ | -------- | ------------------------- | ----- |
 | 6      | `0x0060` | Relay Board               | |
 | 6      | `0x0061` | Plus 4 Relay Board        | |
 | 7      | `0x0070` | Genus Heater              | Observed on the bus |

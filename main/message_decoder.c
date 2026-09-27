@@ -490,10 +490,13 @@ const char* get_device_name(uint8_t addr_hi, uint8_t addr_lo, char *fallback_buf
             // Low nibble is the model within a family (upper 12 bits) — see
             // PROTOCOL.md, Device Addresses. Names for addresses not yet seen
             // on a bus come from the Touchscreen's own device name table.
+            case 0x40: return "Delta Lighting";
+            case 0x41: return "Connect Lite";
             case 0x50: return "Touch Screen";
             case 0x60: return "Relay Board";
             case 0x61: return "Plus 4 Relay Board";
             case 0x62: return "Connect 8/10";
+            case 0x63: return "Connect Lite Plus";
             case 0x6F: return "Internal Channels";
             case 0x7F: return "Internal Control";
             case 0x70: return "Genus Heater";
