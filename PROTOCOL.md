@@ -146,6 +146,7 @@ The families group by function:
 |        |                              | `0x0072` | HiNRG Heater              | Observed on the bus |
 |        |                              | `0x0073` | Other Device (7,3)        | |
 |        |                              | `0x0074` | Other Device (7,4)        | Observed on the bus as an ICI Gas Heater |
+|        |                              | `0x007F` | Other Device (7,15)       | Internal Control: a sub-address the Touchscreen writes to (see below) |
 | 8      | Chlorinators                 | `0x0080` | VX Chlorinator TM         | |
 |        |                              | `0x0081` | VX Chlorinator NT         | Observed on the bus as a VX 11S v3 |
 |        |                              | `0x0082` | E-Series Chlorinator      | |
@@ -175,7 +176,7 @@ The families group by function:
 
 Other patterns:
 
-- **Model `F` is an internal sub-address**, not a product: `0x006F` (Internal Channels) and `0x007F` (Internal Control) are both written to by the Touchscreen and never transmit. The Touchscreen has no name for `0x006F` even though it sends to it.
+- **Model `F` is an internal sub-address**, not a product: `0x006F` (Internal Channels) and `0x007F` (Internal Control) are both written to by the Touchscreen and never transmit. The Touchscreen has no name for either (`Other Device (6,15)` / `(7,15)`), even though it sends to both.
 - **Model 0 / model 1 pairs are product generations**: VX Chlorinator TM / NT (`0x0080` / `0x0081`) and Spa Remote TM / NT (`0x00C0` / `0x00C1`).
 - **Product lines span families by role**: Plus 4 has a relay board (`0x0061`) and a controller (`0x00C2`); Connect Lite is a lighting controller (`0x0041`) while Connect Lite Plus is a main controller (`0x0063`).
 - **Newer hardware reuses older addresses**: the Viron XT variable-speed pump talks as the P300 Three Speed Pump (`0x00A0`), and the VX 11S v3 as the VX Chlorinator NT (`0x0081`).
