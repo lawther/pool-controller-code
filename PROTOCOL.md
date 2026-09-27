@@ -120,6 +120,7 @@ The low nibble is a model, not an instance number: each family is a list of rela
 | `0x0090` | RolaChem          | Chemistry/chlorinator module      |
 | `0x00A0` | Viron Pump        | Viron XT Variable Speed Pump      |
 | `0x00F0` | Internet Gateway  | Internet gateway module           |
+| `0xAC1D` | Pool Controller ESP32 | This bridge firmware's own bus identity |
 | `0xFFFF` | Broadcast         | Broadcast to all devices          |
 
 #### Touchscreen device name table
@@ -249,7 +250,7 @@ Click any CMD in the first column to jump to the full section in [Commands](#com
 | [`0x0A`](#0x0a--firmware-version-)                             | Firmware Version                    | `0x0050`, `0x0062`, `0x0070`, `0x0081`, `0x0084`, `0x00A0`, `0x00F0` → Broadcast | Same `{major, minor}` payload across all sources; dispatched on CMD byte alone              | Yes (unified handler)   |
 | [`0x0B`](#0x0b--channel-status-)                               | Channel Status                      | `0x0050` → Broadcast                                                   |                                                                                             | Yes                     |
 | [`0x0D`](#0x0d--active-channels-bitmask-)                      | Active Channels Bitmask             | `0x0050` → `0x006F` Internal Channels                                  | Unicast                                                                                     | Yes                     |
-| [`0x0F`](#0x0f--chlorinator-pump-control-)                | Chlorinator Pump Control   | `0x0081`, `0x0084` → `0x0050`                                                            | `{channel, state}` — sets a **pump-driven** channel to a named state directly (Off/Auto/On/Low/Med/High)     | Yes                     |
+| [`0x0F`](#0x0f--chlorinator-pump-control-)                | Chlorinator Pump Control   | `0x0081`, `0x0084`, `0xAC1D` → `0x0050`                                                            | `{channel, state}` — sets a **pump-driven** channel to a named state directly (Off/Auto/On/Low/Med/High)     | Yes                     |
 | [`0x10`](#0x10--channel-toggle-command-)                      | Channel Toggle Command              | `0x00F0`, `0x0062` → Broadcast                                         | Same 1-byte channel-index payload from either source; dispatched on CMD byte alone         | Yes (unified handler)   |
 | [`0x12`](#0x12--device-status-️)                               | Device Status                       | `0x0050`, `0x0062`, `0x0070`, `0x0074`, `0x0081`, `0x0084`, `0x0090`, `0x00F0` → Broadcast | Payload layout differs per source                                                           | Yes (per-source)        |
 | [`0x14`](#0x14--mode-spapool-)                                 | Mode (Spa/Pool)                     | `0x0050` → Broadcast                                                   |                                                                                             | Yes                     |
@@ -506,13 +507,15 @@ Reports which channels are currently active. Unicast from the Touchscreen (`0x00
 
 ### 0x0F — Chlorinator Pump Control ✅
 
-Unicast to the Touchscreen (`0x0050`) setting a channel directly to a named state. This is a Chlorinator device (`0x0084` or `0x0081`) asking for pump flow. Byte 10 selects the channel and byte 11 the state. It is not limited to the filter channel — it can drive the simple on/off Cleaning channel too. 
+Unicast to the Touchscreen (`0x0050`) setting a channel directly to a named state. In the wild, this is a Chlorinator device (`0x0084` or `0x0081`) asking for pump flow. Our firmware uses its own device address (`0xAC1D` Pool Controller ESP32), regardless of what chlorinator (if any) has been seen on the bus.
+
+Byte 10 selects the channel and byte 11 the state. It is not limited to the filter channel — it can drive the simple on/off Cleaning channel too. 
 
 This sets the internal channel status of the Touchscreen (it broadcasts this via `0x0B`), and then the Touchscreen sends its normal commands to control the pump (via `0x18`).
 
 It does **not** control every channel: lights and the blower ignore it entirely (see below). 
 
-The Touchscreen does not check that the source address belongs to a chlorinator it has actually seen on the bus: it has been confirmed working both as `0x0084` on a bus where no such device exists, and also as `0x0081` on a system where that device does exist.
+The Touchscreen does not check that the source address belongs to a chlorinator it has actually seen on the bus, or even that it belongs to a known chlorinator: it has been confirmed working as `0x0084` on a bus where no such device exists, as `0x0081` on a system where that device does exist, and as `0xAC1D`, the Pool Controller ESP32's own recognised device address (see [Device Addresses](#device-addresses)).
 
 **Pattern:** `02 00 84 00 50 80 00 0F 0E 73` 
 
@@ -529,7 +532,8 @@ The Touchscreen does not check that the source address belongs to a chlorinator 
 
 **Notes:**
 
-- Handled in `message_decoder.c` (`handle_chlor_set_pump_mode`), dispatched on the CMD byte alone since either chlorinator address may source it. Log-only: the Touchscreen applies the state and broadcasts it back via [0x0B](#0x0b--channel-status-), which is what updates state.
+- Decoding is handled in `message_decoder.c` (`handle_chlor_set_pump_mode`), dispatched on the CMD byte alone since any address may source it. Log-only: the Touchscreen applies the state and broadcasts it back via [0x0B](#0x0b--channel-status-), which is what updates state.
+- Our firmware uses its own ID `0xAC1D` when sending this `0x0F` command - it does not track or impersonate a chlorinator address seen on the bus.
 - **Byte 11 uses the same code space as the [0x0B](#0x0b--channel-status-) Channel States**, extended speeds included. The only message that sets a channel's state *persistently* — [0x10](#0x10--channel-toggle-command-) only cycles it, and [0x18](#0x18--pump-speed-command-) sets the pump's RPM directly but gets overwritten by the Touchscreen's next broadcast.
 
 #### Direct channel-state control ✅

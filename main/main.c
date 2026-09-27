@@ -35,11 +35,7 @@ static const char *TAG = "POOL_BUS_BRIDGE";
 // Pool state (structs defined in pool_state.h)
 // ======================================================
 
-pool_state_t s_pool_state = {
-    // Seed the CMD 0x0F source address with a known good device
-    .chlor_src_hi = CHLOR_SRC_DEFAULT_HI,
-    .chlor_src_lo = CHLOR_SRC_DEFAULT_LO,
-};
+pool_state_t s_pool_state = {0};
 SemaphoreHandle_t s_pool_state_mutex = NULL;
 
 // ======================================================
