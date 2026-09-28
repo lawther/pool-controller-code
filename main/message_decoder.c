@@ -142,9 +142,10 @@ static const char *MSG_TYPE_CHLOR_STATUS_A = "02 00 90 FF FF 80 00 12 0D 2F";
 static const char *MSG_TYPE_CHLOR_STATUS_B = "02 00 84 FF FF 80 00 12 0D 23";
 
 // Chlorinator pump control (CMD 0x0F) is dispatched source-agnostically in
-// dispatch_message() — see PROTOCOL.md command `0x0F`. The 0x0084 Viron and
-// 0x0081 VX 11S v3 chlorinators are confirmed sources on the bus; this
-// firmware also originates it unconditionally as 0xAC1D.
+// dispatch_message() — see PROTOCOL.md command `0x0F`. The Touchscreen does
+// not validate the source address at all: 0x0084 (Viron) and 0x0081 (VX 11S
+// v3) are confirmed sources on the bus, and this firmware originates it
+// unconditionally as its own 0xAC1D.
 
 // VX 11S v3 Chlorinator CMD 0x12 status broadcast (meaning unknown; payload always 0x00 in captures)
 static const char *MSG_TYPE_VX11S_STATUS = "02 00 81 FF FF 80 00 12 0D 20";
@@ -489,17 +490,39 @@ const char* get_device_name(uint8_t addr_hi, uint8_t addr_lo, char *fallback_buf
     if (addr_hi == SELF_DEVICE_ID_HI && addr_lo == SELF_DEVICE_ID_LO) return "Pool Controller ESP32";
     if (addr_hi == 0x00) {
         switch (addr_lo) {
+            // Low nibble is the model within a family (upper 12 bits) — see
+            // PROTOCOL.md, Device Addresses. Names for addresses not yet seen
+            // on a bus come from the Touchscreen's own device name table.
+            case 0x40: return "Delta Lighting";
+            case 0x41: return "Connect Lite";
             case 0x50: return "Touch Screen";
+            case 0x60: return "Relay Board";
+            case 0x61: return "Plus 4 Relay Board";
             case 0x62: return "Connect 8/10";
+            case 0x63: return "Connect Lite Plus";
             case 0x6F: return "Internal Channels";
             case 0x7F: return "Internal Control";
             case 0x70: return "Genus Heater";
+            case 0x71: return "Viron Heater";
             case 0x72: return "HiNRG Gas Heater";
             case 0x74: return "ICI Gas Heater";
+            case 0x80: return "VX Chlorinator TM";
             case 0x81: return "VX 11S v3 Salt Chlorinator";
+            case 0x82: return "E-Series Chlorinator";
+            case 0x83: return "US VX Chlorinator";
             case 0x84: return "Viron Chlorinator";
             case 0x90: return "RolaChem";
             case 0xA0: return "Viron XT Pump";
+            case 0xA1: return "Solar Pump";
+            case 0xA2: return "Viron Three-speed Pump";
+            case 0xB0: return "Genus II FM Receiver";
+            case 0xB1: return "Wireless Transceiver";
+            case 0xB2: return "RF Handheld Remote";
+            case 0xC0: return "Spa Remote TM";
+            case 0xC1: return "Spa Remote NT";
+            case 0xC2: return "Plus 4 Controller";
+            case 0xD0: return "Solar Controller";
+            case 0xD1: return "Solar Roof Sensor";
             case 0xF0: return "Internet Gateway";
         }
     }
@@ -2515,6 +2538,10 @@ static bool handle_vx11s_status(
  * CMD 0x0B Channel State code space (CHANNEL_STATE_NAMES), extended pump
  * speeds included. Only pump-driven channels act on it; see PROTOCOL.md
  * command `0x0F`.
+ *
+ * The Touchscreen does not validate the source address at all: 0x0084
+ * (Viron) and 0x0081 (VX 11S v3) are confirmed sources on the bus, and this
+ * firmware originates it as its own 0xAC1D.
  */
 static bool handle_chlor_set_pump_mode(
     const uint8_t *data, int len,
@@ -3982,8 +4009,9 @@ static bool dispatch_message(
     }
 
     // Chlorinator pump control (CMD 0x0F) — source-agnostic. The Touchscreen
-    // does not check which chlorinator the frame claims to come from; both
-    // 0x0084 (Viron) and 0x0081 (VX 11S v3) are confirmed sources.
+    // does not validate the source address at all; 0x0084 (Viron) and 0x0081
+    // (VX 11S v3) are confirmed sources on the bus, and this firmware
+    // originates it as its own 0xAC1D.
     if (cmd == 0x0F) {
         return handle_chlor_set_pump_mode(data, len, payload, payload_len, addr_info, ctx);
     }
