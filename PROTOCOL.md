@@ -129,59 +129,62 @@ Mapped on a Touchscreen running firmware 2.8 by broadcasting a [0x0A](#0x0a--fir
 
 The families group by function:
 
-| Family | Function                     | Address  | Touchscreen name          | Notes |
-| ------ | ---------------------------- | -------- | ------------------------- | ----- |
-| 0–3    | _(none named)_               | `0x0000`, `0x0010`, `0x0020`, `0x0030` | Other Device (n,0) | |
-| 4      | Lighting controllers         | `0x0040` | Delta Lighting            | |
-|        |                              | `0x0041` | Connect Lite              | |
-|        |                              | `0x0042` | Other Device (4,2)        | |
-| 5      | Touchscreen                  | `0x0050` | Other Device (5,0)        | The Touchscreen's own address; it does not list itself by name |
-| 6      | Main controllers and relay boards | `0x0060` | Relay Board          | |
-|        |                              | `0x0061` | Plus 4 Relay Board        | |
-|        |                              | `0x0062` | Connect 8/10              | Observed on the bus |
-|        |                              | `0x0063` | Connect Lite Plus         | |
-|        |                              | `0x0064` | Other Device (6,4)        | |
-|        |                              | `0x006F` | Other Device (6,15)       | Internal Channels: a sub-address the Touchscreen writes to (see below) |
-| 7      | Heaters                      | `0x0070` | Genus Heater              | Observed on the bus |
-|        |                              | `0x0071` | Viron Heater              | |
-|        |                              | `0x0072` | HiNRG Heater              | Observed on the bus |
-|        |                              | `0x0073` | Other Device (7,3)        | |
-|        |                              | `0x0074` | Other Device (7,4)        | Observed on the bus as an ICI Gas Heater |
-|        |                              | `0x007F` | Other Device (7,15)       | Internal Control: a sub-address the Touchscreen writes to (see below) |
-| 8      | Chlorinators                 | `0x0080` | VX Chlorinator TM         | |
-|        |                              | `0x0081` | VX Chlorinator NT         | Observed on the bus as a VX 11S v3 |
-|        |                              | `0x0082` | E-Series Chlorinator      | |
-|        |                              | `0x0083` | US VX Chlorinator         | |
-|        |                              | `0x0084` | Viron Chlorinator         | Observed on the bus |
-|        |                              | `0x0085` | Other Device (8,5)        | |
-| 9      | Chemistry controllers        | `0x0090` | RolaChem                  | Observed on the bus |
-|        |                              | `0x0091`, `0x0092` | Other Device (9,n) | |
-| 10     | Pumps                        | `0x00A0` | P300 Three Speed Pump     | Observed on the bus as a Viron XT variable-speed pump |
-|        |                              | `0x00A1` | Solar Pump                | |
-|        |                              | `0x00A2` | Viron Three-speed Pump    | |
-|        |                              | `0x00A3` | Other Device (10,3)       | |
-| 11     | Wireless / RF                | `0x00B0` | Genus II FM Receiver      | |
-|        |                              | `0x00B1` | Wireless Transceiver      | |
-|        |                              | `0x00B2` | RF Handheld Remote        | |
-|        |                              | `0x00B3` | Other Device (11,3)       | |
-| 12     | Wired remotes and expansion  | `0x00C0` | Spa Remote TM             | |
-|        |                              | `0x00C1` | Spa Remote NT             | |
-|        |                              | `0x00C2` | Plus 4 Controller         | |
-|        |                              | `0x00C3` | Other Device (12,3)       | |
-| 13     | Solar                        | `0x00D0` | Solar Controller          | |
-|        |                              | `0x00D1` | Solar Roof Sensor         | |
-|        |                              | `0x00D2` | Other Device (13,2)       | |
-| 14     | _(none named)_               | `0x00E0` | Other Device (14,0)       | |
-| 15     | Internet Gateway             | `0x00F0` | Internet Gateway          | Observed on the bus |
-|        |                              | `0x00F1` | Other Device (15,1)       | |
-| 2753   | Pool Controller ESP32        | `0xAC1D` | Other Device (2753,13)    | Pool Controller ESP32: this bridge firmware's own bus identity |
+| Address  | Family | Model | Function                          | Touchscreen name       | Notes |
+| -------- | ------ | ----- | --------------------------------- | ---------------------- | ----- |
+| `0x0000` | 0      | 0     | Unknown                           | Other Device (0,0)     | |
+| `0x0010` | 1      | 0     | Unknown                           | Other Device (1,0)     | |
+| `0x0020` | 2      | 0     | Unknown                           | Other Device (2,0)     | |
+| `0x0030` | 3      | 0     | Unknown                           | Other Device (3,0)     | |
+| `0x0040` | 4      | 0     | Lighting controllers              | Delta Lighting         | |
+| `0x0041` |        | 1     |                                   | Connect Lite           | |
+| `0x0042` |        | 2     |                                   | Other Device (4,2)     | |
+| `0x0050` | 5      | 0     | Touchscreen                       | Other Device (5,0)     | The Touchscreen's own address; it does not list itself by name |
+| `0x0060` | 6      | 0     | Main controllers and relay boards | Relay Board            | |
+| `0x0061` |        | 1     |                                   | Plus 4 Relay Board     | |
+| `0x0062` |        | 2     |                                   | Connect 8/10           | Observed on the bus |
+| `0x0063` |        | 3     |                                   | Connect Lite Plus      | |
+| `0x0064` |        | 4     |                                   | Other Device (6,4)     | |
+| `0x006F` |        | 15    |                                   | Other Device (6,15)    | Internal Channels: a sub-address the Touchscreen writes to (see below) |
+| `0x0070` | 7      | 0     | Heaters                           | Genus Heater           | Observed on the bus |
+| `0x0071` |        | 1     |                                   | Viron Heater           | |
+| `0x0072` |        | 2     |                                   | HiNRG Heater           | Observed on the bus |
+| `0x0073` |        | 3     |                                   | Other Device (7,3)     | |
+| `0x0074` |        | 4     |                                   | Other Device (7,4)     | Observed on the bus as an ICI Gas Heater |
+| `0x007F` |        | 15    |                                   | Other Device (7,15)    | Internal Control: a sub-address the Touchscreen writes to (see below) |
+| `0x0080` | 8      | 0     | Chlorinators                      | VX Chlorinator TM      | |
+| `0x0081` |        | 1     |                                   | VX Chlorinator NT      | Observed on the bus as a VX 11S v3 |
+| `0x0082` |        | 2     |                                   | E-Series Chlorinator   | |
+| `0x0083` |        | 3     |                                   | US VX Chlorinator      | |
+| `0x0084` |        | 4     |                                   | Viron Chlorinator      | Observed on the bus |
+| `0x0085` |        | 5     |                                   | Other Device (8,5)     | |
+| `0x0090` | 9      | 0     | Chemistry controllers             | RolaChem               | Observed on the bus |
+| `0x0091` |        | 1     |                                   | Other Device (9,1)     | |
+| `0x0092` |        | 2     |                                   | Other Device (9,2)     | |
+| `0x00A0` | 10     | 0     | Pumps                             | P300 Three Speed Pump  | Observed on the bus as a Viron XT variable-speed pump |
+| `0x00A1` |        | 1     |                                   | Solar Pump             | |
+| `0x00A2` |        | 2     |                                   | Viron Three-speed Pump | |
+| `0x00A3` |        | 3     |                                   | Other Device (10,3)    | |
+| `0x00B0` | 11     | 0     | Wireless / RF                     | Genus II FM Receiver   | |
+| `0x00B1` |        | 1     |                                   | Wireless Transceiver   | |
+| `0x00B2` |        | 2     |                                   | RF Handheld Remote     | |
+| `0x00B3` |        | 3     |                                   | Other Device (11,3)    | |
+| `0x00C0` | 12     | 0     | Wired remotes and expansion       | Spa Remote TM          | |
+| `0x00C1` |        | 1     |                                   | Spa Remote NT          | |
+| `0x00C2` |        | 2     |                                   | Plus 4 Controller      | |
+| `0x00C3` |        | 3     |                                   | Other Device (12,3)    | |
+| `0x00D0` | 13     | 0     | Solar                             | Solar Controller       | |
+| `0x00D1` |        | 1     |                                   | Solar Roof Sensor      | |
+| `0x00D2` |        | 2     |                                   | Other Device (13,2)    | |
+| `0x00E0` | 14     | 0     | Unknown                           | Other Device (14,0)    | |
+| `0x00F0` | 15     | 0     | Internet Gateway                  | Internet Gateway       | Observed on the bus |
+| `0x00F1` |        | 1     |                                   | Other Device (15,1)    | |
+| `0xAC1D` | 2753   | 13    | Pool Controller ESP32             | Other Device (2753,13) | Pool Controller ESP32: this bridge firmware's own bus identity |
 
 Other patterns:
 
 - **Model `F` is an internal sub-address**, not a product: `0x006F` (Internal Channels) and `0x007F` (Internal Control) are both written to by the Touchscreen and never transmit. The Touchscreen has no name for either (`Other Device (6,15)` / `(7,15)`), even though it sends to both.
-- **Model 0 / model 1 pairs are product generations**: VX Chlorinator TM / NT (`0x0080` / `0x0081`) and Spa Remote TM / NT (`0x00C0` / `0x00C1`).
-- **Product lines span families by role**: Plus 4 has a relay board (`0x0061`) and a controller (`0x00C2`); Connect Lite is a lighting controller (`0x0041`) while Connect Lite Plus is a main controller (`0x0063`).
-- **Newer hardware reuses older addresses**: the Viron XT variable-speed pump talks as the P300 Three Speed Pump (`0x00A0`), and the VX 11S v3 as the VX Chlorinator NT (`0x0081`).
+- **Some product names appear in more than one family**: Plus 4 Relay Board (`0x0061`) and Plus 4 Controller (`0x00C2`); Connect Lite (`0x0041`) and Connect Lite Plus (`0x0063`).
+- **Some devices use an address the Touchscreen names as a different product**: a Viron XT variable-speed pump is on the bus at `0x00A0`, which the Touchscreen names P300 Three Speed Pump, and a VX 11S v3 at `0x0081`, which it names VX Chlorinator NT.
 
 ---
 
