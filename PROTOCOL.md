@@ -174,7 +174,7 @@ The families group by function:
 | 14     | _(none named)_               | `0x00E0` | Other Device (14,0)       | |
 | 15     | Internet Gateway             | `0x00F0` | Internet Gateway          | Observed on the bus |
 |        |                              | `0x00F1` | Other Device (15,1)       | |
-| 2753   | Pool Controller ESP32        | `0xAC1D` | Other Device (2753,13) / Pool Controller ESP32 | This bridge firmware's own bus identity |
+| 2753   | Pool Controller ESP32        | `0xAC1D` | Other Device (2753,13)    | Pool Controller ESP32: this bridge firmware's own bus identity |
 
 Other patterns:
 
@@ -464,7 +464,7 @@ This sets the internal channel status of the Touchscreen (it broadcasts this via
 
 It does **not** control every channel: lights and the blower ignore it entirely (see below). 
 
-The Touchscreen does not check that the source address belongs to a chlorinator it has actually seen on the bus, or even that it belongs to a known chlorinator: it has been confirmed working as `0x0084` on a bus where no such device exists, as `0x0081` on a system where that device does exist, and as `0xAC1D`, the Pool Controller ESP32's own recognised device address (see [Device Addresses](#device-addresses)).
+The Touchscreen does not check that the source address belongs to a chlorinator it has actually seen on the bus, or even that it belongs to a known chlorinator: it has been confirmed working as `0x0084` on a bus where no such device exists, as `0x0081` on a system where that device does exist, and as `0xAC1D`, the Pool Controller ESP32's own recognised device address (see [Device Addresses](#device-addresses)), on Touchscreen firmware 2.8.
 
 **Pattern:** `02 00 84 00 50 80 00 0F 0E 73` 
 
