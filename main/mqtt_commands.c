@@ -418,7 +418,6 @@ static void handle_mode_command(const char *payload, int payload_len)
 {
     ESP_LOGI(TAG, "Mode command: %.*s", payload_len, payload);
 
-    // CMD 0x15 uses the same encoding as the 0x14 status: MODE_SPA/MODE_POOL
     uint8_t mode_value;
     if (strncmp(payload, "Pool", payload_len) == 0) {
         mode_value = MODE_POOL;
@@ -429,21 +428,39 @@ static void handle_mode_command(const char *payload, int payload_len)
         return;
     }
 
-    // Build CMD 0x15 Mode Set broadcast
-    // Pattern: 02 AC 1D FF FF 80 00 15 0D 6B [MODE] [CHECKSUM] 03
+    // CMD 0x15 toggles the mode, so a request for the current mode would
+    // switch to the other one. Only send when the mode is known and differs.
+    bool mode_valid = false;
+    uint8_t current_mode = 0;
+    if (s_pool_state_mutex &&
+        xSemaphoreTake(s_pool_state_mutex, pdMS_TO_TICKS(500)) == pdTRUE) {
+        mode_valid = s_pool_state.mode_valid;
+        current_mode = s_pool_state.mode;
+        xSemaphoreGive(s_pool_state_mutex);
+    }
+    if (!mode_valid) {
+        ESP_LOGW(TAG, "Ignoring mode command: current mode not yet known");
+        return;
+    }
+    if (current_mode == mode_value) {
+        ESP_LOGI(TAG, "Already in %.*s mode, not sending", payload_len, payload);
+        return;
+    }
+
+    // Build CMD 0x15 Mode Toggle broadcast, in the form with no data that the
+    // Connect 8/10's Pool/Spa button sends
+    // Pattern: 02 AC 1D FF FF 00 00 15 0B E9 03
     uint8_t cmd[] = {
         0x02,       // START
         SELF_DEVICE_ID_HI, SELF_DEVICE_ID_LO,   // SOURCE: this firmware (Pool Controller ESP32)
         0xFF, 0xFF, // DEST: Broadcast
-        0x80, 0x00, // CONTROL
-        0x15, 0x0D, // CMD, LEN
+        0x00, 0x00, // CONTROL: frame with no data
+        0x15, 0x0B, // CMD, LEN
         0x00,       // HDR checksum, filled in by send_uart_command
-        mode_value, // Mode value (MODE_SPA or MODE_POOL)
-        mode_value, // Checksum (just the mode value)
         0x03        // END
     };
 
-    ESP_LOGI(TAG, "Sending mode switch to %s", mode_value == MODE_POOL ? "Pool" : "Spa");
+    ESP_LOGI(TAG, "Sending mode toggle, to switch to %s", mode_value == MODE_POOL ? "Pool" : "Spa");
     send_uart_command(cmd, sizeof(cmd));
 }
 

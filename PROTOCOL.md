@@ -21,7 +21,7 @@ This document describes the proprietary serial protocol used by the Connect 10 p
   - [0x10 — Channel Toggle Command ✅](#0x10--channel-toggle-command-)
   - [0x12 — Device Status ⚠️](#0x12--device-status-️)
   - [0x14 — Mode (Spa/Pool) ✅](#0x14--mode-spapool-)
-  - [0x15 — Mode Set Command (Spa/Pool) ✅](#0x15--mode-set-command-spapool-)
+  - [0x15 — Mode Toggle Command (Spa/Pool) ✅](#0x15--mode-toggle-command-spapool-)
   - [0x16 — Water Temperature Reading ✅](#0x16--water-temperature-reading-)
   - [0x17 — Temperature Settings ✅](#0x17--temperature-settings-)
   - [0x18 — Pump Speed Command ✅](#0x18--pump-speed-command-)
@@ -88,14 +88,14 @@ The FRAME_TYPE bytes select one of two frame layouts:
 
 A frame with no data carries nothing beyond its CMD byte: bytes 0–8 are the header, byte 9 the header checksum and byte 10 END. Almost all traffic uses frames with data.
 
-The same CMD can appear as either type, with a different meaning. For example, [0x15](#0x15--mode-set-command-spapool-) with data sets a named mode, and with no data toggles the mode.
+The same CMD can appear as either type. For example, [0x15](#0x15--mode-toggle-command-spapool-) comes both with a 1-byte payload and with no data, and the Touchscreen treats the two the same.
 
 Frames with no data seen so far:
 
 | CMD | Source → Destination | Meaning |
 |-----|----------------------|---------|
 | `0x13` | `0x0081` VX 11S v3, `0x0084` Viron Chlorinator → Broadcast | Unknown; sent next to the chlorinator's [0x12](#0x12--device-status-️) status |
-| `0x15` | `0x0062` Connect 8/10, `0x0074` ICI Gas Heater → Broadcast | [Mode toggle](#toggle-form-) |
+| `0x15` | `0x0062` Connect 8/10, `0x0074` ICI Gas Heater → Broadcast | [Mode toggle](#without-payload-) |
 | `0x1A` | `0x0050` Touchscreen → `0x007F` All Heaters | [Heater Toggle Command](#0x1a--heater-toggle-command-) |
 
 Any other FRAME_TYPE value is invalid, and the frame is discarded.
@@ -232,7 +232,7 @@ Click any CMD in the first column to jump to the full section in [Commands](#com
 | [`0x10`](#0x10--channel-toggle-command-)                      | Channel Toggle Command              | `0x00F0`, `0x0062`, `0xAC1D` → Broadcast                               | Same 1-byte channel-index payload from either source; dispatched on CMD byte alone         | Yes (unified handler)   |
 | [`0x12`](#0x12--device-status-️)                               | Device Status                       | `0x0050`, `0x0062`, `0x0070`–`0x0072`, `0x0074`, `0x0081`, `0x0084`, `0x0090`, `0x00F0` → Broadcast | Payload layout differs per source; dispatched on CMD byte, routed by source address         | Yes (per-source)        |
 | [`0x14`](#0x14--mode-spapool-)                                 | Mode (Spa/Pool)                     | `0x0050` → Broadcast                                                   |                                                                                             | Yes                     |
-| [`0x15`](#0x15--mode-set-command-spapool-)                     | Mode Set Command (Spa/Pool)         | `0x0050`, `0x0062`, `0x0074`, `0xAC1D` → Broadcast                     | Two forms by LEN: `0x0D` sets the mode, same encoding as the `0x14` status (Spa=`0x00`, Pool=`0x01`); `0x0B` (frame with no data, FRAME_TYPE `00 00`, from the Connect 8/10 Pool/Spa button and the ICI Gas Heater) toggles it; dispatched on CMD byte alone | Yes (both forms)        |
+| [`0x15`](#0x15--mode-toggle-command-spapool-)                  | Mode Toggle Command (Spa/Pool)      | `0x0050`, `0x0062`, `0x0074`, `0xAC1D` → Broadcast                     | Toggles the mode, in two forms by LEN: `0x0B` (frame with no data, FRAME_TYPE `00 00`) from the Connect 8/10 Pool/Spa button, the ICI Gas Heater and our firmware; `0x0D` carries one byte, which the Touchscreen ignores, and is only seen injected; dispatched on CMD byte alone | Yes (both forms)        |
 | [`0x16`](#0x16--water-temperature-reading-)                    | Water Temperature Reading           | `0x0062` (LEN `0x0E`), `0x0070`/`0x0071`/`0x0072`/`0x0074` (LEN `0x0D`) → Broadcast | Payload length differs by source: LEN `0x0E` = `{temp1, temp2}`, LEN `0x0D` = `{temp1}`; dispatched on CMD byte alone | Yes (unified handler)   |
 | [`0x17`](#0x17--temperature-settings-)                         | Temperature Settings                | `0x0050` (LEN `0x10`), `0x0070`/`0x0071`/`0x0072`/`0x0074` (LEN `0x0E`) → Broadcast | Source-dependent payload layout                                                             | Yes (per-source)        |
 | [`0x18`](#0x18--pump-speed-command-)                           | Pump Speed Command                  | `0x0050`, `0x0084` → `0x00A0` Viron XT Pump                            | Set pump speed (low/med/high)                                                       | Yes                     |
@@ -967,7 +967,7 @@ Reports the current operating mode — pool or spa. Broadcast by the Touchscreen
 
 **Notes:**
 
-- The mode can be set with the companion [0x15 Mode Set Command](#0x15--mode-set-command-spapool-), which uses the same encoding
+- The mode can be switched with the companion [0x15 Mode Toggle Command](#0x15--mode-toggle-command-spapool-)
 - The Touchscreen also holds the mode in register `0x65`/slot `0x00`, with the same encoding, readable with [0x39](#0x39--register-read-request-) — see [Appendix A](#appendix-a-register-dispatch-table)
 - **Drives the pool/spa valve actuators.** The Connect 8/10 (`0x0062`) sets the actuator pair on its inlet/outlet sockets from this broadcast, and re-applies it on every `0x14` it receives, not only when the mode changes. Shown by injection on the capturing install while in Spa mode: a spoofed `0x14` Pool, sent as `0x0050`, clicked a relay in the Connect 10 and started the valves towards the pool path. The Touchscreen's next regular `0x14` Spa, 34 s later, clicked it back and reversed them. No other frame was on the bus near either click. The Connect 8/10 does not check the source address: a `0x14` Spa sent from `0xAC1D` moved the valves the same way.
 - **The valve position cannot be set independently of the mode.** The Touchscreen re-sends the real mode about every 60 s and the Connect 8/10 follows it, so the valves cannot be held in the other position from the bus. Spoofing `0x14` would also mislead every other device that reads the mode
@@ -976,51 +976,33 @@ Reports the current operating mode — pool or spa. Broadcast by the Touchscreen
 
 ---
 
-### 0x15 — Mode Set Command (Spa/Pool) ✅
+### 0x15 — Mode Toggle Command (Spa/Pool) ✅
 
-Command that switches the current operating mode between Pool and Spa. Comes in two forms, told apart by LEN:
+Switches the operating mode to the other one, Pool to Spa or Spa to Pool. It names no target, so a sender must check the current mode ([0x14](#0x14--mode-spapool-)) first, and send nothing if it already matches. Our firmware does, and sends the form without payload from its own address `0xAC1D`. The command comes in two forms, told apart by LEN, which the Touchscreen (firmware 2.8) treats the same:
 
-| Form | Source | LEN | FRAME_TYPE | Payload | Effect |
-|------|--------|-----|------|---------|--------|
-| Set    | `0x0050` Touchscreen  | `0x0D` | `80 00` | 1 byte: target mode | Sets the named mode |
-| Toggle | `0x0062` Connect 8/10, `0x0074` ICI Gas Heater | `0x0B` | `00 00` | none | Switches to the other mode |
-
-#### Set form ✅
-
-Sent from the Touchscreen address (`0x0050`) as a broadcast. Discovered and confirmed by injection testing: sending these frames switches the mode. The Touchscreen does not check the source address: on Touchscreen firmware 2.8 it acts on this command sent from the Pool Controller ESP32's own address `0xAC1D` (`02 AC 1D FF FF 80 00 15 0D 6B`). Our firmware sends it from `0xAC1D`.
-
-**Pattern:** `02 00 50 FF FF 80 00 15 0D F2`
-
-**Examples:**
-
-```
-02 00 50 FF FF 80 00 15 0D F2 00 00 03   Set Spa mode
-02 00 50 FF FF 80 00 15 0D F2 01 01 03   Set Pool mode
-                              ^^ Mode: 0x00 = Spa, 0x01 = Pool
-                                 ^^ Data checksum (equals the mode byte)
-```
-
-**Data Fields:**
-
-- Byte 10: Mode (`0x00` = Spa, `0x01` = Pool)
-- Byte 11: Data checksum (equals byte 10 since it is the only data byte)
+| Form | Seen from | LEN | FRAME_TYPE | Payload |
+|------|-----------|-----|------------|---------|
+| [Without payload](#without-payload-) | `0x0062` Connect 8/10, `0x0074` ICI Gas Heater, `0xAC1D` our firmware | `0x0B` | `00 00` | none |
+| [With payload](#with-payload-) | Injection only, as `0x0050` and `0xAC1D` | `0x0D` | `80 00` | 1 byte, ignored |
 
 **Notes:**
 
-- Uses the **same** mode encoding as the [0x14 Mode status](#0x14--mode-spapool-) (Spa=`0x00`, Pool=`0x01`) — unlike [0x2A Favourite Control](#0x2a--favourite-control-command-), whose Pool/Spa values are inverted relative to `0x14`
-- Alternative to switching mode via the Pool/Spa built-in favourites of [0x2A](#0x2a--favourite-control-command-): `0x2A` is unicast to the Touchscreen, whereas this command is a broadcast
-- The set form is not seen in normal bus traffic; only the [toggle form](#toggle-form-) is
-- The Touchscreen reacts to the injected frame with a fixed ~1 s burst that confirms the mode ([0x14](#0x14--mode-spapool-)), republishes channel and valve state, and re-sends the pump speed. The `0x14` is what moves the pool/spa valve actuators.
+- The Touchscreen does not check the source address: it acts on both forms sent from `0xAC1D`
+- The Touchscreen reacts with a fixed ~1 s burst that confirms the mode ([0x14](#0x14--mode-spapool-)), republishes channel and valve state, and re-sends the pump speed. The `0x14` is what moves the pool/spa valve actuators.
+- On one install (Touchscreen firmware 2.8, set up by the installer), every mode switch set the Filter channel to High ([0x0B](#0x0b--channel-status-), then [0x18](#0x18--pump-speed-command-) to the pump), whatever it had been: six switches, in both directions, from Off, Auto, Low and Med. This may be a per-install setting, such as a speed stored in the Pool/Spa favourites, and needs confirming on another install.
 - When the new mode needs the heater switched, the burst also carries the [0x1A](#0x1a--heater-toggle-command-)/[0x41](#0x41--heater-target-state-️) heater pair. On an install with the heater plumbed to the spa, that means a switch to Spa with the heater off, or a switch to Pool with it on. The sender of the `0x15` makes no difference.
+- Alternative to switching mode via the Pool/Spa built-in favourites of [0x2A](#0x2a--favourite-control-command-): `0x2A` is unicast to the Touchscreen and names the mode, whereas this command is a broadcast toggle
+- Handled by `handle_mode_toggle_cmd`, dispatched on the CMD byte alone. It logs both forms, the 1-byte form with its payload byte, without updating `pool_state`: the new mode comes from the `0x14` that follows.
 
-#### Toggle form ✅
+#### Without payload ✅
 
-Broadcast by the Connect 8/10 (`0x0062`) when its Pool/Spa button is pressed, and by the ICI Gas Heater (`0x0074`) to put the system in the mode it needs. The Touchscreen does not check the source address: sent from `0xAC1D`, two toggles 10 s apart switched Pool → Spa → Pool (see `test/samples/heater_commands.txt`). It carries no payload, so it cannot name a mode: the same bytes switched Pool → Spa and Spa → Pool.
+Broadcast by the Connect 8/10 (`0x0062`) when its Pool/Spa button is pressed, and by the ICI Gas Heater (`0x0074`) to put the system in the mode it needs. Sent from `0xAC1D`, two toggles 10 s apart switched Pool → Spa → Pool (see `test/samples/heater_commands.txt`). It carries no payload, so it cannot name a mode: the same bytes switched Pool → Spa and Spa → Pool.
 
 **Patterns:**
 
 - Connect 8/10: `02 00 62 FF FF 00 00 15 0B 82`
 - ICI Gas Heater: `02 00 74 FF FF 00 00 15 0B 94`
+- Our firmware: `02 AC 1D FF FF 00 00 15 0B E9`
 
 **Example:**
 
@@ -1040,7 +1022,30 @@ Broadcast by the Connect 8/10 (`0x0062`) when its Pool/Spa button is pressed, an
 - The Touchscreen confirms the switch with a [0x14 Mode](#0x14--mode-spapool-) broadcast 120–190 ms later, followed by [0x27](#0x27--valve-state-broadcast-) about 600 ms after the toggle.
 - One toggle that arrived just after a bus collision (a corrupted Gateway frame) was ignored; the mode only changed on the next press, 4 s later. Nothing acknowledges the toggle except the `0x14` that follows.
 - On the capturing install, the pool/spa valves took 25–35 s to move after each toggle, with no [0x1A](#0x1a--heater-toggle-command-)/[0x41](#0x41--heater-target-state-️) frames on the bus. The Connect 8/10 drives those actuators from the [0x14](#0x14--mode-spapool-) mode broadcast.
-- Handled by `handle_mode_set_cmd`, dispatched on the CMD byte alone. It logs the toggle without updating `pool_state`: the new mode comes from the `0x14` that follows.
+
+#### With payload ✅
+
+Not seen in normal bus traffic: known only from injection, first as the Touchscreen address (`0x0050`), later from `0xAC1D`. The Touchscreen ignores the byte and toggles the mode, just as with the form without payload.
+
+This form was long taken to set the mode, because early tests always sent the other mode's value (in the `0x14` encoding, `0x00` = Spa, `0x01` = Pool), where a toggle and a set look the same. Sent from `0xAC1D`, a byte naming the mode already current switched to the other mode too, as did `0x02`, `0x7F` and `0xFF`, each sent twice in a row (see `test/samples/mode_toggle.txt`). What the byte was meant to carry, if anything, is unknown.
+
+**Patterns:**
+
+- As `0x0050`: `02 00 50 FF FF 80 00 15 0D F2`
+- As `0xAC1D`: `02 AC 1D FF FF 80 00 15 0D 6B`
+
+**Example:**
+
+```
+02 AC 1D FF FF 80 00 15 0D 6B 01 01 03
+                              ^^ Payload, ignored by the Touchscreen
+                                 ^^ Data checksum (equals the payload byte)
+```
+
+**Data Fields:**
+
+- Byte 10: ignored by the Touchscreen, which switches to the other mode whatever it holds (`0x00`, `0x01`, `0x02`, `0x7F` and `0xFF` tested)
+- Byte 11: Data checksum (equals byte 10 since it is the only data byte)
 
 ---
 
@@ -1299,7 +1304,7 @@ Zero-payload unicast from the Touchscreen (`0x0050`) to All Heaters (`0x007F`) t
 
 - **Confirmed by injection** on an install with an ICI gas heater (`0x0074`), with the pump unplugged so the heater could switch on but not fire. Each `0x1A` sent on its own as `0x0050` flipped the heater, which reported the new state in its `0x12` status 0.4–0.5 s later. The heater's [Heater 1 State register](#heater-control-register-0xe6-slot-0x00-) (`0xE6`), which the heater answers itself, followed each toggle. See `test/samples/heater_toggle.txt`. A Genus heat pump (`0x0070`) on another install follows it too.
 - **The Touchscreen only sends it when the heater needs to change.** On that install the heater is plumbed to the spa. A switch to Spa toggles it on if it is off, a switch to Pool toggles it off if it is on, and a switch that finds the heater already in the right state carries no `0x1A`/`0x41` at all. The Touchscreen tracks the heater's state from the heater's `0x12` broadcasts. When bus collisions swallowed every `0x12` after a `0x1A` had switched the heater on, the Touchscreen left Spa without toggling it off. A minute or two later, once a status had got through, it treated the heater as on: re-entering Spa sent no toggle, and leaving sent one.
-- A toggle, not a set: the payload-less form matches the [0x15 toggle form](#toggle-form-) sent by the Connect 8/10's Pool/Spa button. Setting the heater to a named state goes through the [Heater Control register](#heater-control-register-0xe6-slot-0x00-) (`0x3A`, `0xE6`) instead, which the heater answers directly with no `0x1A` involved.
+- A toggle, not a set: the payload-less form matches the [0x15 Mode Toggle Command](#without-payload-) sent by the Connect 8/10's Pool/Spa button. Setting the heater to a named state goes through the [Heater Control register](#heater-control-register-0xe6-slot-0x00-) (`0x3A`, `0xE6`) instead, which the heater answers directly with no `0x1A` involved.
 - Never sent during the idle broadcast cycle. No frame from `0x007F` has ever been seen: the heaters answer from their own addresses.
 
 ---
@@ -1724,7 +1729,7 @@ The Connect 8/10's Auto button sends All Auto (`0x81`). When the controller is i
 **Notes:**
 
 - **Destination is Touchscreen (`0x0050`), not broadcast** — addressed specifically to the touchscreen, which holds the stored Favourite presets and applies them
-- **Command values are inverted from status values** — in status messages ([0x14 Mode](#0x14--mode-spapool-)), Spa=`0x00` and Pool=`0x01`; in this command, Pool=`0x00` and Spa=`0x01`. The [0x15 Mode Set Command](#0x15--mode-set-command-spapool-), by contrast, uses the status encoding
+- **Command values are inverted from status values** — in status messages ([0x14 Mode](#0x14--mode-spapool-)), Spa=`0x00` and Pool=`0x01`; in this command, Pool=`0x00` and Spa=`0x01`.
 - The Touchscreen acknowledges each activation with an immediate [0x05 Touchscreen Activation Ack](#0x05--touchscreen-activation-ack-️) (value `0x01`) followed by the relevant mode, active-channel, and channel-status broadcasts
 - Up to 6 user Favourites are supported (`0x02`–`0x07`). The labels for all 8 slots (including the Pool and Spa built-ins) are stored in registers `0x31`–`0x38` (slot `0x03`), readable via the register protocol ([0x38](#0x38--register-data-️))
 - Each slot's enabled/disabled state is stored in registers `0x21`–`0x28` (slot `0x03`), with `0x01` = enabled and `0x00` = disabled. Pool (`0x21`) and Spa (`0x22`) are always `0x01`. All Off (`0x80`) and All Auto (`0x81`) have no corresponding enable registers and are always available
@@ -2671,8 +2676,8 @@ The register ID and slot together determine the message meaning. The slot distin
 - The same slot value (e.g., `0x02`) can represent different data formats depending on the register
 - Slot values appear to be context-dependent rather than globally defining a data type
 - **`0x30`/slot `0x01` (Current Water Temperature) — confirmed ✅**: 2-byte payload `{temp, 0x00}` mirroring the water temperature the controller broadcasts via [0x16](#0x16--water-temperature-reading-) (same two bytes as that message's `{temp1, temp2}` payload). Tracks the controller's own sensor, not a heater's — observed reading 17°C while the heat pump's `0x16` said 18°C — and follows changes: a 16→17°C rise in the controller reading appeared in the next `0x30` broadcast ~23 s later. Polled by the Internet Gateway every cycle via [0x39](#0x39--register-read-request-) and also rebroadcast unsolicited by the touchscreen roughly every 2 minutes. On an install whose controller has no temperature sensor (its `0x16` reads `00 00`), the touchscreen never answers the Gateway's `0x30`/`0x01` polls.
-- **`0x65` (Mode) — confirmed ✅**: the Pool/Spa mode, with the same encoding as the [0x14 Mode](#0x14--mode-spapool-) broadcast. On one install, each of ten broadcasts in the ~8-minute register cycle, captured over two days in both modes, matched the mode at the time. Read back with [0x39](#0x39--register-read-request-) either side of a [0x15](#0x15--mode-set-command-spapool-) switch, it went from `0x01` to `0x00` within 5 s of a switch to Spa. Earlier captures only saw `0x01`, because those installs were in Pool mode whenever it was broadcast. `0x14` remains the better source, being sent every ~60 s and on every change, so the decoder only logs `0x65`. Its neighbour `0x64`/slot `0x00` (Separate Pool/Spa Modes, below) stayed at `0x01` through every mode change. A sweep of 60 registers, read either side of a switch to Spa, found only `0x65` and the [Active Favourite](#appendix-a-register-dispatch-table) `0x20` changing with the mode.
-- **`0x64`/slot `0x00` (Separate Pool/Spa Modes) — confirmed ✅**: the Touchscreen's "Use separate pool and spa modes" setting, answered by the Touchscreen. Read with [0x39](#0x39--register-read-request-) on the reference install, it was `0x01` with the setting on Yes and `0x00` with it on No. It is a setting, not the mode: it does not change on a Pool/Spa switch (the mode itself is [`0x65`](#appendix-a-register-dispatch-table)). Installs with Pool/Spa switching read `0x01`. One install without it reads `0x00`, and in three captures there it never broadcast [0x14 Mode](#0x14--mode-spapool-) or sent [0x15](#0x15--mode-set-command-spapool-). Whether setting `0x00` on its own stops the `0x14` broadcasts is untested. ⚠️
+- **`0x65` (Mode) — confirmed ✅**: the Pool/Spa mode, with the same encoding as the [0x14 Mode](#0x14--mode-spapool-) broadcast. On one install, each of ten broadcasts in the ~8-minute register cycle, captured over two days in both modes, matched the mode at the time. Read back with [0x39](#0x39--register-read-request-) either side of a [0x15](#0x15--mode-toggle-command-spapool-) switch, it went from `0x01` to `0x00` within 5 s of a switch to Spa. Earlier captures only saw `0x01`, because those installs were in Pool mode whenever it was broadcast. `0x14` is sent every ~60 s and on every change, so it remains the main source. The firmware reads `0x65` once at startup, so it knows the mode without waiting up to a minute for the next `0x14`, and the decoder takes the mode from either. Its neighbour `0x64`/slot `0x00` (Separate Pool/Spa Modes, below) stayed at `0x01` through every mode change. A sweep of 60 registers, read either side of a switch to Spa, found only `0x65` and the [Active Favourite](#appendix-a-register-dispatch-table) `0x20` changing with the mode.
+- **`0x64`/slot `0x00` (Separate Pool/Spa Modes) — confirmed ✅**: the Touchscreen's "Use separate pool and spa modes" setting, answered by the Touchscreen. Read with [0x39](#0x39--register-read-request-) on the reference install, it was `0x01` with the setting on Yes and `0x00` with it on No. It is a setting, not the mode: it does not change on a Pool/Spa switch (the mode itself is [`0x65`](#appendix-a-register-dispatch-table)). Installs with Pool/Spa switching read `0x01`. One install without it reads `0x00`, and in three captures there it never broadcast [0x14 Mode](#0x14--mode-spapool-) or sent [0x15](#0x15--mode-toggle-command-spapool-). Whether setting `0x00` on its own stops the `0x14` broadcasts is untested. ⚠️
 - **`0x3A` (Solar Setpoint) — confirmed ✅**: 1-byte solar temperature setpoint in °C. Confirmed by UI experiment: changing the solar setpoint to 23°C rebroadcast `3A 01 17`. Polled by the Internet Gateway every cycle via [0x39](#0x39--register-read-request-) (never appears in the touchscreen's spontaneous ~8-minute dump); on installs where the setting is untouched it reads the `0x19` (25°C) default. Setpoint changes are also announced via the dedicated [0x2D Solar Setpoint Broadcast](#0x2d--solar-setpoint-broadcast-).
 - **`0xE9`/`0xEA`/`0xEB` (Heater 2 trio) — confirmed ✅**: Slot `0x00` holds the Heater 1 trio at `0xE6` (state), `0xE7` (Pool setpoint), `0xE8` (Spa setpoint), and `0xE9`/`0xEA`/`0xEB` are the analogous trio for the second heater: `0xE9` = state (`0x00`=Off, `0x01`=On), `0xEA` = Pool setpoint, `0xEB` = Spa setpoint (1-byte °C). All three are writable via the gateway register-write command (CMD `0x3A` / second-byte `0xB9`). `0xEA` was confirmed by UI capture — changing the setpoint in the UI sends a `0x3A` write to `0xEA`/slot `0x00` and the touchscreen rebroadcasts the new value via CMD `0x38` (observed 21°C `EA 00 15`, 22°C `EA 00 16`, 27°C `EA 00 1B`; the 27°C value matched the **H2** value in the heater's `0x0070` CMD `0x17` broadcast). `0xE9` and `0xEB` are confirmed as Heater 2 state and spa setpoint respectively. (On the test install the second heater is a heat pump; "Heater 2" is kept as the generic name since another install's second heater may be a different type.)
 - **Mutually exclusive broadcast**: the touchscreen's periodic dump carries *either* the `E6/E7/E8` trio *or* the `E9/EA/EB` trio in slot `0x00`, never both. Which one is set by `0xCC` (Heater 2 Configured, below): while it is `0x01` the dump sends `0xCC` followed by the `E9/EA/EB` trio; while it is `0x00` it sends the `E6/E7/E8` trio. The Gateway can still poll either trio directly.
@@ -2693,7 +2698,7 @@ The register ID and slot together determine the message meaning. The slot distin
 - **`0xEB` default**: when the second heater isn't plumbed to spa, `0xEB` reads `0x0A` (10°C) — an unused default at the minimum setpoint rather than a live value.
 - **`0xE9`/slot `0x0B` — tentative ⚠️**: a 2-byte little-endian value followed by 2 bytes that have only ever read `00 00`. Answered by the Viron Chlorinator (`0x0084`) rather than the Touchscreen, in response to the Internet Gateway's [0x39](#0x39--register-read-request-) poll. The value is a linear countdown in units of 1/5 second — **300 units = 1 minute**. Measured across 13 consecutive reads in one capture: 12700 → 5500 over 24 minutes, a rate of 298 units/minute with a residual spread of only 275 units (55 s), which is the one-minute quantisation expected from a value the chlorinator refreshes once a minute. Extrapolating the zero-crossing and cross-referencing the Touchscreen clock ([0xFD](#0xfd--controller-daytimeclock-)) shows the countdown targeting a fixed wall-clock time (~10:45 in that capture). What it counts down *to* is unknown — that install's only configured timer runs 09:00–13:00 daily, so it is not the timer's stop time. A separate capture from the same install reads `00 00 00 00` at 15:36–15:40, outside the timer window, consistent with the counter only running while the equipment does. On the other install the Gateway polls this register every cycle but the chlorinator never answers it.
 - **`0xEA`/slot `0x0B` — tentative ⚠️**: same payload shape and source as `0xE9`/slot `0x0B` above — a 2-byte little-endian value followed by 2 bytes that have only ever read `00 00`, answered by the Viron Chlorinator (`0x0084`) in response to the Gateway's [0x39](#0x39--register-read-request-) poll (`02 00 F0 FF FF 80 00 39 0E B7 EA 0B F5 03`). Two installs report different but entirely static values: `94 11 00 00` = 4500 (141 responses over ~18.5 hours) and `28 23 00 00` = 9000 (18 responses across three captures). It reads as a stored setting rather than a live measurement — 4500 would be a plausible salt level in ppm, but 9000 is high for the same units, so the meaning is unconfirmed. The Gateway polls it back-to-back with `0xE9` (~1.5 s apart, every cycle), but the two are not related as total and remaining: `0xEA` held at 9000 while `0xE9` swept 12700 → 0, including passing straight through 9000 with no effect.
-- **`0x20` (Active Favourite) — confirmed ✅**: slot `0x03` is the Favourite slot, and `0x20` sits immediately before the Favourite Enable block (`0x21`–`0x28`). Reports which favourite is currently active, using the same value space as CMD [`0x2A`](#0x2a--favourite-control-command-): `0x00`=Pool, `0x01`=Spa, `0x02`–`0x07`=user Favourites 1–6; `0xFF` = no favourite active. The All Off/All Auto command values (`0x80`/`0x81`) never appear here — the controller does not remember them as states: All Off reports as `0x00` (it is implemented as Pool mode with all channels off; the accompanying [0x14 Mode](#0x14--mode-spapool-) broadcast also says Pool) and All Auto reports as `0xFF`. Broadcast ~1 s after a gateway-commanded activation ([0x2A](#0x2a--favourite-control-command-)), when an active favourite is knocked out by a manual channel change, and in the periodic ~8-minute register dump — but **not** when a favourite is activated at the touchscreen itself (the new value then only appears in the next dump). A [0x15 Mode Set](#0x15--mode-set-command-spapool-) counts as activating the Pool or Spa favourite: read back 5–10 s later, it set `0x20` to `0x01` on a switch to Spa and `0x00` on a switch to Pool. Switching the heater outside a mode change knocks the favourite out just as a channel change does: in Spa, an injected [0x1A heater toggle](#0x1a--heater-toggle-command-) that switched the heater off took `0x20` from `0x01` to `0xFF` (see `test/samples/active_favourite.txt`).
+- **`0x20` (Active Favourite) — confirmed ✅**: slot `0x03` is the Favourite slot, and `0x20` sits immediately before the Favourite Enable block (`0x21`–`0x28`). Reports which favourite is currently active, using the same value space as CMD [`0x2A`](#0x2a--favourite-control-command-): `0x00`=Pool, `0x01`=Spa, `0x02`–`0x07`=user Favourites 1–6; `0xFF` = no favourite active. The All Off/All Auto command values (`0x80`/`0x81`) never appear here — the controller does not remember them as states: All Off reports as `0x00` (it is implemented as Pool mode with all channels off; the accompanying [0x14 Mode](#0x14--mode-spapool-) broadcast also says Pool) and All Auto reports as `0xFF`. Broadcast ~1 s after a gateway-commanded activation ([0x2A](#0x2a--favourite-control-command-)), when an active favourite is knocked out by a manual channel change, and in the periodic ~8-minute register dump — but **not** when a favourite is activated at the touchscreen itself (the new value then only appears in the next dump). A [0x15 Mode Toggle](#0x15--mode-toggle-command-spapool-) counts as activating the Pool or Spa favourite: read back 5–10 s later, it set `0x20` to `0x01` on a switch to Spa and `0x00` on a switch to Pool. Switching the heater outside a mode change knocks the favourite out just as a channel change does: in Spa, an injected [0x1A heater toggle](#0x1a--heater-toggle-command-) that switched the heater off took `0x20` from `0x01` to `0xFF` (see `test/samples/active_favourite.txt`).
 - **`0xF0` (Multicolor Light Type) — confirmed ✅**: system-wide multicolor light model selection from the touchscreen's light setup. Confirmed by UI experiment: setting the light type to SLX multicolor rebroadcasts `0x00`, Delta rebroadcasts `0x01`, and with no multicolor light configured the register reads `0xFF` (none selected — same sentinel convention as Active Favourite `0x20`). A single global register, not per-zone (no `0xF1`–`0xF3` siblings exist, and the Gateway's periodic polling requests `0xF0` only), sitting at the front of the slot-`0x01` system-config block (`0xF4` channel count, `0xF5`–`0xFC` channel categories). Only the SLX and Delta indexes have been mapped; other models in the setup list presumably take further values. The selected model determines which subset of the shared color code table applies to the Light Zone Color registers and [CMD 0x07](#0x07--lighting-zone-color-broadcast-️) — full table in [Light Zone Color Control](#light-zone-color-control-register-0xd00xd7-slot-0x01-️).
 - **Light zone families — 8 zones confirmed ✅**: the six slot-`0x01` per-zone blocks (`0x90` enabled, `0xA0` multicolor, `0xB0` name, `0xC0` state, `0xD0` color, `0xE0` active) each span 8 zones. An install with more than four light zones exercises the upper half: its Touchscreen reports `0xC4`–`0xC7` (state, all `0x00`) and `0xD4`–`0xD7` (color, all `0x05`) for zones 5–8, and its Internet Gateway polls the upper-half siblings `0x96`, `0xA5` and `0xB5`–`0xB7` via [0x39](#0x39--register-read-request-) in the same cycle as the lower four. Responses to those enabled/multicolor/name polls have not themselves been captured yet, so only the state and color blocks are directly confirmed across zones 5–8.
 - **`0x26`–`0x2D` (Valve Configured) — confirmed ✅**: per-valve-zone counterpart of Light Zone Enabled (`0x90`–`0x97`), matching the configured flag of each slot in the [0x27 Valve State Broadcast](#0x27--valve-state-broadcast-). Every install with no valve zones reads `0x00` for all eight. On an install with only Valve 1 configured, `0x26` reads `0x01` and `0x27` reads `0x00`; with both configured, `0x26` and `0x27` both read `0x01`. In the capture where the second valve was configured, both were rebroadcast as `0x01` about 60 s later, in the same burst as the Valve Labels (`0xD0`–`0xD7`, slot `0x02`). The block is 8 registers wide, and the Internet Gateway polls all eight, but CMD `0x27` only ever carries two slots, so `0x28`–`0x2D` (Valves 3–8) have only been seen as `0x00`. `0x26`–`0x28` overlap the slot-`0x03` Favourite Enable range and are told apart by slot as usual.

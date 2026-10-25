@@ -20,6 +20,13 @@ static SemaphoreHandle_t s_mutex = NULL;
 #define REQUEST_INTERVAL_MS  250
 // How long to wait before re-checking if data is still missing
 #define RETRY_INTERVAL_MS    60000
+// The Pool/Spa mode is read soon after startup, since the Touchscreen only
+// broadcasts it (CMD 0x14) about once a minute and mode commands are refused
+// until it is known. Retried in case a request or its reply is lost to a bus
+// collision.
+#define MODE_READ_DELAY_MS   2000
+#define MODE_READ_RETRY_MS   3000
+#define MODE_READ_ATTEMPTS   5
 // How long to let the controller apply a write before reading the register back
 #define READBACK_DELAY_MS    1000
 // Pending read-backs / wake-ups waiting to be serviced by the task
@@ -78,10 +85,38 @@ _Static_assert(MAX_HEATERS == 2,
 // register_requester_task().
 static uint8_t s_heater_setpoint_attempts[HEATER_SETPOINT_REG_COUNT];
 
+static bool mode_known(void)
+{
+    bool valid = false;
+    if (s_mutex && xSemaphoreTake(s_mutex, pdMS_TO_TICKS(500)) == pdTRUE) {
+        valid = s_state->mode_valid;
+        xSemaphoreGive(s_mutex);
+    }
+    return valid;
+}
+
+// Read the Mode register until the mode is known, from a reply or a 0x14
+// broadcast. Runs whether or not a gateway is present: the gateway doesn't
+// poll this register.
+static void read_mode_at_startup(void)
+{
+    vTaskDelay(pdMS_TO_TICKS(MODE_READ_DELAY_MS));
+    for (int attempt = 1; attempt <= MODE_READ_ATTEMPTS && !mode_known(); attempt++) {
+        send_request(REG_ID_MODE, 0x00, "Pool/Spa mode");
+        vTaskDelay(pdMS_TO_TICKS(MODE_READ_RETRY_MS));
+    }
+}
+
 static void register_requester_task(void *arg)
 {
+    TickType_t start = xTaskGetTickCount();
+    read_mode_at_startup();
+
     ESP_LOGI(TAG, "Task started, waiting %d ms for Internet Gateway...", STARTUP_DELAY_MS);
-    vTaskDelay(pdMS_TO_TICKS(STARTUP_DELAY_MS));
+    TickType_t elapsed = xTaskGetTickCount() - start;
+    if (elapsed < pdMS_TO_TICKS(STARTUP_DELAY_MS)) {
+        vTaskDelay(pdMS_TO_TICKS(STARTUP_DELAY_MS) - elapsed);
+    }
 
     while (1) {
         // Snapshot the relevant state under the mutex
