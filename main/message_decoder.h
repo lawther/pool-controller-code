@@ -149,6 +149,8 @@ typedef enum {
 
     REG_ID_SOLAR_SETPOINT          = 0x3A,  // Solar temperature setpoint in °C (slot 0x01)
 
+    REG_ID_MODE                    = 0x65,  // Pool/Spa mode (slot 0x00): MODE_SPA/MODE_POOL, same as CMD 0x14
+
     REG_ID_CHANNEL_TYPE_0          = 0x6C,  // Channel 0 type  (0–7 → 0x6C–0x73, slot 0x02)
     REG_ID_CHANNEL_TYPE_7          = 0x73,  // Channel 7 type (last)
 
