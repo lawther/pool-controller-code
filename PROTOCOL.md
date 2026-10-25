@@ -26,7 +26,7 @@ This document describes the proprietary serial protocol used by the Connect 10 p
   - [0x17 — Temperature Settings ✅](#0x17--temperature-settings-)
   - [0x18 — Pump Speed Command ✅](#0x18--pump-speed-command-)
   - [0x19 — Temperature Setpoint Command ✅](#0x19--temperature-setpoint-command-)
-  - [0x1A — Pre-Valve-Command Frame ⚠️](#0x1a--pre-valve-command-frame-️)
+  - [0x1A — Heater Toggle Command ✅](#0x1a--heater-toggle-command-)
   - [0x1B — Pump Button Activity ✅](#0x1b--pump-button-activity-)
   - [0x1D — Chlorinator Setpoint ✅](#0x1d--chlorinator-setpoint-)
   - [0x1F — Chlorinator Reading ✅](#0x1f--chlorinator-reading-)
@@ -96,7 +96,7 @@ Frames with no data seen so far:
 |-----|----------------------|---------|
 | `0x13` | `0x0081` VX 11S v3, `0x0084` Viron Chlorinator → Broadcast | Unknown; sent next to the chlorinator's [0x12](#0x12--device-status-️) status |
 | `0x15` | `0x0062` Connect 8/10, `0x0074` ICI Gas Heater → Broadcast | [Mode toggle](#toggle-form-) |
-| `0x1A` | `0x0050` Touchscreen → `0x007F` Internal Control | [Pre-Valve-Command Frame](#0x1a--pre-valve-command-frame-️); purpose unknown |
+| `0x1A` | `0x0050` Touchscreen → `0x007F` All Heaters | [Heater Toggle Command](#0x1a--heater-toggle-command-) |
 
 Any other FRAME_TYPE value is invalid, and the frame is discarded.
 
@@ -140,7 +140,7 @@ The low nibble is a model, not an instance number: each family is a list of rela
 | `0x0070` | Genus Heater      | Active i25 Evo electric heater    |
 | `0x0072` | HiNRG Gas Heater  | Astral/Fluidra HiNRG gas pool heater |
 | `0x0074` | ICI Gas Heater    | Astral/Fluidra ICI 400B NG gas pool heater |
-| `0x007F` | Internal Control | Controller-internal sub-address the Touchscreen writes to. Carries the heater-setpoint pair ([0x19](#0x19--temperature-setpoint-command-) slot `0x03`) and the valve actuator commands ([0x1A](#0x1a--pre-valve-command-frame-️) / [0x41](#0x41--valve-actuator-command-️)). Never observed transmitting. |
+| `0x007F` | All Heaters | Address for the whole heater family, which the Touchscreen writes to. Carries the heater-setpoint pair ([0x19](#0x19--temperature-setpoint-command-) slot `0x03`), the [0x1A](#0x1a--heater-toggle-command-) heater toggle and the [0x41](#0x41--valve-actuator-command-️) valve actuator command. Never observed transmitting; the heaters answer from their own addresses. |
 | `0x0081` | VX 11S v3 Salt Chlorinator | Salt chlorinator (VX 11S v3)|
 | `0x0084` | Viron Chlorinator | Chemistry/chlorinator module (alternate variant; mutually exclusive with `0x0090`) |
 | `0x0090` | RolaChem          | Chemistry/chlorinator module      |
@@ -176,7 +176,7 @@ The families group by function:
 | `0x0072` |        | 2     |                                   | HiNRG Heater           | Observed on the bus |
 | `0x0073` |        | 3     |                                   | Other Device (7,3)     | |
 | `0x0074` |        | 4     |                                   | Other Device (7,4)     | Observed on the bus as an ICI Gas Heater |
-| `0x007F` |        | 15    |                                   | Other Device (7,15)    | Internal Control: a sub-address the Touchscreen writes to (see below) |
+| `0x007F` |        | 15    |                                   | Other Device (7,15)    | All Heaters: the heater family address the Touchscreen writes to (see below) |
 | `0x0080` | 8      | 0     | Chlorinators                      | VX Chlorinator TM      | |
 | `0x0081` |        | 1     |                                   | VX Chlorinator NT      | Observed on the bus as a VX 11S v3 |
 | `0x0082` |        | 2     |                                   | E-Series Chlorinator   | |
@@ -208,7 +208,7 @@ The families group by function:
 
 Other patterns:
 
-- **Model `F` is an internal sub-address**, not a product: `0x006F` (Internal Channels) and `0x007F` (Internal Control) are both written to by the Touchscreen and never transmit. The Touchscreen has no name for either (`Other Device (6,15)` / `(7,15)`), even though it sends to both.
+- **Model `F` is a family address**, not a product: `0x006F` (Internal Channels) and `0x007F` (All Heaters) are both written to by the Touchscreen and never transmit. For `0x007F` this is confirmed: an ICI gas heater (`0x0074`) acts on the [0x1A Heater Toggle Command](#0x1a--heater-toggle-command-) sent there. By the same reading `0x006F` would address family 6, the Connect 8/10 controllers, which switch the channel outputs that its [0x0D](#0x0d--active-channels-bitmask-) bitmask describes; that is untested ⚠️ The Touchscreen has no name for either (`Other Device (6,15)` / `(7,15)`), even though it sends to both.
 - **Some product names appear in more than one family**: Plus 4 Relay Board (`0x0061`) and Plus 4 Controller (`0x00C2`); Connect Lite (`0x0041`) and Connect Lite Plus (`0x0063`).
 - **Some devices use an address the Touchscreen names as a different product**: a Viron XT variable-speed pump is on the bus at `0x00A0`, which the Touchscreen names P300 Three Speed Pump, and a VX 11S v3 at `0x0081`, which it names VX Chlorinator NT.
 
@@ -236,7 +236,7 @@ Click any CMD in the first column to jump to the full section in [Commands](#com
 | [`0x16`](#0x16--water-temperature-reading-)                    | Water Temperature Reading           | `0x0062` (LEN `0x0E`), `0x0070`/`0x0071`/`0x0072`/`0x0074` (LEN `0x0D`) → Broadcast | Payload length differs by source: LEN `0x0E` = `{temp1, temp2}`, LEN `0x0D` = `{temp1}`; dispatched on CMD byte alone | Yes (unified handler)   |
 | [`0x17`](#0x17--temperature-settings-)                         | Temperature Settings                | `0x0050` (LEN `0x10`), `0x0070`/`0x0071`/`0x0072`/`0x0074` (LEN `0x0E`) → Broadcast | Source-dependent payload layout                                                             | Yes (per-source)        |
 | [`0x18`](#0x18--pump-speed-command-)                           | Pump Speed Command                  | `0x0050`, `0x0084` → `0x00A0` Viron XT Pump                            | Set pump speed (low/med/high)                                                       | Yes                     |
-| [`0x1A`](#0x1a--pre-valve-command-frame-️)                             | Pre-Valve-Command Frame             | `0x0050` → `0x007F` Internal Control                                   | Unicast frame with no data (LEN `0x0B`, FRAME_TYPE `00 00`) sent immediately before a `0x41` valve command; purpose unknown | Yes (log-only)          |
+| [`0x1A`](#0x1a--heater-toggle-command-)                             | Heater Toggle Command               | `0x0050` → `0x007F` All Heaters                                        | Unicast frame with no data (LEN `0x0B`, FRAME_TYPE `00 00`) that toggles the heater on/off; sent immediately before a `0x41` | Yes (log-only)          |
 | [`0x1B`](#0x1b--pump-button-activity-)                         | Pump Button Activity                | `0x00A0` Viron XT Pump → Broadcast                                      | Speed button pressed on pump (Low/Med/High)                                                  | Yes (log-only)          |
 | [`0x19`](#0x19--temperature-setpoint-command-)                 | Temperature Setpoint Command        | `0x00F0` Gateway, `0x0050` Touchscreen, `0xAC1D` → Broadcast           | Sub-dispatched by slot byte (`0x01`/`0x02` Pool/Spa from Gateway, `0x03` heater pair from Touchscreen); dispatched on CMD byte alone | Yes (unified handler)   |
 | [`0x1D`](#0x1d--chlorinator-setpoint-)                         | Chlorinator Setpoint                | `0x0090` RolaChem, `0x0084` Viron, `0x0081` VX 11S v3 → Broadcast         | Byte 10: `0x00`=chlorine output level (VX 11S v3 only), `0x01`=pH, `0x02`=ORP; dispatched on CMD byte alone | Yes (unified handler)   |
@@ -258,7 +258,7 @@ Click any CMD in the first column to jump to the full section in [Commands](#com
 | [`0x3A`](#0x3a--register-write--control-)                      | Register Write / Control            | `0x00F0`, `0x0084`, `0xAC1D` → Broadcast; `0x0050` → `0x00F0`          | Same `{register, slot, value}` payload from every source; dispatched on CMD byte alone. Used for Light Zone state (`0xC0`–`0xC7`/slot `0x01`) and color (`0xD0`–`0xD7`/slot `0x01`), Heater Control (`0xE6`/slot `0x00`), Heater 2 pool setpoint (`0xEA`/slot `0x00`), and, from the Touchscreen, the Gateway's WiFi SSID/password (`0xD0`/`0xD1`, slot `0x07`) | Yes (both)              |
 | [`0x3B`](#0x3b--pump-speed-)                                   | Pump Speed Telemetry                | `0x00A0` Viron XT Pump → Broadcast                                      | 2-byte big-endian RPM value; broadcast every ~60 seconds                                    | Yes                     |
 | [`0x3C`](#0x3c--light-resync-command-️)                       | Light Resync Command               | `0x0050`, `0xAC1D` → Broadcast                                         | 1-byte zone index; resyncs the zone's light; observed during light config and color operations; dispatched on CMD byte alone | Yes (log-only)          |
-| [`0x41`](#0x41--valve-actuator-command-️)                  | Valve Actuator Command              | `0x0050` → `0x007F` Internal Control                                   | `{position, group}`; drives a motorised actuator group to one of its two endpoints on a mode change | Yes (log-only)          |
+| [`0x41`](#0x41--valve-actuator-command-️)                  | Valve Actuator Command              | `0x0050` → `0x007F` All Heaters                                        | `{position, group}`; drives a motorised actuator group to one of its two endpoints on a mode change | Yes (log-only)          |
 | [`0xFD`](#0xfd--controller-daytimeclock-)                      | Controller Day/Time/Clock           | `0x0050` → Broadcast                                                   |                                                                                             | Yes                     |
 
 ---
@@ -1027,13 +1027,13 @@ Broadcast by the Connect 8/10 (`0x0062`) when its Pool/Spa button is pressed, an
 
 **Data Fields:**
 
-- None. As with [0x1A](#0x1a--pre-valve-command-frame-️), LEN `0x0B` leaves no room for payload or data checksum: the frame is header (bytes 0–8), header checksum (byte 9), END (byte 10).
+- None. As with [0x1A](#0x1a--heater-toggle-command-), LEN `0x0B` leaves no room for payload or data checksum: the frame is header (bytes 0–8), header checksum (byte 9), END (byte 10).
 
 **Notes:**
 
 - The Touchscreen confirms the switch with a [0x14 Mode](#0x14--mode-spapool-) broadcast 120–190 ms later, followed by [0x27](#0x27--valve-state-broadcast-) about 600 ms after the toggle.
 - One toggle that arrived just after a bus collision (a corrupted Gateway frame) was ignored; the mode only changed on the next press, 4 s later. Nothing acknowledges the toggle except the `0x14` that follows.
-- On the capturing install, the pool/spa valves took 25–35 s to move after each toggle, with no [0x1A](#0x1a--pre-valve-command-frame-️)/[0x41](#0x41--valve-actuator-command-️) frames on the bus. The Connect 8/10 drives those actuators directly.
+- On the capturing install, the pool/spa valves took 25–35 s to move after each toggle, with no [0x1A](#0x1a--heater-toggle-command-)/[0x41](#0x41--valve-actuator-command-️) frames on the bus. The Connect 8/10 drives those actuators directly.
 - Handled by `handle_mode_set_cmd`, dispatched on the CMD byte alone. It logs the toggle without updating `pool_state`: the new mode comes from the `0x14` that follows.
 
 ---
@@ -1269,9 +1269,9 @@ Command from the Internet Gateway (`0x00F0`) to set the pool or spa temperature 
 
 ---
 
-### 0x1A — Pre-Valve-Command Frame ⚠️
+### 0x1A — Heater Toggle Command ✅
 
-Zero-payload unicast from the Touchscreen (`0x0050`) to Internal Control (`0x007F`), sent ~120 ms before every [0x41 Valve Actuator Command](#0x41--valve-actuator-command-️). What it does is unknown — see Notes. Handled in `message_decoder.c` (`handle_pre_valve_frame`) as a log-only message — there is nothing to update in `pool_state`.
+Zero-payload unicast from the Touchscreen (`0x0050`) to All Heaters (`0x007F`) that switches the heater to its other on/off state. Seen in mode-change bursts, ~120 ms before a [0x41 Valve Actuator Command](#0x41--valve-actuator-command-️). Handled in `message_decoder.c` (`handle_heater_toggle_cmd`) as a log-only message. The heater's own [0x12](#0x12--device-status-️) status reply is what reports the result.
 
 **Pattern:** `02 00 50 00 7F 00 00 1A 0B F6`
 
@@ -1279,7 +1279,7 @@ Zero-payload unicast from the Touchscreen (`0x0050`) to Internal Control (`0x007
 
 ```
 02 00 50 00 7F 00 00 1A 0B F6 03
-         ^^^^^ DST 0x007F Internal Control
+         ^^^^^ DST 0x007F All Heaters
                ^^^^^ FRAME_TYPE 00 00 (frame with no data), not the usual 80 00
                      ^^ CMD 0x1A
                         ^^ LEN 0x0B — no data bytes
@@ -1291,8 +1291,9 @@ Zero-payload unicast from the Touchscreen (`0x0050`) to Internal Control (`0x007
 
 **Notes:**
 
-- Observed only as the first half of the valve pair. Across the two mode-change captures excerpted in `test/samples/valves.txt` it appears exactly once per mode change, never on its own and never during the idle broadcast cycle — one occurrence in each, both times immediately preceding the sole `0x41` in that capture.
-- **What it does is unknown.** There is no reply from `0x007F` in either capture — no frame from that address appears at all, in fact, in either trace. The name records the one thing that is actually observed (its position, always immediately before `0x41`), not a function. Earlier revisions of this file called it a "valve actuator poll", implying a request/response exchange that was never seen; that reading is withdrawn as unsupported by the evidence. ⚠️
+- **Confirmed by injection** on an install with an ICI gas heater (`0x0074`), with the pump unplugged so the heater could switch on but not fire. Each `0x1A` sent on its own as `0x0050` flipped the heater, which reported the new state in its `0x12` status 0.4–0.5 s later. The heater's [Heater 1 State register](#heater-control-register-0xe6-slot-0x00-) (`0xE6`), which the heater answers itself, followed each toggle. See `test/samples/heater_toggle.txt`.
+- A toggle, not a set: the payload-less form matches the [0x15 toggle form](#toggle-form-) sent by the Connect 8/10's Pool/Spa button. Setting the heater to a named state goes through the [Heater Control register](#heater-control-register-0xe6-slot-0x00-) (`0x3A`, `0xE6`) instead, which the heater answers directly with no `0x1A` involved.
+- Never sent during the idle broadcast cycle. No frame from `0x007F` has ever been seen: the heaters answer from their own addresses.
 
 ---
 
@@ -2410,6 +2411,7 @@ Turns Heater 1 on or off (register `0xE6`). Heater 2 uses the analogous register
 
 - Unlike light zones (slot `0x01`), the heater uses slot `0x00`.
 - The controller will respond with an updated heater state via the Connect 8/10 Controller variant of [0x12 — Device Status](#0x12--device-status-️).
+- An ICI gas heater (`0x0074`) answers [0x39](#0x39--register-read-request-) reads of `0xE6` itself. The Touchscreen's [0x1A Heater Toggle Command](#0x1a--heater-toggle-command-) also changes the value.
 
 #### Internet Gateway WiFi Credentials (Register `0xD0`–`0xD1`, Slot `0x07`) ✅
 
@@ -2537,7 +2539,7 @@ Resynchronizes a light zone's light. Broadcast by the Touchscreen (`0x0050`); ob
 
 ### 0x41 — Valve Actuator Command ⚠️
 
-Unicast from the Touchscreen (`0x0050`) to Internal Control (`0x007F`) that drives a group of motorised valve actuators to one of their two endpoints. Emitted as part of the mode-change burst, ~120 ms after the [0x1A Pre-Valve-Command Frame](#0x1a--pre-valve-command-frame-️) and ~130 ms before the [0x18 Pump Speed Command](#0x18--pump-speed-command-). Handled in `message_decoder.c` (`handle_valve_actuator_cmd`) as a log-only message — no `pool_state` field tracks the actuator position yet.
+Unicast from the Touchscreen (`0x0050`) to All Heaters (`0x007F`) that drives a group of motorised valve actuators to one of their two endpoints. Emitted as part of the mode-change burst, ~120 ms after the [0x1A Heater Toggle Command](#0x1a--heater-toggle-command-) and ~130 ms before the [0x18 Pump Speed Command](#0x18--pump-speed-command-). Handled in `message_decoder.c` (`handle_valve_actuator_cmd`) as a log-only message — no `pool_state` field tracks the actuator position yet.
 
 **Pattern:** `02 00 50 00 7F 80 00 41 0E A0`
 
@@ -2572,7 +2574,7 @@ Unicast from the Touchscreen (`0x0050`) to Internal Control (`0x007F`) that driv
 
 `0x41` and [0x28 Valve Control Command](#0x28--valve-control-command-) have near-identical wire shapes — both LEN `0x0E`, both a two-byte payload plus a data checksum, both about valves - but they appear to sit at **different layers** rather than being variants of one another. The reasoning below is inferred from shape, direction and `0x28`'s documented behaviour; no capture contains both, so none of it is directly observed. ⚠️
 
-`0x28` is an external *request*: it arrives from the Internet Gateway (`0x00F0`), is broadcast, and the controller answers it immediately with an updated [0x27](#0x27--valve-state-broadcast-). `0x41` is an internal *actuation*: Touchscreen (`0x0050`) to Internal Control (`0x007F`).
+`0x28` is an external *request*: it arrives from the Internet Gateway (`0x00F0`), is broadcast, and the controller answers it immediately with an updated [0x27](#0x27--valve-state-broadcast-). `0x41` is an internal *actuation*: Touchscreen (`0x0050`) to All Heaters (`0x007F`).
 
 So `0x41` is not the combo-valve equivalent of `0x28` — [0x15](#0x15--mode-set-command-spapool-) is. Both `0x15` and `0x28` are requests *into* the system, each answered by a broadcast of the resulting state ([0x14](#0x14--mode-spapool-) and `0x27` respectively). `0x41` is not a request at all; it is what the Touchscreen emits downstream of one.
 

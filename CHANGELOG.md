@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 ### Changed
+- CMD `0x1A` turns out to be a heater toggle, and is now logged as `[Touch Screen -> All Heaters] Heater toggle command` in place of `Pre-valve-command frame`. Address `0x007F` is now shown as All Heaters instead of Internal Control. Injection tests on an install with an ICI gas heater showed that each `0x1A` toggles the heater, which reports the new state in its CMD `0x12` status and Heater 1 State register (`0xE6`). Decoder replay sample: `heater_toggle.txt`
 ### Fixed
 ### Removed
 ### Deprecated
