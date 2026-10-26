@@ -1,4 +1,4 @@
-# Valves: the combo valve actuators - CMD 0x1A (Pre-Valve-Command Frame) and
+# Valves: the combo valve actuators - CMD 0x1A (Heater Toggle Command) and
 # CMD 0x41 (Valve Actuator Command) - then the valve zones - CMD 0x25 (Valve
 # Sync) and CMD 0x27 (Valve State Broadcast) - further down.
 #
@@ -11,7 +11,7 @@
 #   0x15  Mode Set Command        the mode selection itself
 #   0x14  Mode                    the Touchscreen confirming the new mode
 #   0x27  Valve State Broadcast   valve *zones* - a different subsystem, see below
-#   0x1A  Pre-Valve-Command Frame zero-payload, always precedes the 0x41
+#   0x1A  Heater Toggle Command   toggles the heater on/off
 #   0x41  Valve Actuator Command  drives the actuators
 #
 # The install has its combo valve actuators on group 0x01. Which endpoint is
@@ -52,16 +52,15 @@ I (03:23:34.595) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 27 0D 04 00 00 03
 I (03:23:34.595) MSG_DECODER: [Touch Screen -> Broadcast] Valve state (0 slots):
 02 00 50 FF FF 80 00 27 0D 04 00 00 03
 
-# The valve pair. The Pre-Valve-Command Frame (0x1A) is zero-payload and always
-# lands ~120 ms ahead of the Valve Actuator Command (0x41). Nothing ever replies
-# from 0x007F - no frame from that address appears anywhere in either capture -
-# so what the 0x1A is for remains unknown.
+# The valve pair. The Heater Toggle Command (0x1A) is zero-payload and lands
+# ~120 ms ahead of the Valve Actuator Command (0x41). Nothing ever replies from
+# 0x007F - no frame from that address appears anywhere in either capture.
 
 I (03:23:34.705) MSG_DECODER: RX MSG: 02 00 50 00 7F 00 00 1A 0B F6 03
-I (03:23:34.705) MSG_DECODER: [Touch Screen -> Internal Control] Pre-valve-command frame
+I (03:23:34.705) MSG_DECODER: [Touch Screen -> All Heaters] Heater toggle command
 02 00 50 00 7F 00 00 1A 0B F6 03
 I (03:23:34.825) MSG_DECODER: RX MSG: 02 00 50 00 7F 80 00 41 0E A0 01 01 02 03
-I (03:23:34.825) MSG_DECODER: [Touch Screen -> Internal Control] Valve actuator command - group 1, position 1
+I (03:23:34.825) MSG_DECODER: [Touch Screen -> All Heaters] Valve actuator command - group 1, position 1
 02 00 50 00 7F 80 00 41 0E A0 01 01 02 03
 
 # The gas heater's own Device Status broadcast (0x12), included because it
@@ -102,10 +101,10 @@ I (03:26:21.395) MSG_DECODER: [Touch Screen -> Broadcast] Valve state (0 slots):
 # The same pair of valve commands, with the position flipped.
 
 I (03:26:21.515) MSG_DECODER: RX MSG: 02 00 50 00 7F 00 00 1A 0B F6 03
-I (03:26:21.515) MSG_DECODER: [Touch Screen -> Internal Control] Pre-valve-command frame
+I (03:26:21.515) MSG_DECODER: [Touch Screen -> All Heaters] Heater toggle command
 02 00 50 00 7F 00 00 1A 0B F6 03
 I (03:26:21.635) MSG_DECODER: RX MSG: 02 00 50 00 7F 80 00 41 0E A0 00 01 01 03
-I (03:26:21.635) MSG_DECODER: [Touch Screen -> Internal Control] Valve actuator command - group 1, position 0
+I (03:26:21.635) MSG_DECODER: [Touch Screen -> All Heaters] Valve actuator command - group 1, position 0
 02 00 50 00 7F 80 00 41 0E A0 00 01 01 03
 
 # Heater is off for the whole Pool capture (bit 0 never set). The

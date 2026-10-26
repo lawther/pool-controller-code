@@ -103,10 +103,9 @@ static const char *MSG_TYPE_LIGHT_CONFIG =          "02 00 50 FF FF 80 00 06 0E 
 static const char *MSG_TYPE_CONTROLLER_TIME =       "02 00 50 FF FF 80 00 FD 0F DC";
 static const char *MSG_TYPE_TOUCHSCREEN_UNKNOWN3 =  "02 00 50 FF FF 80 00 05 0D E2";
 
-// Motorised valve actuators (Touchscreen 0x0050 -> Internal Control 0x007F),
-// emitted as a pair on every mode change. See PROTOCOL.md commands `0x1A` and
-// `0x41`.
-static const char *MSG_TYPE_PRE_VALVE_FRAME =       "02 00 50 00 7F 00 00 1A 0B F6";
+// Heater toggle (Touchscreen 0x0050 -> All Heaters 0x007F), followed by the
+// valve actuator command. See PROTOCOL.md commands `0x1A` and `0x41`.
+static const char *MSG_TYPE_HEATER_TOGGLE_CMD =     "02 00 50 00 7F 00 00 1A 0B F6";
 static const char *MSG_TYPE_VALVE_ACTUATOR_CMD =    "02 00 50 00 7F 80 00 41 0E A0";
 
 // Water temperature reading (CMD 0x16) is dispatched source-agnostically in
@@ -431,7 +430,7 @@ const char* get_device_name(uint8_t addr_hi, uint8_t addr_lo, char *fallback_buf
             case 0x62: return "Connect 8/10";
             case 0x63: return "Connect Lite Plus";
             case 0x6F: return "Internal Channels";
-            case 0x7F: return "Internal Control";
+            case 0x7F: return "All Heaters";
             case 0x70: return "Genus Heater";
             case 0x71: return "Viron Heater";
             case 0x72: return "HiNRG Gas Heater";
@@ -2989,20 +2988,19 @@ static bool handle_light_resync(
 }
 
 /**
- * Handler: Pre-valve-command frame (CMD 0x1A) — log-only
+ * Handler: Heater toggle command (CMD 0x1A) — log-only
  *
- * Zero-payload unicast from the Touchscreen (0x0050) to Internal Control
- * (0x007F), sent ~120 ms before every CMD 0x41 valve actuator command.
- * Purpose is unknown — no reply from 0x007F has ever been observed.
- * Logged only so it stops being reported as unknown.
+ * Zero-payload unicast from the Touchscreen (0x0050) to All Heaters (0x007F)
+ * that switches the heater to its other on/off state. The heater answers with
+ * its own CMD 0x12 status, which is what updates state.
  */
-static bool handle_pre_valve_frame(
+static bool handle_heater_toggle_cmd(
     const uint8_t *data, int len,
     const uint8_t *payload, int payload_len,
     const char *addr_info,
     message_decoder_context_t *ctx)
 {
-    ESP_LOGI(TAG, "%s Pre-valve-command frame", addr_info);
+    ESP_LOGI(TAG, "%s Heater toggle command", addr_info);
 
     // No payload check here, deliberately: a 0x1A that matches the pattern is
     // byte-for-byte identical every time. The pattern pins bytes 0-9, framing
@@ -3016,7 +3014,7 @@ static bool handle_pre_valve_frame(
 /**
  * Handler: Valve actuator command (CMD 0x41) — log-only
  *
- * Unicast from the Touchscreen (0x0050) to Internal Control (0x007F) that
+ * Unicast from the Touchscreen (0x0050) to All Heaters (0x007F) that
  * drives a group of motorised valve actuators to one of their two endpoints on
  * a mode change. The position byte names an endpoint, not a flow path: a
  * three-position toggle on the actuator body reverses which way it travels for
@@ -4767,8 +4765,8 @@ static bool dispatch_message(
         return handle_controller_time(data, len, payload, payload_len, addr_info, ctx);
     }
 
-    if (match_pattern(data, len, MSG_TYPE_PRE_VALVE_FRAME)) {
-        return handle_pre_valve_frame(data, len, payload, payload_len, addr_info, ctx);
+    if (match_pattern(data, len, MSG_TYPE_HEATER_TOGGLE_CMD)) {
+        return handle_heater_toggle_cmd(data, len, payload, payload_len, addr_info, ctx);
     }
 
     if (match_pattern(data, len, MSG_TYPE_VALVE_ACTUATOR_CMD)) {

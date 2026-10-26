@@ -1,0 +1,57 @@
+# Heater toggle - CMD 0x1A (Heater Toggle Command), sent to All Heaters
+# (0x007F).
+#
+# Captured 2026-10-25 on lawther's install: a Connect 10 with an ICI gas heater
+# (0x0074), pump and chlorinator unplugged, so the heater could switch on but
+# never fire (status "No Flow"). Every 0x1A here was injected over the TCP
+# bridge as the Touchscreen (0x0050), on its own.
+#
+# The heater answers each toggle with its own CMD 0x12 status about 0.4-0.5 s
+# later. Other frames injected in the same session, and idle broadcast traffic,
+# have been dropped.
+
+
+# ======================================================================
+# Capture 1 - two toggles 5 s apart, heater off to start. The first switches
+# it on ("No Flow", as the pump is unplugged), the second off again.
+# ======================================================================
+
+I (01:59:25.675) MSG_DECODER: RX MSG: 02 00 50 00 7F 00 00 1A 0B F6 03
+I (01:59:25.677) MSG_DECODER: [Touch Screen -> All Heaters] Heater toggle command
+I (01:59:26.090) MSG_DECODER: RX MSG: 02 00 74 FF FF 80 00 12 10 16 00 01 00 00 01 03
+I (01:59:26.092) MSG_DECODER: [ICI Gas Heater -> Broadcast] Gas heater raw status - [00 01 00 00], decoded status - "No Flow"
+I (01:59:30.685) MSG_DECODER: RX MSG: 02 00 50 00 7F 00 00 1A 0B F6 03
+I (01:59:30.686) MSG_DECODER: [Touch Screen -> All Heaters] Heater toggle command
+I (01:59:31.110) MSG_DECODER: RX MSG: 02 00 74 FF FF 80 00 12 10 16 00 00 00 00 00 03
+I (01:59:31.112) MSG_DECODER: [ICI Gas Heater -> Broadcast] Gas heater raw status - [00 00 00 00], decoded status - "Off"
+
+# ======================================================================
+# Capture 2 - Heater 1 State register (0xE6/slot 0x00) read before and after
+# each of two toggles. The heater answers the register read itself, and the
+# register follows each toggle: Off, On, On, Off.
+# ======================================================================
+
+I (02:02:58.839) MSG_DECODER: RX MSG: 02 AC 1D FF FF 80 00 39 0E 90 E6 00 E6 03
+I (02:02:58.841) MSG_DECODER: [Pool Controller ESP32 -> Broadcast] Register read request - Heater 1 State 1
+I (02:02:59.220) MSG_DECODER: RX MSG: 02 00 74 FF FF 80 00 38 0F 3B E6 00 00 E6 03
+I (02:02:59.223) MSG_DECODER: [ICI Gas Heater -> Broadcast] Heater 1 state - Off (0x00)
+I (02:03:01.806) MSG_DECODER: RX MSG: 02 00 50 00 7F 00 00 1A 0B F6 03
+I (02:03:01.807) MSG_DECODER: [Touch Screen -> All Heaters] Heater toggle command
+I (02:03:02.230) MSG_DECODER: RX MSG: 02 00 74 FF FF 80 00 12 10 16 00 01 00 00 01 03
+I (02:03:02.232) MSG_DECODER: [ICI Gas Heater -> Broadcast] Gas heater raw status - [00 01 00 00], decoded status - "No Flow"
+I (02:03:04.879) MSG_DECODER: RX MSG: 02 AC 1D FF FF 80 00 39 0E 90 E6 00 E6 03
+I (02:03:04.881) MSG_DECODER: [Pool Controller ESP32 -> Broadcast] Register read request - Heater 1 State 1
+I (02:03:05.260) MSG_DECODER: RX MSG: 02 00 74 FF FF 80 00 38 0F 3B E6 00 01 E7 03
+I (02:03:05.262) MSG_DECODER: [ICI Gas Heater -> Broadcast] Heater 1 state - On (0x01)
+I (02:03:13.879) MSG_DECODER: RX MSG: 02 AC 1D FF FF 80 00 39 0E 90 E6 00 E6 03
+I (02:03:13.881) MSG_DECODER: [Pool Controller ESP32 -> Broadcast] Register read request - Heater 1 State 1
+I (02:03:14.260) MSG_DECODER: RX MSG: 02 00 74 FF FF 80 00 38 0F 3B E6 00 01 E7 03
+I (02:03:14.263) MSG_DECODER: [ICI Gas Heater -> Broadcast] Heater 1 state - On (0x01)
+I (02:03:16.846) MSG_DECODER: RX MSG: 02 00 50 00 7F 00 00 1A 0B F6 03
+I (02:03:16.846) MSG_DECODER: [Touch Screen -> All Heaters] Heater toggle command
+I (02:03:17.280) MSG_DECODER: RX MSG: 02 00 74 FF FF 80 00 12 10 16 00 00 00 00 00 03
+I (02:03:17.282) MSG_DECODER: [ICI Gas Heater -> Broadcast] Gas heater raw status - [00 00 00 00], decoded status - "Off"
+I (02:03:19.819) MSG_DECODER: RX MSG: 02 AC 1D FF FF 80 00 39 0E 90 E6 00 E6 03
+I (02:03:19.821) MSG_DECODER: [Pool Controller ESP32 -> Broadcast] Register read request - Heater 1 State 1
+I (02:03:20.211) MSG_DECODER: RX MSG: 02 00 74 FF FF 80 00 38 0F 3B E6 00 00 E6 03
+I (02:03:20.212) MSG_DECODER: [ICI Gas Heater -> Broadcast] Heater 1 state - Off (0x00)
