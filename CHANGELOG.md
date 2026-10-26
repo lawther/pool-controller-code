@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CMD `0x41` turns out to be heater-related, not a valve command, and is now logged as `Heater target state - heater 1, On` in place of `Valve actuator command - group 1, position 1`. What it does is unknown: the ICI gas heater that `0x1A` toggles ignores it. The Touchscreen sends the `0x1A`/`0x41` pair in a mode change only when the new mode needs the heater switched. A `0x41` naming a heater other than 1 is now flagged as undocumented
 ### Fixed
 - PROTOCOL.md no longer says `0x41` drives the pool/spa valve actuators. The Connect 8/10 drives them from the CMD `0x14` mode broadcast, and re-applies the position on every `0x14` from any source address. As a result, the valves cannot be held against the mode from the bus, and no frame reports where they actually are. This explains why a switch to Pool sometimes carried no `0x1A`/`0x41`: the heater was already off. Decoder replay samples cover the valve and heater captures (`valves.txt`, `heater_commands.txt`)
+- PROTOCOL.md no longer says registers `0xB8`/`0xB9` (slot `0x0B`) read `0x01` on every install. One install reads `0x00`, in Pool and Spa alike
 ### Removed
 ### Deprecated
 ### Security

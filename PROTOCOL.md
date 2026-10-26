@@ -2634,7 +2634,7 @@ The register ID and slot together determine the message meaning. The slot distin
 | `0xAC`–`0xAF` ⚠️| `0x0D`| Unknown                | Only `0xFF` observed. Repeats ~every 8 minutes   |
 | `0xB0`–`0xB7`  | `0x01` | Light Zone Name        | 1-byte preset name code (see [name codes table](#examples-by-register-type)) |
 | `0xB0`–`0xB3` ⚠️| `0x0D` | Unknown               | Only `0xFF` observed. Repeats ~every 8 minutes   |
-| `0xB8`–`0xB9` ⚠️| `0x0B` | Unknown               | 1-byte, only `0x01` observed, on every install. Answered by the Touchscreen, unlike the rest of slot `0x0B`. Repeats ~every 8 minutes, and polled by the Internet Gateway. |
+| `0xB8`–`0xB9` ⚠️| `0x0B` | Unknown               | 1-byte. `0x01` on most installs, but `0x00` on one (a Connect 10 with an ICI gas heater), in Pool and Spa alike. Answered by the Touchscreen, unlike the rest of slot `0x0B`. Repeats ~every 8 minutes, and polled by the Internet Gateway. |
 | `0xBC`–`0xBF` ⚠️| `0x0D` | Unknown               | Only `0x00` observed. Repeats ~every 8 minutes   |
 | `0xC0`–`0xC7`  | `0x01` | Light Zone State       | 1-byte value (0=Off, 1=Auto, 2=On)               |
 | `0xC0`–`0xC3` ⚠️| `0x0D` | Unknown               | Only `0xFF` observed. Repeats ~every 8 minutes   |
