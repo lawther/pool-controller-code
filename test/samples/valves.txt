@@ -1,33 +1,31 @@
-# Valves: the combo valve actuators - CMD 0x1A (Heater Toggle Command) and
-# CMD 0x41 (Valve Actuator Command) - then the valve zones - CMD 0x25 (Valve
-# Sync) and CMD 0x27 (Valve State Broadcast) - further down.
+# Valves: the pool/spa valve actuators, driven by the Connect 10 from the CMD
+# 0x14 mode broadcast - then the valve zones - CMD 0x25 (Valve Sync) and CMD
+# 0x27 (Valve State Broadcast) - further down.
 #
-# The actuator section is excerpted from two live captures on lawther's install (a Connect 10 with
-# a gas heater plumbed to the spa). Each capture was stimulated by selecting a
-# mode in HA via MQTT.
+# The actuator section is excerpted from live captures on lawther's install: a
+# Connect 10 with its two actuators on the inlet/outlet sockets, nothing on
+# Valve 1/Valve 2, and an ICI gas heater plumbed to the spa. Captures 1-3 were
+# stimulated by selecting a mode in HA via MQTT.
 #
 # The burst, in order:
 #
 #   0x15  Mode Set Command        the mode selection itself
-#   0x14  Mode                    the Touchscreen confirming the new mode
+#   0x14  Mode                    the Touchscreen confirming the new mode - this
+#                                 is what the Connect 10 moves the valves on
 #   0x27  Valve State Broadcast   valve *zones* - a different subsystem, see below
-#   0x1A  Heater Toggle Command   toggles the heater on/off
-#   0x41  Valve Actuator Command  drives the actuators
+#   0x1A  Heater Toggle Command   only when the new mode needs the heater
+#   0x41  Heater Target State     switched; see heater_commands.txt
 #
-# The install has its combo valve actuators on group 0x01. Which endpoint is
-# which is a property of this plumbing, not of the protocol: the position byte
-# selects one of the actuator's two cam-limited endpoints, and the ON1/OFF/ON2
-# toggle on the actuator body decides which way it travels. See PROTOCOL.md
-# command 0x41.
+# No frame reports where the actuators are. See PROTOCOL.md command 0x14.
 #
 # Idle broadcast traffic between the bursts has been dropped. Timestamps are
 # from the original captures, so the gaps are real.
 
 
 # ======================================================================
-# Capture 1 - "Spa" selected on the touchscreen
+# Capture 1 - "Spa" selected, with the heater off
 #
-# Valves driven to position 1. On this install that is the spa flow path.
+# Valves moved to the spa flow path, and the heater was switched on for the spa.
 # ======================================================================
 
 I (03:23:33.915) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 15 0D F2 00 00 03
@@ -40,33 +38,32 @@ I (03:23:34.035) MSG_DECODER: [Touch Screen -> Broadcast] Mode - Spa
 # 0x27 is the Valve State Broadcast, which reports the user-configurable valve
 # *zones* - the auxiliary "Valve 1" and "Valve 2" actuator sockets.
 #
-# On this system, 0x27 appears exactly once per capture - after 0x14/0x15, and before 
-# 0x1A. The Touchscreen appears to republish valve state as a step of the sequence.
+# On this system, 0x27 appears exactly once per capture - after 0x14/0x15, and before
+# any 0x1A. The Touchscreen appears to republish valve state as a step of the sequence.
 #
 # This install has no zones configured, so that republish carries a slot
 # count of zero and no slot entries. Do not read it as "the valves are idle" -
-# the combo actuators driven by the 0x41 below are a different subsystem and
-# are never reported here at all.
+# the combo actuators are a different subsystem and are never reported here at
+# all.
 
 I (03:23:34.595) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 27 0D 04 00 00 03
 I (03:23:34.595) MSG_DECODER: [Touch Screen -> Broadcast] Valve state (0 slots):
 02 00 50 FF FF 80 00 27 0D 04 00 00 03
 
-# The valve pair. The Heater Toggle Command (0x1A) is zero-payload and lands
-# ~120 ms ahead of the Valve Actuator Command (0x41). Nothing ever replies from
-# 0x007F - no frame from that address appears anywhere in either capture.
+# The heater pair, sent to All Heaters (0x007F) because the spa needs the
+# heater and it was off: the 0x1A toggles it on, and the 0x41 that follows
+# names the new state.
 
 I (03:23:34.705) MSG_DECODER: RX MSG: 02 00 50 00 7F 00 00 1A 0B F6 03
 I (03:23:34.705) MSG_DECODER: [Touch Screen -> All Heaters] Heater toggle command
 02 00 50 00 7F 00 00 1A 0B F6 03
 I (03:23:34.825) MSG_DECODER: RX MSG: 02 00 50 00 7F 80 00 41 0E A0 01 01 02 03
-I (03:23:34.825) MSG_DECODER: [Touch Screen -> All Heaters] Valve actuator command - group 1, position 1
+I (03:23:34.825) MSG_DECODER: [Touch Screen -> All Heaters] Heater target state - heater 1, On
 02 00 50 00 7F 80 00 41 0E A0 01 01 02 03
 
-# The gas heater's own Device Status broadcast (0x12), included because it
-# shows an effect of the valves rather than another command. 0.6 s after the
-# 0x41 the heater has lost flow while the valves travel (status 0x01 - Heater
-# On, but Pressure/Flow clear)...
+# The gas heater's own Device Status broadcast (0x12). 0.6 s after the 0x41 the
+# heater is on, the toggle's doing, but has lost flow while the valves travel
+# (status 0x01 - Heater On, but Pressure/Flow clear)...
 
 I (03:23:35.396) MSG_DECODER: RX MSG: 02 00 74 FF FF 80 00 12 10 16 00 01 00 00 01 03
 I (03:23:35.396) MSG_DECODER: [ICI Gas Heater -> Broadcast] Gas heater raw status - [00 01 00 00], decoded status - "No Flow"
@@ -81,10 +78,11 @@ I (03:23:39.375) MSG_DECODER: [ICI Gas Heater -> Broadcast] Gas heater raw statu
 
 
 # ======================================================================
-# Capture 2 - "Pool" selected on the touchscreen
+# Capture 2 - "Pool" selected, with the heater still on from Capture 1
 #
-# Same burst, same order, ~3 minutes later. Valves returned to position 0.
-# Only the mode-dependent payloads differ.
+# Same burst, same order, ~3 minutes later. Valves returned to the pool flow
+# path, and the heater was switched off. A switch to Pool with the heater
+# already off carries no 0x1A/0x41 at all (Capture 3).
 # ======================================================================
 
 I (03:26:20.725) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 15 0D F2 01 01 03
@@ -98,18 +96,19 @@ I (03:26:21.395) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 27 0D 04 00 00 03
 I (03:26:21.395) MSG_DECODER: [Touch Screen -> Broadcast] Valve state (0 slots):
 02 00 50 FF FF 80 00 27 0D 04 00 00 03
 
-# The same pair of valve commands, with the position flipped.
+# The same heater pair, this time toggling the heater off; byte 10 of the 0x41
+# names the new state.
 
 I (03:26:21.515) MSG_DECODER: RX MSG: 02 00 50 00 7F 00 00 1A 0B F6 03
 I (03:26:21.515) MSG_DECODER: [Touch Screen -> All Heaters] Heater toggle command
 02 00 50 00 7F 00 00 1A 0B F6 03
 I (03:26:21.635) MSG_DECODER: RX MSG: 02 00 50 00 7F 80 00 41 0E A0 00 01 01 03
-I (03:26:21.635) MSG_DECODER: [Touch Screen -> All Heaters] Valve actuator command - group 1, position 0
+I (03:26:21.635) MSG_DECODER: [Touch Screen -> All Heaters] Heater target state - heater 1, Off
 02 00 50 00 7F 80 00 41 0E A0 00 01 01 03
 
-# Heater is off for the whole Pool capture (bit 0 never set). The
-# flow bit still moves as the valves travel - set at +0.5 s, clear at +2.8 s -
-# but both values decode as "Off" because the heater is Off.
+# The heater reports off 0.5 s after the toggle (bit 0 clear). The flow bit
+# still moves as the valves travel - set at +0.5 s, clear at +2.8 s - but both
+# values decode as "Off" because the heater is Off.
 
 I (03:26:22.165) MSG_DECODER: RX MSG: 02 00 74 FF FF 80 00 12 10 16 00 02 00 00 02 03
 I (03:26:22.165) MSG_DECODER: [ICI Gas Heater -> Broadcast] Gas heater raw status - [00 02 00 00], decoded status - "Off"
@@ -117,6 +116,51 @@ I (03:26:22.165) MSG_DECODER: [ICI Gas Heater -> Broadcast] Gas heater raw statu
 I (03:26:24.396) MSG_DECODER: RX MSG: 02 00 74 FF FF 80 00 12 10 16 00 00 00 00 00 03
 I (03:26:24.396) MSG_DECODER: [ICI Gas Heater -> Broadcast] Gas heater raw status - [00 00 00 00], decoded status - "Off"
 02 00 74 FF FF 80 00 12 10 16 00 00 00 00 00 03
+
+# ======================================================================
+# Capture 3 - "Pool" selected from Spa, with the heater already off.
+# 2026-10-25, same install, pump and chlorinator unplugged, mode command sent
+# from the firmware's own address (0xAC1D).
+#
+# With the heater already off, the burst carries no 0x1A or 0x41, yet both
+# valves moved to the pool flow path - nothing else was on the bus while they
+# started.
+# ======================================================================
+
+I (00:37:48.983) MSG_DECODER: RX MSG: 02 AC 1D FF FF 80 00 15 0D 6B 01 01 03
+I (00:37:48.984) MSG_DECODER: [Pool Controller ESP32 -> Broadcast] Mode set command - Pool
+I (00:37:49.116) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 14 0D F1 01 01 03
+I (00:37:49.117) MSG_DECODER: [Touch Screen -> Broadcast] Mode - Pool
+I (00:37:49.396) MSG_DECODER: RX MSG: 02 00 50 00 6F 80 00 0D 0D 5B 01 01 03
+I (00:37:49.397) MSG_DECODER: [Touch Screen -> Internal Channels] Active channels - 0x01 [-------1]
+I (00:37:49.556) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0B 25 00 08 01 05 01 02 00 00 12 00 00 12 00 00 12 00 00 09 00 00 00 00 00 00 00 00 50 03
+I (00:37:49.560) MSG_DECODER: [Touch Screen -> Broadcast] Channel status (8 channels):
+I (00:37:49.567) MSG_DECODER:   Ch1: Filter (1) = High (Active)
+I (00:37:49.572) MSG_DECODER:   Ch2: Cleaning (2) = Off (Inactive)
+I (00:37:49.578) MSG_DECODER:   Ch3: Custom Name (18) = Off (Inactive)
+I (00:37:49.584) MSG_DECODER:   Ch4: Custom Name (18) = Off (Inactive)
+I (00:37:49.591) MSG_DECODER:   Ch5: Custom Name (18) = Off (Inactive)
+I (00:37:49.597) MSG_DECODER:   Ch6: Blower (9) = Off (Inactive)
+I (00:37:49.602) MSG_DECODER:   Ch7: Unused
+I (00:37:49.606) MSG_DECODER:   Ch8: Unused
+I (00:37:49.676) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 27 0D 04 00 00 03
+I (00:37:49.677) MSG_DECODER: [Touch Screen -> Broadcast] Valve state (0 slots):
+I (00:37:49.796) MSG_DECODER: RX MSG: 02 00 50 00 A0 80 00 18 0D 97 02 02 03
+I (00:37:49.797) MSG_DECODER: [Touch Screen -> Viron XT Pump] Set Pump speed - High (0x02)
+
+# ======================================================================
+# Capture 4 - spoofed 0x14 Pool, sent as 0x0050, in Spa mode. A relay in the
+# Connect 10 clicked and the valves started towards the pool path. The
+# Touchscreen's next regular 0x14 Spa, 34 s later, clicked it back and the
+# valves reversed. The Connect 10 drives the actuators from 0x14, and
+# re-applies it on every broadcast.
+# ======================================================================
+
+I (01:10:17.743) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 14 0D F1 01 01 03
+I (01:10:17.745) MSG_DECODER: [Touch Screen -> Broadcast] Mode - Pool
+
+I (01:10:51.166) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 14 0D F1 00 00 03
+I (01:10:51.168) MSG_DECODER: [Touch Screen -> Broadcast] Mode - Spa
 
 # ----------------------------------------------------------------------------
 # Valve zones being configured and switched (CMD 0x25 Valve Sync and CMD 0x27

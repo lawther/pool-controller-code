@@ -103,10 +103,11 @@ static const char *MSG_TYPE_LIGHT_CONFIG =          "02 00 50 FF FF 80 00 06 0E 
 static const char *MSG_TYPE_CONTROLLER_TIME =       "02 00 50 FF FF 80 00 FD 0F DC";
 static const char *MSG_TYPE_TOUCHSCREEN_UNKNOWN3 =  "02 00 50 FF FF 80 00 05 0D E2";
 
-// Heater toggle (Touchscreen 0x0050 -> All Heaters 0x007F), followed by the
-// valve actuator command. See PROTOCOL.md commands `0x1A` and `0x41`.
+// Heater commands (Touchscreen 0x0050 -> All Heaters 0x007F), sent as a pair
+// whenever the Touchscreen switches the heater. See PROTOCOL.md commands `0x1A`
+// and `0x41`.
 static const char *MSG_TYPE_HEATER_TOGGLE_CMD =     "02 00 50 00 7F 00 00 1A 0B F6";
-static const char *MSG_TYPE_VALVE_ACTUATOR_CMD =    "02 00 50 00 7F 80 00 41 0E A0";
+static const char *MSG_TYPE_HEATER_TARGET_STATE =    "02 00 50 00 7F 80 00 41 0E A0";
 
 // Water temperature reading (CMD 0x16) is dispatched source-agnostically in
 // dispatch_message() — see PROTOCOL.md command `0x16`. Observed from the
@@ -3012,15 +3013,15 @@ static bool handle_heater_toggle_cmd(
 }
 
 /**
- * Handler: Valve actuator command (CMD 0x41) — log-only
+ * Handler: Heater target state (CMD 0x41) — log-only
  *
- * Unicast from the Touchscreen (0x0050) to All Heaters (0x007F) that
- * drives a group of motorised valve actuators to one of their two endpoints on
- * a mode change. The position byte names an endpoint, not a flow path: a
- * three-position toggle on the actuator body reverses which way it travels for
- * a given command, so identical payloads plumb differently across installs.
+ * Unicast from the Touchscreen (0x0050) to All Heaters (0x007F), sent straight
+ * after a CMD 0x1A heater toggle. Byte 10 has always matched the state that
+ * toggle produced and byte 11 has always been 0x01, hence the reading as
+ * {state, heater number}. An ICI gas heater ignores it, so what acts on it is
+ * unknown.
  */
-static bool handle_valve_actuator_cmd(
+static bool handle_heater_target_state(
     const uint8_t *data, int len,
     const uint8_t *payload, int payload_len,
     const char *addr_info,
@@ -3028,20 +3029,19 @@ static bool handle_valve_actuator_cmd(
 {
     if (payload_len < 2) return false;
 
-    uint8_t position = payload[0];
-    uint8_t group    = payload[1];
+    uint8_t state  = payload[0];
+    uint8_t heater = payload[1];
 
-    ESP_LOGI(TAG, "%s Valve actuator command - group %d, position %d", addr_info, group, position);
+    if (state <= 1) {
+        ESP_LOGI(TAG, "%s Heater target state - heater %d, %s", addr_info, heater, state ? "On" : "Off");
+    } else {
+        ESP_LOGI(TAG, "%s Heater target state - heater %d, state 0x%02X", addr_info, heater, state);
+    }
 
-    // Flag anything not yet observed for the unknown-messages page. The
-    // actuators have two cam-limited endpoints and only positions 0x00/0x01
-    // have been seen. Group is only ever 0x01, and is checked against that
-    // rather than an upper bound: the controller has four actuator sockets
-    // but the pool/spa pair is ganged, so at most three groups could exist -
-    // and whether the two auxiliary sockets are addressable here at all is
-    // unknown. A frame naming any other group is the observation that would
-    // settle it, so it should not pass silently.
-    if ((group != 0x01) || (position > 1)) {
+    // Only heater 1 and states 0x00/0x01 have come from the Touchscreen. A
+    // heater-2 frame from an install with two heaters is the observation that
+    // would confirm byte 11 as the heater number, so it should not pass silently.
+    if ((heater != 0x01) || (state > 1)) {
         record_undocumented(data, len);
     }
 
@@ -4769,8 +4769,8 @@ static bool dispatch_message(
         return handle_heater_toggle_cmd(data, len, payload, payload_len, addr_info, ctx);
     }
 
-    if (match_pattern(data, len, MSG_TYPE_VALVE_ACTUATOR_CMD)) {
-        return handle_valve_actuator_cmd(data, len, payload, payload_len, addr_info, ctx);
+    if (match_pattern(data, len, MSG_TYPE_HEATER_TARGET_STATE)) {
+        return handle_heater_target_state(data, len, payload, payload_len, addr_info, ctx);
     }
 
     if (match_pattern(data, len, MSG_TYPE_TOUCHSCREEN_UNKNOWN3)) {

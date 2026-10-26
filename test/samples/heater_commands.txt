@@ -1,0 +1,108 @@
+# Heater commands - CMD 0x1A (Heater Toggle Command) and CMD 0x41 (Heater Target
+# State), both sent by the Touchscreen (0x0050) to All Heaters (0x007F).
+#
+# Captured 2026-10-25 on lawther's install: a Connect 10 with an ICI gas heater
+# (0x0074) plumbed to the spa, pump and chlorinator unplugged, so the heater
+# could switch on but never fire (status "No Flow"). Apart from the first
+# capture, every 0x1A/0x41 here was injected over the TCP bridge as 0x0050.
+#
+# The heater answers a frame that changes its state with its own CMD 0x12
+# status about 0.4-0.5 s later. Idle broadcast traffic has been dropped.
+
+
+# ======================================================================
+# Capture 1 - "Pool" selected from Spa with the heater on. The Touchscreen
+# switches it off as part of the mode change: 0x1A toggles it, the 0x41 names
+# the new state, and the heater reports off 0.5 s later. The same switch with
+# the heater already off carries neither frame (valves.txt, Capture 3).
+# ======================================================================
+
+I (01:57:04.978) MSG_DECODER: RX MSG: 02 AC 1D FF FF 80 00 15 0D 6B 01 01 03
+I (01:57:04.979) MSG_DECODER: [Pool Controller ESP32 -> Broadcast] Mode set command - Pool
+I (01:57:05.230) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 14 0D F1 01 01 03
+I (01:57:05.232) MSG_DECODER: [Touch Screen -> Broadcast] Mode - Pool
+I (01:57:05.780) MSG_DECODER: RX MSG: 02 00 50 00 7F 00 00 1A 0B F6 03
+I (01:57:05.782) MSG_DECODER: [Touch Screen -> All Heaters] Heater toggle command
+I (01:57:05.900) MSG_DECODER: RX MSG: 02 00 50 00 7F 80 00 41 0E A0 00 01 01 03
+I (01:57:05.902) MSG_DECODER: [Touch Screen -> All Heaters] Heater target state - heater 1, Off
+I (01:57:06.390) MSG_DECODER: RX MSG: 02 00 74 FF FF 80 00 12 10 16 00 00 00 00 00 03
+I (01:57:06.392) MSG_DECODER: [ICI Gas Heater -> Broadcast] Gas heater raw status - [00 00 00 00], decoded status - "Off"
+
+# ======================================================================
+# Capture 2 - 0x41s on their own, 5 s apart, heater off. They change
+# nothing, whatever their state byte and however often they are sent: the
+# heater sends no status in reply. The two 0x1As sent straight after did flip
+# the heater (heater_toggle.txt, Capture 1).
+# ======================================================================
+
+I (01:59:05.729) MSG_DECODER: RX MSG: 02 00 50 00 7F 80 00 41 0E A0 01 01 02 03
+I (01:59:05.731) MSG_DECODER: [Touch Screen -> All Heaters] Heater target state - heater 1, On
+I (01:59:10.649) MSG_DECODER: RX MSG: 02 00 50 00 7F 80 00 41 0E A0 01 01 02 03
+I (01:59:10.651) MSG_DECODER: [Touch Screen -> All Heaters] Heater target state - heater 1, On
+I (01:59:15.669) MSG_DECODER: RX MSG: 02 00 50 00 7F 80 00 41 0E A0 00 01 01 03
+I (01:59:15.671) MSG_DECODER: [Touch Screen -> All Heaters] Heater target state - heater 1, Off
+I (01:59:20.689) MSG_DECODER: RX MSG: 02 00 50 00 7F 80 00 41 0E A0 00 01 01 03
+I (01:59:20.691) MSG_DECODER: [Touch Screen -> All Heaters] Heater target state - heater 1, Off
+
+# ======================================================================
+# Capture 3 - Heater 1 State register (0xE6/slot 0x00) read around two
+# toggles, with 0x41s sent while the heater is on. The heater answers the
+# register read itself. The register follows each 0x1A (Off, On, On, Off), and
+# the 0x41 00 01 sent while the heater was on did not switch it off.
+# ======================================================================
+
+I (02:02:58.839) MSG_DECODER: RX MSG: 02 AC 1D FF FF 80 00 39 0E 90 E6 00 E6 03
+I (02:02:58.841) MSG_DECODER: [Pool Controller ESP32 -> Broadcast] Register read request - Heater 1 State 1
+I (02:02:59.220) MSG_DECODER: RX MSG: 02 00 74 FF FF 80 00 38 0F 3B E6 00 00 E6 03
+I (02:02:59.223) MSG_DECODER: [ICI Gas Heater -> Broadcast] Heater 1 state - Off (0x00)
+I (02:03:01.806) MSG_DECODER: RX MSG: 02 00 50 00 7F 00 00 1A 0B F6 03
+I (02:03:01.807) MSG_DECODER: [Touch Screen -> All Heaters] Heater toggle command
+I (02:03:02.230) MSG_DECODER: RX MSG: 02 00 74 FF FF 80 00 12 10 16 00 01 00 00 01 03
+I (02:03:02.232) MSG_DECODER: [ICI Gas Heater -> Broadcast] Gas heater raw status - [00 01 00 00], decoded status - "No Flow"
+I (02:03:04.879) MSG_DECODER: RX MSG: 02 AC 1D FF FF 80 00 39 0E 90 E6 00 E6 03
+I (02:03:04.881) MSG_DECODER: [Pool Controller ESP32 -> Broadcast] Register read request - Heater 1 State 1
+I (02:03:05.260) MSG_DECODER: RX MSG: 02 00 74 FF FF 80 00 38 0F 3B E6 00 01 E7 03
+I (02:03:05.262) MSG_DECODER: [ICI Gas Heater -> Broadcast] Heater 1 state - On (0x01)
+I (02:03:07.798) MSG_DECODER: RX MSG: 02 00 50 00 7F 80 00 41 0E A0 00 01 01 03
+I (02:03:07.799) MSG_DECODER: [Touch Screen -> All Heaters] Heater target state - heater 1, Off
+I (02:03:10.809) MSG_DECODER: RX MSG: 02 00 50 00 7F 80 00 41 0E A0 01 01 02 03
+I (02:03:10.811) MSG_DECODER: [Touch Screen -> All Heaters] Heater target state - heater 1, On
+I (02:03:13.879) MSG_DECODER: RX MSG: 02 AC 1D FF FF 80 00 39 0E 90 E6 00 E6 03
+I (02:03:13.881) MSG_DECODER: [Pool Controller ESP32 -> Broadcast] Register read request - Heater 1 State 1
+I (02:03:14.260) MSG_DECODER: RX MSG: 02 00 74 FF FF 80 00 38 0F 3B E6 00 01 E7 03
+I (02:03:14.263) MSG_DECODER: [ICI Gas Heater -> Broadcast] Heater 1 state - On (0x01)
+I (02:03:16.846) MSG_DECODER: RX MSG: 02 00 50 00 7F 00 00 1A 0B F6 03
+I (02:03:16.846) MSG_DECODER: [Touch Screen -> All Heaters] Heater toggle command
+I (02:03:17.280) MSG_DECODER: RX MSG: 02 00 74 FF FF 80 00 12 10 16 00 00 00 00 00 03
+I (02:03:17.282) MSG_DECODER: [ICI Gas Heater -> Broadcast] Gas heater raw status - [00 00 00 00], decoded status - "Off"
+I (02:03:19.819) MSG_DECODER: RX MSG: 02 AC 1D FF FF 80 00 39 0E 90 E6 00 E6 03
+I (02:03:19.821) MSG_DECODER: [Pool Controller ESP32 -> Broadcast] Register read request - Heater 1 State 1
+I (02:03:20.211) MSG_DECODER: RX MSG: 02 00 74 FF FF 80 00 38 0F 3B E6 00 00 E6 03
+I (02:03:20.212) MSG_DECODER: [ICI Gas Heater -> Broadcast] Heater 1 state - Off (0x00)
+
+# ======================================================================
+# Capture 4 - two payload-less 0x15 mode toggles sent from 0xAC1D, 10 s
+# apart, with the heater left on by an earlier test whose status broadcasts
+# were all lost to bus collisions. The Touchscreen accepts the toggle form
+# from 0xAC1D: Pool -> Spa, then Spa -> Pool. Entering Spa it sends no 0x1A,
+# because the heater is already on; leaving Spa it toggles it off. In the
+# earlier test, the Touchscreen had left Spa without toggling, presumably
+# because no "heater on" status had reached it.
+# ======================================================================
+
+I (02:34:10.127) MSG_DECODER: RX MSG: 02 AC 1D FF FF 00 00 15 0B E9 03
+I (02:34:10.128) MSG_DECODER: [Pool Controller ESP32 -> Broadcast] Mode toggle command
+I (02:34:10.382) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 14 0D F1 00 00 03
+I (02:34:10.384) MSG_DECODER: [Touch Screen -> Broadcast] Mode - Spa
+I (02:34:12.922) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 14 0D F1 00 00 03
+I (02:34:12.924) MSG_DECODER: [Touch Screen -> Broadcast] Mode - Spa
+I (02:34:20.229) MSG_DECODER: RX MSG: 02 AC 1D FF FF 00 00 15 0B E9 03
+I (02:34:20.230) MSG_DECODER: [Pool Controller ESP32 -> Broadcast] Mode toggle command
+I (02:34:20.372) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 14 0D F1 01 01 03
+I (02:34:20.374) MSG_DECODER: [Touch Screen -> Broadcast] Mode - Pool
+I (02:34:21.032) MSG_DECODER: RX MSG: 02 00 50 00 7F 00 00 1A 0B F6 03
+I (02:34:21.034) MSG_DECODER: [Touch Screen -> All Heaters] Heater toggle command
+I (02:34:21.152) MSG_DECODER: RX MSG: 02 00 50 00 7F 80 00 41 0E A0 00 01 01 03
+I (02:34:21.154) MSG_DECODER: [Touch Screen -> All Heaters] Heater target state - heater 1, Off
+I (02:34:21.643) MSG_DECODER: RX MSG: 02 00 74 FF FF 80 00 12 10 16 00 00 00 00 00 03
+I (02:34:21.645) MSG_DECODER: [ICI Gas Heater -> Broadcast] Gas heater raw status - [00 00 00 00], decoded status - "Off"
