@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- Decoded the Mode register (`0x65`, slot `0x00`), the Touchscreen's copy of the Pool/Spa mode with the same encoding as CMD `0x14`. It is now logged (e.g. `Mode register - Spa (0x00)`) instead of as an unhandled register. Earlier captures had only seen it read Pool, so its Spa value (`65 00 00`) was recorded on the Unknown Messages page. A sweep of 60 registers read in Pool and in Spa found only it and the Active Favourite register (`0x20`) changing with the mode. A decoder replay test (`mode_register.txt`) covers it following mode changes
 - PROTOCOL.md now notes that the Touchscreen accepts the payload-less toggle form of CMD `0x15` from `0xAC1D`, and that it tracks the heater's on/off state from the heater's CMD `0x12` broadcasts. When collisions swallow those broadcasts, it can leave Spa with the heater still on
 ### Changed
 - CMD `0x1A` turns out to be a heater toggle, and is now logged as `[Touch Screen -> All Heaters] Heater toggle command` in place of `Pre-valve-command frame`. Address `0x007F` is now shown as All Heaters instead of Internal Control. Injection tests on an install with an ICI gas heater showed that each `0x1A` toggles the heater, which reports the new state in its CMD `0x12` status and Heater 1 State register (`0xE6`). Decoder replay sample: `heater_toggle.txt`

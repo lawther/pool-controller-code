@@ -583,6 +583,7 @@ static bool handle_channel_category(const uint8_t *data, int len, const uint8_t 
 static bool handle_valve_state(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 static bool handle_touchscreen_unknown3(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 static bool handle_heater1_state(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
+static bool handle_mode_register(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 static bool handle_heater2_state(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 static bool handle_heater2_configured(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 static bool handle_heater1_type(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
@@ -638,6 +639,9 @@ static const register_handler_t REGISTER_HANDLERS[] = {
 
     // Solar setpoint (slot 0x01, register 0x3A)
     {REG_ID_SOLAR_SETPOINT,          REG_ID_SOLAR_SETPOINT,         0x01, handle_solar_setpoint,        "Solar Setpoint"},
+
+    // Pool/Spa mode (slot 0x00, register 0x65): same encoding as CMD 0x14
+    {REG_ID_MODE,                    REG_ID_MODE,                    0x00, handle_mode_register,         "Mode"},
 
     // Heater 1 state (slot 0x00, register 0xE6) — touchscreen register-response broadcast.
     // The CMD 0x12 broadcast from 0x0062 is the authoritative state source that updates
@@ -957,6 +961,31 @@ static bool handle_heater1_state(
 
     // Only Off (0x00) and On (0x01) are documented; flag anything else for research.
     if (state >= 0x02) {
+        record_undocumented(data, len);
+    }
+
+    return true;
+}
+
+/**
+ * Handler: Pool/Spa mode register
+ * Register 0x65, Slot 0x00 (0x00=Spa, 0x01=Pool, as CMD 0x14). Log-only — the
+ * CMD 0x14 broadcast already updates pool_state->mode, and is sent far more often.
+ */
+static bool handle_mode_register(
+    const uint8_t *data, int len,
+    const uint8_t *payload, int payload_len,
+    const char *addr_info,
+    message_decoder_context_t *ctx)
+{
+    if (payload_len < 3) return false;
+
+    uint8_t mode = payload[2];
+    ESP_LOGI(TAG, "%s Mode register - %s (0x%02X)", addr_info,
+             mode == MODE_SPA ? "Spa" : mode == MODE_POOL ? "Pool" : "Unknown",
+             mode);
+
+    if (mode > MODE_POOL) {
         record_undocumented(data, len);
     }
 
