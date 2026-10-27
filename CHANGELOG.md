@@ -8,7 +8,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 ## [TODO]
-- Sometimes messages fail - likely clashing message on bus. Make them do a retry
 - Solar is not yet supported
 - Add basic controls without home assistant.
 - Optimise for homekit via Homekit Bridge
@@ -25,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CMD `0x41` turns out to be heater-related, not a valve command, and is now logged as `Heater target state - heater 1, On` in place of `Valve actuator command - group 1, position 1`. What it does is unknown: the ICI gas heater that `0x1A` toggles ignores it. The Touchscreen sends the `0x1A`/`0x41` pair in a mode change only when the new mode needs the heater switched. A `0x41` naming a heater other than 1 is now flagged as undocumented
 - PROTOCOL.md now notes that a CMD `0x15` mode switch sets the Active Favourite register (`0x20`) to Pool or Spa, and that switching the heater outside a mode change clears it, as a manual channel change already did. A decoder replay test (`active_favourite.txt`) covers both
 ### Fixed
+- Fixed bus commands and register requests being lost when they collided with another device's frame. The firmware now waits for the bus to be quiet before sending, then checks the echo of its own frame; if another device talked over it, it logs `TX collision`, backs off for a random, growing delay and retries, up to 4 attempts. Previously it sent regardless of bus traffic, which corrupted most of the resyncs seen after its own sends in round-14 captures (e.g. register requests landing on the Touchscreen's replies)
 - PROTOCOL.md no longer says `0x41` drives the pool/spa valve actuators. The Connect 8/10 drives them from the CMD `0x14` mode broadcast, and re-applies the position on every `0x14` from any source address. As a result, the valves cannot be held against the mode from the bus, and no frame reports where they actually are. This explains why a switch to Pool sometimes carried no `0x1A`/`0x41`: the heater was already off. Decoder replay samples cover the valve and heater captures (`valves.txt`, `heater_commands.txt`)
 - PROTOCOL.md no longer says registers `0xB8`/`0xB9` (slot `0x0B`) read `0x01` on every install. One install reads `0x00`, in Pool and Spa alike
 - PROTOCOL.md no longer says the slot `0x0D` registers `0xAC`–`0xB3` and `0xC0`–`0xC3` only ever read `0xFF`. `0xAE`/`0xAF` read light zone numbers and `0xC0`–`0xC3` read `0x00`. Each set of four rows is now merged into an 8-register, one-per-channel block, and `0xBC`–`0xC3` is still unknown
