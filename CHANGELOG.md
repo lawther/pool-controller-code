@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - PROTOCOL.md now notes that a CMD `0x15` mode switch sets the Active Favourite register (`0x20`) to Pool or Spa, and that switching the heater outside a mode change clears it, as a manual channel change already did. A decoder replay test (`active_favourite.txt`) covers both
 ### Fixed
 - PROTOCOL.md no longer says `0x41` drives the pool/spa valve actuators. The Connect 8/10 drives them from the CMD `0x14` mode broadcast, and re-applies the position on every `0x14` from any source address. As a result, the valves cannot be held against the mode from the bus, and no frame reports where they actually are. This explains why a switch to Pool sometimes carried no `0x1A`/`0x41`: the heater was already off. Decoder replay samples cover the valve and heater captures (`valves.txt`, `heater_commands.txt`)
+- PROTOCOL.md no longer says registers `0xB8`/`0xB9` (slot `0x0B`) read `0x01` on every install. One install reads `0x00`, in Pool and Spa alike
 ### Removed
 ### Deprecated
 ### Security
