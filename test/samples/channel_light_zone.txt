@@ -1,0 +1,28 @@
+# Channel -> light zone map (registers 0xAC-0xB3, slot 0x0D = channels 1-8):
+# the 0-based light zone each channel drives, 0xFF for a channel that is not
+# a light. Part of the Touchscreen's periodic register dump.
+
+
+# Reference install: lights on Channel 3 (zone 1) and Channel 4 (zone 2)
+I (04:20:36.194) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 AC 0D FF B8 03
+I (04:20:36.194) MSG_DECODER: [Touch Screen -> Broadcast] Channel 1 light zone - none
+I (04:20:36.314) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 AD 0D FF B9 03
+I (04:20:36.314) MSG_DECODER: [Touch Screen -> Broadcast] Channel 2 light zone - none
+I (04:20:36.434) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 AE 0D 00 BB 03
+I (04:20:36.434) MSG_DECODER: [Touch Screen -> Broadcast] Channel 3 light zone - Zone 1
+I (04:20:36.564) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 AF 0D 01 BD 03
+I (04:20:36.564) MSG_DECODER: [Touch Screen -> Broadcast] Channel 4 light zone - Zone 2
+I (04:20:36.684) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 B0 0D FF BC 03
+I (04:20:36.684) MSG_DECODER: [Touch Screen -> Broadcast] Channel 5 light zone - none
+I (04:20:36.804) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 B1 0D FF BD 03
+I (04:20:36.804) MSG_DECODER: [Touch Screen -> Broadcast] Channel 6 light zone - none
+I (04:20:36.924) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 B2 0D FF BE 03
+I (04:20:36.924) MSG_DECODER: [Touch Screen -> Broadcast] Channel 7 light zone - none
+I (04:20:37.054) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 B3 0D FF BF 03
+I (04:20:37.054) MSG_DECODER: [Touch Screen -> Broadcast] Channel 8 light zone - none
+
+# zagnuts: one light zone, on Channel 3; Channel 4 is a Secondary Heater
+I (65797451) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 AE 0D 00 BB 03
+I (65797451) MSG_DECODER: [Touch Screen -> Broadcast] Channel 3 light zone - Zone 1
+I (65797581) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 AF 0D FF BB 03
+I (65797581) MSG_DECODER: [Touch Screen -> Broadcast] Channel 4 light zone - none

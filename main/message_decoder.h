@@ -168,6 +168,9 @@ typedef enum {
     REG_ID_LIGHT_ZONE_MULTICOLOR_0 = 0xA0,  // Zone 0 multicolor (0–7 → 0xA0–0xA7, slot 0x01)
     REG_ID_LIGHT_ZONE_MULTICOLOR_7 = 0xA7,  // Zone 7 multicolor (last)
 
+    REG_ID_CHANNEL_LIGHT_ZONE_0    = 0xAC,  // Channel 0 light zone (0–7 → 0xAC–0xB3, slot 0x0D): 0-based zone, 0xFF = none; 0xB0–0xB3 shares range with REG_ID_LIGHT_ZONE_NAME_[0-3], slot 0x01
+    REG_ID_CHANNEL_LIGHT_ZONE_7    = 0xB3,  // Channel 7 light zone (last)
+
     REG_ID_LIGHT_ZONE_NAME_0       = 0xB0,  // Zone 0 name code (0–7 → 0xB0–0xB7, slot 0x01)
     REG_ID_LIGHT_ZONE_NAME_7       = 0xB7,  // Zone 7 name      (last)
 
