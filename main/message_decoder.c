@@ -583,6 +583,7 @@ static bool handle_channel_category(const uint8_t *data, int len, const uint8_t 
 static bool handle_valve_state(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 static bool handle_touchscreen_unknown3(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 static bool handle_heater1_state(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
+static bool handle_separate_pool_spa_modes(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 static bool handle_mode_register(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 static bool handle_heater2_state(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 static bool handle_heater2_configured(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
@@ -640,8 +641,11 @@ static const register_handler_t REGISTER_HANDLERS[] = {
     // Solar setpoint (slot 0x01, register 0x3A)
     {REG_ID_SOLAR_SETPOINT,          REG_ID_SOLAR_SETPOINT,         0x01, handle_solar_setpoint,        "Solar Setpoint"},
 
+    // "Use separate pool and spa modes" setting (slot 0x00, register 0x64): 0x00=No, 0x01=Yes
+    {REG_ID_SEPARATE_POOL_SPA_MODES, REG_ID_SEPARATE_POOL_SPA_MODES, 0x00, handle_separate_pool_spa_modes, "Separate Pool/Spa Modes"},
+
     // Pool/Spa mode (slot 0x00, register 0x65): same encoding as CMD 0x14
-    {REG_ID_MODE,                    REG_ID_MODE,                    0x00, handle_mode_register,         "Mode"},
+    {REG_ID_MODE,                   REG_ID_MODE,                    0x00, handle_mode_register,         "Mode"},
 
     // Heater 1 state (slot 0x00, register 0xE6) — touchscreen register-response broadcast.
     // The CMD 0x12 broadcast from 0x0062 is the authoritative state source that updates
@@ -961,6 +965,32 @@ static bool handle_heater1_state(
 
     // Only Off (0x00) and On (0x01) are documented; flag anything else for research.
     if (state >= 0x02) {
+        record_undocumented(data, len);
+    }
+
+    return true;
+}
+
+/**
+ * Handler: "Use separate pool and spa modes" setting
+ * Register 0x64, Slot 0x00 (0x00=No, 0x01=Yes), as set at the Touchscreen.
+ * Log-only.
+ */
+static bool handle_separate_pool_spa_modes(
+    const uint8_t *data, int len,
+    const uint8_t *payload, int payload_len,
+    const char *addr_info,
+    message_decoder_context_t *ctx)
+{
+    if (payload_len < 3) return false;
+
+    uint8_t value = payload[2];
+    ESP_LOGI(TAG, "%s Separate pool/spa modes - %s (0x%02X)", addr_info,
+             value == 0x01 ? "Yes" : value == 0x00 ? "No" : "Unknown",
+             value);
+
+    // Only No (0x00) and Yes (0x01) are documented; flag anything else for research.
+    if (value > 0x01) {
         record_undocumented(data, len);
     }
 

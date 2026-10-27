@@ -1,0 +1,25 @@
+# "Use separate pool and spa modes" setting (register 0x64, slot 0x00).
+#
+# Captured 2026-10-27 on the reference install. The setting was toggled at the
+# Touchscreen between the two reads; each read is CMD 0x39 from the firmware's
+# own address (0xAC1D), answered by the Touchscreen with CMD 0x38. Other traffic
+# has been dropped. Timestamps are device uptime.
+
+
+# ======================================================================
+# "Use separate pool and spa modes" set to Yes: 0x01.
+# ======================================================================
+
+I (00:50:33.169) MSG_DECODER: RX MSG: 02 AC 1D FF FF 80 00 39 0E 90 64 00 64 03
+I (00:50:33.170) MSG_DECODER: [Pool Controller ESP32 -> Broadcast] Register read request - Separate Pool/Spa Modes 1
+I (00:50:33.309) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 64 00 01 65 03
+I (00:50:33.311) MSG_DECODER: [Touch Screen -> Broadcast] Separate pool/spa modes - Yes (0x01)
+
+# ======================================================================
+# Set to No: 0x00.
+# ======================================================================
+
+I (00:51:53.068) MSG_DECODER: RX MSG: 02 AC 1D FF FF 80 00 39 0E 90 64 00 64 03
+I (00:51:53.070) MSG_DECODER: [Pool Controller ESP32 -> Broadcast] Register read request - Separate Pool/Spa Modes 1
+I (00:51:53.209) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 64 00 00 64 03
+I (00:51:53.211) MSG_DECODER: [Touch Screen -> Broadcast] Separate pool/spa modes - No (0x00)
