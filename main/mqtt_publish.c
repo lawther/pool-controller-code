@@ -104,7 +104,7 @@ void mqtt_publish_heater_setpoints(const pool_state_t *current_state, int index)
 
     // Publish discovery on first publish
     if (!s_discovery_published.heater_setpoints[index]) {
-        mqtt_publish_heater_setpoint_discovery_single(index);
+        mqtt_publish_heater_setpoint_discovery_single(index, !separate_pool_spa_modes_off(current_state));
         s_discovery_published.heater_setpoints[index] = true;
     }
 
@@ -358,6 +358,30 @@ void mqtt_publish_mode(const pool_state_t *current_state)
     s_last_published_state.mode_valid = true;
 
     ESP_LOGI(TAG, "Published mode: %s", payload);
+}
+
+void mqtt_publish_mode_config(const pool_state_t *current_state)
+{
+    if (!current_state->separate_pool_spa_modes_valid) {
+        return;
+    }
+
+    bool separate = current_state->separate_pool_spa_modes;
+    if (separate) {
+        mqtt_publish_mode_discovery_single();
+    } else {
+        mqtt_remove_mode_discovery();
+    }
+
+    // Without separate modes the Touchscreen also hides Pool, Spa and the user
+    // favourites (leaving All Off / All Auto), and keeps only the pool
+    // setpoint. Both publishers follow the setting themselves.
+    mqtt_publish_favourite_discovery_single(current_state);
+    for (int i = 0; i < MAX_HEATERS; i++) {
+        if (s_discovery_published.heater_setpoints[i]) {
+            mqtt_publish_heater_setpoint_discovery_single(i, separate);
+        }
+    }
 }
 
 // ======================================================

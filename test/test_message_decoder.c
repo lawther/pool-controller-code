@@ -41,6 +41,8 @@ void xSemaphoreGive(SemaphoreHandle_t xSemaphore)
 
 // Mock MQTT functions (disabled in tests)
 void mqtt_publish_mode(const pool_state_t *state) {}
+static int mode_config_publishes = 0;
+void mqtt_publish_mode_config(const pool_state_t *state) { mode_config_publishes++; }
 void mqtt_publish_heater_setpoints(const pool_state_t *state, int index) {}
 void mqtt_publish_temperature_reading(const pool_state_t *state, int dev_idx, uint8_t sensor_index) {}
 void mqtt_publish_heater(const pool_state_t *state, int index) {}
@@ -620,6 +622,47 @@ void test_heater_config_change_publishes(void)
     decode_message(cc_none, sizeof(cc_none), &test_ctx);
     TEST_ASSERT(heater_config_publishes == 3 && last_heater_config_index == 1,
                 "First 0xCC should publish Heater 2's configuration");
+
+    test_ctx.enable_mqtt = false;
+}
+
+/**
+ * Test: the separate pool/spa modes register (0x64) is stored, and triggers
+ * mqtt_publish_mode_config when it first arrives and when it changes.
+ */
+void test_separate_pool_spa_modes_register(void)
+{
+    init_test_context();
+    test_ctx.enable_mqtt = true;
+    mode_config_publishes = 0;
+
+    uint8_t modes_yes[] = {
+        0x02, 0x00, 0x50, 0xFF, 0xFF, 0x80, 0x00,
+        0x38, 0x0F, 0x17,
+        0x64, 0x00, 0x01,
+        0x65,
+        0x03
+    };
+    uint8_t modes_no[] = {
+        0x02, 0x00, 0x50, 0xFF, 0xFF, 0x80, 0x00,
+        0x38, 0x0F, 0x17,
+        0x64, 0x00, 0x00,
+        0x64,
+        0x03
+    };
+
+    decode_message(modes_yes, sizeof(modes_yes), &test_ctx);
+    TEST_ASSERT(test_pool_state.separate_pool_spa_modes_valid && test_pool_state.separate_pool_spa_modes,
+                "0x64 = 0x01 should set separate pool/spa modes");
+    TEST_ASSERT(mode_config_publishes == 1, "First 0x64 should publish the mode configuration");
+
+    decode_message(modes_yes, sizeof(modes_yes), &test_ctx);
+    TEST_ASSERT(mode_config_publishes == 1, "Repeated 0x64 with the same value should not publish");
+
+    decode_message(modes_no, sizeof(modes_no), &test_ctx);
+    TEST_ASSERT(test_pool_state.separate_pool_spa_modes_valid && !test_pool_state.separate_pool_spa_modes,
+                "0x64 = 0x00 should clear separate pool/spa modes");
+    TEST_ASSERT(mode_config_publishes == 2, "Changed 0x64 should publish the mode configuration");
 
     test_ctx.enable_mqtt = false;
 }
@@ -2087,6 +2130,7 @@ int main(void)
     test_heater_config_registers();
     test_heater_configured_helper();
     test_heater_config_change_publishes();
+    test_separate_pool_spa_modes_register();
     test_decode_temp_reading();
     test_decode_heater_on();
     test_decode_heater_off();
