@@ -188,8 +188,8 @@ typedef struct {
     bool single_sensor_source;  // True if this source only ever broadcasts temp1 (LEN 0x0D)
 } seen_device_t;
 
-// Operating mode values (CMD 0x14 status broadcast and CMD 0x15 set command;
-// note CMD 0x2A uses inverted Pool/Spa values)
+// Operating mode values (CMD 0x14 status broadcast and register 0x65; note
+// CMD 0x2A uses inverted Pool/Spa values)
 #define MODE_SPA   0x00
 #define MODE_POOL  0x01
 
