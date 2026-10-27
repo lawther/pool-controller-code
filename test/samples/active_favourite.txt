@@ -1,0 +1,78 @@
+# Active Favourite register (0x20, slot 0x03) following Pool/Spa mode changes.
+#
+# Captured 2026-10-25 on lawther's install (Connect 10, ICI gas heater plumbed
+# to the spa, pump unplugged). The mode changes are CMD 0x15 sent from the
+# firmware's own address (0xAC1D); the reads are CMD 0x39 from 0xAC1D, answered
+# by the Touchscreen with CMD 0x38. These are excerpts: other traffic has been
+# dropped. Timestamps are device uptime.
+
+
+# ======================================================================
+# 0x20 read before and after a switch to Spa: Pool (0x00) before it, and Spa
+# (0x01) at the first read after it.
+# ======================================================================
+
+I (02:21:58.751) MSG_DECODER: RX MSG: 02 AC 1D FF FF 80 00 39 0E 90 20 03 23 03
+I (02:21:58.752) MSG_DECODER: [Pool Controller ESP32 -> Broadcast] Register read request - Active Favourite 1
+I (02:21:58.890) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 20 03 00 23 03
+I (02:21:58.892) MSG_DECODER: [Touch Screen -> Broadcast] Active favourite - Pool (0x00)
+# The switch to Spa. The Touchscreen confirms it with CMD 0x14, and repeats
+# the 0x14 ~3 s later.
+I (02:22:03.660) MSG_DECODER: RX MSG: 02 AC 1D FF FF 80 00 15 0D 6B 00 00 03
+I (02:22:03.661) MSG_DECODER: [Pool Controller ESP32 -> Broadcast] Mode set command - Spa
+I (02:22:03.790) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 14 0D F1 00 00 03
+I (02:22:03.792) MSG_DECODER: [Touch Screen -> Broadcast] Mode - Spa
+I (02:22:06.770) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 14 0D F1 00 00 03
+I (02:22:06.772) MSG_DECODER: [Touch Screen -> Broadcast] Mode - Spa
+I (02:22:13.691) MSG_DECODER: RX MSG: 02 AC 1D FF FF 80 00 39 0E 90 20 03 23 03
+I (02:22:13.693) MSG_DECODER: [Pool Controller ESP32 -> Broadcast] Register read request - Active Favourite 1
+I (02:22:13.830) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 20 03 01 24 03
+I (02:22:13.832) MSG_DECODER: [Touch Screen -> Broadcast] Active favourite - Spa (0x01)
+
+# ======================================================================
+# Active Favourite cleared by a heater change. The switch to Spa sets it to
+# Spa (0x01). Switching the heater off again leaves the system no longer
+# matching the Spa favourite, and it reads None (0xFF). The switch to Pool
+# sets it to Pool (0x00).
+# ======================================================================
+
+I (02:24:14.550) MSG_DECODER: RX MSG: 02 AC 1D FF FF 80 00 15 0D 6B 00 00 03
+I (02:24:14.551) MSG_DECODER: [Pool Controller ESP32 -> Broadcast] Mode set command - Spa
+I (02:24:14.850) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 14 0D F1 00 00 03
+I (02:24:14.852) MSG_DECODER: [Touch Screen -> Broadcast] Mode - Spa
+# The Touchscreen's mode-change burst switches the heater on for the spa.
+I (02:24:15.360) MSG_DECODER: RX MSG: 02 00 50 00 7F 00 00 1A 0B F6 03
+I (02:24:15.362) MSG_DECODER: [Touch Screen -> All Heaters] Heater toggle command
+I (02:24:15.480) MSG_DECODER: RX MSG: 02 00 50 00 7F 80 00 41 0E A0 01 01 02 03
+I (02:24:15.482) MSG_DECODER: [Touch Screen -> All Heaters] Heater target state - heater 1, On
+# The heater reports On. Its status reads "No Flow" because the pump is
+# unplugged.
+I (02:24:15.980) MSG_DECODER: RX MSG: 02 00 74 FF FF 80 00 12 10 16 00 01 00 00 01 03
+I (02:24:15.982) MSG_DECODER: [ICI Gas Heater -> Broadcast] Gas heater raw status - [00 01 00 00], decoded status - "No Flow"
+I (02:24:17.060) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 14 0D F1 00 00 03
+I (02:24:17.062) MSG_DECODER: [Touch Screen -> Broadcast] Mode - Spa
+I (02:24:19.560) MSG_DECODER: RX MSG: 02 AC 1D FF FF 80 00 39 0E 90 20 03 23 03
+I (02:24:19.562) MSG_DECODER: [Pool Controller ESP32 -> Broadcast] Register read request - Active Favourite 1
+I (02:24:19.720) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 20 03 01 24 03
+I (02:24:19.722) MSG_DECODER: [Touch Screen -> Broadcast] Active favourite - Spa (0x01)
+# Injected over the bridge as 0x0050, not sent by the Touchscreen: switches
+# the heater off again.
+I (02:24:24.567) MSG_DECODER: RX MSG: 02 00 50 00 7F 00 00 1A 0B F6 03
+I (02:24:24.569) MSG_DECODER: [Touch Screen -> All Heaters] Heater toggle command
+I (02:24:24.980) MSG_DECODER: RX MSG: 02 00 74 FF FF 80 00 12 10 16 00 00 00 00 00 03
+I (02:24:24.982) MSG_DECODER: [ICI Gas Heater -> Broadcast] Gas heater raw status - [00 00 00 00], decoded status - "Off"
+I (02:24:29.591) MSG_DECODER: RX MSG: 02 AC 1D FF FF 80 00 39 0E 90 20 03 23 03
+I (02:24:29.593) MSG_DECODER: [Pool Controller ESP32 -> Broadcast] Register read request - Active Favourite 1
+I (02:24:29.750) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 20 03 FF 22 03
+I (02:24:29.752) MSG_DECODER: [Touch Screen -> Broadcast] Active favourite - None (0xFF)
+# The switch to Pool carries no 0x1A: the heater is already off.
+I (02:24:34.609) MSG_DECODER: RX MSG: 02 AC 1D FF FF 80 00 15 0D 6B 01 01 03
+I (02:24:34.611) MSG_DECODER: [Pool Controller ESP32 -> Broadcast] Mode set command - Pool
+I (02:24:34.760) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 14 0D F1 01 01 03
+I (02:24:34.762) MSG_DECODER: [Touch Screen -> Broadcast] Mode - Pool
+I (02:24:37.020) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 14 0D F1 01 01 03
+I (02:24:37.022) MSG_DECODER: [Touch Screen -> Broadcast] Mode - Pool
+I (02:24:39.538) MSG_DECODER: RX MSG: 02 AC 1D FF FF 80 00 39 0E 90 20 03 23 03
+I (02:24:39.540) MSG_DECODER: [Pool Controller ESP32 -> Broadcast] Register read request - Active Favourite 1
+I (02:24:39.760) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 20 03 00 23 03
+I (02:24:39.762) MSG_DECODER: [Touch Screen -> Broadcast] Active favourite - Pool (0x00)
