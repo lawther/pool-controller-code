@@ -580,6 +580,7 @@ static bool handle_water_temp_register(const uint8_t *data, int len, const uint8
 static bool handle_multicolor_light_type(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 static bool handle_channel_count(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 static bool handle_channel_category(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
+static bool handle_channel_light_zone(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 static bool handle_valve_state(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 static bool handle_touchscreen_unknown3(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 static bool handle_heater1_state(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
@@ -608,6 +609,9 @@ static const register_handler_t REGISTER_HANDLERS[] = {
     {REG_ID_CHANNEL_TYPE_0,          REG_ID_CHANNEL_TYPE_7,          0x02, handle_channel_type,          "Channel Type"},
     {REG_ID_CHANNEL_NAME_0,          REG_ID_CHANNEL_NAME_7,          0x02, handle_channel_name,          "Channel Name"},
     {REG_ID_CHANNEL_STATE_0,         REG_ID_CHANNEL_STATE_7,         0x02, handle_channel_state,         "Channel State"},
+
+    // Channel -> light zone map (slot 0x0D, registers 0xAC-0xB3 = channels 1-8): 0-based zone, 0xFF = none
+    {REG_ID_CHANNEL_LIGHT_ZONE_0,    REG_ID_CHANNEL_LIGHT_ZONE_7,    0x0D, handle_channel_light_zone,    "Channel Light Zone"},
 
     // Lighting zones (slot 0x01, 8 zones per family)
     {REG_ID_LIGHT_ZONE_ENABLED_0,    REG_ID_LIGHT_ZONE_ENABLED_7,    0x01, handle_light_zone_enabled,    "Light Zone Enabled"},
@@ -3511,6 +3515,36 @@ static bool handle_channel_category(
         ctx->pool_state->channels[ch_num - 1].category = category;
         ctx->pool_state->channels[ch_num - 1].configured = true;
         state_unlock(ctx, true, NULL);
+    }
+
+    return true;
+}
+
+/**
+ * Handler: Channel light zone
+ * Register range: 0xAC-0xB3, Slot: 0x0D (channels 1-8)
+ * Value: 0-based light zone the channel drives, 0xFF = not a light channel.
+ * Log-only.
+ */
+static bool handle_channel_light_zone(
+    const uint8_t *data, int len,
+    const uint8_t *payload, int payload_len,
+    const char *addr_info,
+    message_decoder_context_t *ctx)
+{
+    if (payload_len < 3) return false;
+
+    uint8_t reg_id = payload[0];
+    uint8_t zone = payload[2];
+    uint8_t ch_num = reg_id - REG_ID_CHANNEL_LIGHT_ZONE_0 + 1;
+
+    if (zone == 0xFF) {
+        ESP_LOGI(TAG, "%s Channel %d light zone - none", addr_info, ch_num);
+    } else {
+        ESP_LOGI(TAG, "%s Channel %d light zone - Zone %d", addr_info, ch_num, zone + 1);
+        if (zone >= MAX_LIGHT_ZONES) {
+            record_undocumented(data, len);
+        }
     }
 
     return true;
