@@ -438,7 +438,14 @@ static void publish_heater_setpoint_number(const char *device_id, const char *ma
     cJSON_Delete(root);
 }
 
-void mqtt_publish_heater_setpoint_discovery_single(int index)
+static void remove_heater_spa_setpoint(const char *mac_suffix, int index)
+{
+    char uid[80];
+    snprintf(uid, sizeof(uid), DISCOVERY_ID_PREFIX "_%s_heater_%d_spa_setpoint", mac_suffix, index);
+    remove_discovery("number", uid);
+}
+
+void mqtt_publish_heater_setpoint_discovery_single(int index, bool include_spa)
 {
     if (index < 0 || index >= MAX_HEATERS) return;
 
@@ -449,7 +456,11 @@ void mqtt_publish_heater_setpoint_discovery_single(int index)
     device_get_mac_suffix(mac_suffix, sizeof(mac_suffix));
 
     publish_heater_setpoint_number(device_id, mac_suffix, index, true);   // Pool
-    publish_heater_setpoint_number(device_id, mac_suffix, index, false);  // Spa
+    if (include_spa) {
+        publish_heater_setpoint_number(device_id, mac_suffix, index, false);  // Spa
+    } else {
+        remove_heater_spa_setpoint(mac_suffix, index);
+    }
 }
 
 // ======================================================
@@ -779,6 +790,18 @@ static void publish_mode_discovery(const char *device_id, const char *mac_suffix
     publish_discovery("select", uid, json_str);
     cJSON_free(json_str);
     cJSON_Delete(root);
+}
+
+void mqtt_remove_mode_discovery(void)
+{
+    char mac_suffix[DEVICE_MAC_SUFFIX_LEN];
+    device_get_mac_suffix(mac_suffix, sizeof(mac_suffix));
+
+    char uid[64];
+    snprintf(uid, sizeof(uid), DISCOVERY_ID_PREFIX "_%s_mode", mac_suffix);
+
+    ESP_LOGI(TAG, "Removing mode select discovery: separate pool and spa modes are off");
+    remove_discovery("select", uid);
 }
 
 // ======================================================
@@ -1669,6 +1692,7 @@ void mqtt_publish_ph_setpoint_discovery_single(void)       { publish_single(publ
 void mqtt_publish_orp_setpoint_discovery_single(void)      { publish_single(publish_orp_setpoint_discovery); }
 void mqtt_publish_chlor_output_level_discovery_single(void) { publish_single(publish_chlor_output_level_discovery); }
 void mqtt_publish_service_mode_discovery_single(void)      { publish_single(publish_service_mode_discovery); }
+void mqtt_publish_mode_discovery_single(void)              { publish_single(publish_mode_discovery); }
 
 void mqtt_publish_pump_discovery_single(bool include_power_sensors)
 {
@@ -1809,31 +1833,37 @@ static void publish_favourite_discovery(const char *device_id, const char *mac_s
 
     cJSON *opts = cJSON_CreateArray();
 
-    // Pool (index FAVOURITE_POOL = 0)
-    if (state && state->favourites[FAVOURITE_POOL].name_valid && state->favourites[FAVOURITE_POOL].name[0] != '\0') {
-        cJSON_AddItemToArray(opts, cJSON_CreateString(state->favourites[FAVOURITE_POOL].name));
-    } else {
-        cJSON_AddItemToArray(opts, cJSON_CreateString("Pool"));
-    }
+    // Without separate pool and spa modes the Touchscreen hides Pool, Spa and
+    // the user favourites, leaving only All Off / All Auto.
+    bool show_favourites = !(state && separate_pool_spa_modes_off(state));
 
-    // Spa (index FAVOURITE_SPA = 1)
-    if (state && state->favourites[FAVOURITE_SPA].name_valid && state->favourites[FAVOURITE_SPA].name[0] != '\0') {
-        cJSON_AddItemToArray(opts, cJSON_CreateString(state->favourites[FAVOURITE_SPA].name));
-    } else {
-        cJSON_AddItemToArray(opts, cJSON_CreateString("Spa"));
-    }
-
-    // User favourites (indices 2–7)
-    for (int i = 2; i < MAX_FAVOURITES; i++) {
-        if (!state || !state->favourites[i].enabled_valid || !state->favourites[i].enabled) {
-            continue;
-        }
-        if (state->favourites[i].name_valid && state->favourites[i].name[0] != '\0') {
-            cJSON_AddItemToArray(opts, cJSON_CreateString(state->favourites[i].name));
+    if (show_favourites) {
+        // Pool (index FAVOURITE_POOL = 0)
+        if (state && state->favourites[FAVOURITE_POOL].name_valid && state->favourites[FAVOURITE_POOL].name[0] != '\0') {
+            cJSON_AddItemToArray(opts, cJSON_CreateString(state->favourites[FAVOURITE_POOL].name));
         } else {
-            char fallback[24];
-            snprintf(fallback, sizeof(fallback), "Favourite %d", i - 1);
-            cJSON_AddItemToArray(opts, cJSON_CreateString(fallback));
+            cJSON_AddItemToArray(opts, cJSON_CreateString("Pool"));
+        }
+
+        // Spa (index FAVOURITE_SPA = 1)
+        if (state && state->favourites[FAVOURITE_SPA].name_valid && state->favourites[FAVOURITE_SPA].name[0] != '\0') {
+            cJSON_AddItemToArray(opts, cJSON_CreateString(state->favourites[FAVOURITE_SPA].name));
+        } else {
+            cJSON_AddItemToArray(opts, cJSON_CreateString("Spa"));
+        }
+
+        // User favourites (indices 2–7)
+        for (int i = 2; i < MAX_FAVOURITES; i++) {
+            if (!state || !state->favourites[i].enabled_valid || !state->favourites[i].enabled) {
+                continue;
+            }
+            if (state->favourites[i].name_valid && state->favourites[i].name[0] != '\0') {
+                cJSON_AddItemToArray(opts, cJSON_CreateString(state->favourites[i].name));
+            } else {
+                char fallback[24];
+                snprintf(fallback, sizeof(fallback), "Favourite %d", i - 1);
+                cJSON_AddItemToArray(opts, cJSON_CreateString(fallback));
+            }
         }
     }
 
@@ -2052,6 +2082,13 @@ void mqtt_publish_discovery(void)
 
     ESP_LOGI(TAG, "Publishing Home Assistant discovery messages for device: %s", device_id);
 
+    pool_state_t snapshot = {0};
+    if (s_pool_state_mutex &&
+        xSemaphoreTake(s_pool_state_mutex, pdMS_TO_TICKS(500)) == pdTRUE) {
+        snapshot = s_pool_state;
+        xSemaphoreGive(s_pool_state_mutex);
+    }
+
     // Note: Per-heater setpoints are NOT published here.
     // They are published individually on first setpoint reading per heater
     // (see mqtt_publish_heater_setpoints in mqtt_publish.c).
@@ -2063,8 +2100,19 @@ void mqtt_publish_discovery(void)
     // Note: Heaters are NOT published here.
     // They are published individually when first seen (see mqtt_publish.c)
 
-    // Mode
-    publish_mode_discovery(device_id, mac_suffix);
+    // Mode select, unless the Touchscreen says there are no separate pool and
+    // spa modes. Offered while the setting is still unknown, as most installs
+    // have them.
+    if (separate_pool_spa_modes_off(&snapshot)) {
+        mqtt_remove_mode_discovery();
+        // Likewise each heater's spa setpoint, in case the setting was read
+        // while MQTT was down and the retained entity is still on the broker.
+        for (int i = 0; i < MAX_HEATERS; i++) {
+            remove_heater_spa_setpoint(mac_suffix, i);
+        }
+    } else {
+        publish_mode_discovery(device_id, mac_suffix);
+    }
 
     // Firmware update entity (GitHub release tracking) + check-now button
     publish_update_discovery(device_id, mac_suffix);
@@ -2078,15 +2126,7 @@ void mqtt_publish_discovery(void)
     // They are published individually when first configured (see mqtt_publish.c)
 
     // Favourite select (snapshot state for dynamic options)
-    {
-        pool_state_t snapshot = {0};
-        if (s_pool_state_mutex &&
-            xSemaphoreTake(s_pool_state_mutex, pdMS_TO_TICKS(500)) == pdTRUE) {
-            snapshot = s_pool_state;
-            xSemaphoreGive(s_pool_state_mutex);
-        }
-        publish_favourite_discovery(device_id, mac_suffix, &snapshot);
-    }
+    publish_favourite_discovery(device_id, mac_suffix, &snapshot);
 
     // Note: Chemistry (pH/ORP readings and setpoints, chlorine output level),
     // pump speed, and service mode are NOT published here. Each entity is

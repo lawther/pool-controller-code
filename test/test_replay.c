@@ -41,6 +41,7 @@ BaseType_t xSemaphoreTake(SemaphoreHandle_t s, TickType_t t) { (void)s; (void)t;
 void xSemaphoreGive(SemaphoreHandle_t s) { (void)s; }
 
 void mqtt_publish_mode(const pool_state_t *s) { (void)s; }
+void mqtt_publish_mode_config(const pool_state_t *s) { (void)s; }
 void mqtt_publish_heater(const pool_state_t *s, int i) { (void)s; (void)i; }
 void mqtt_publish_gas_heater(const pool_state_t *s, int i) { (void)s; (void)i; }
 void mqtt_publish_heater_config(const pool_state_t *s, int i) { (void)s; (void)i; }

@@ -98,6 +98,7 @@ static void register_requester_task(void *arg)
         bool heater_spa_setpoint_valid[MAX_HEATERS] = {0};
         bool heater_is_configured[MAX_HEATERS] = {0};
         bool heater_config_known[MAX_HEATERS] = {0};
+        bool separate_modes_known = false;
 
         if (s_mutex && xSemaphoreTake(s_mutex, pdMS_TO_TICKS(500)) == pdTRUE) {
             for (int i = 0; i < MAX_GATEWAY_IFACES; i++) {
@@ -131,6 +132,7 @@ static void register_requester_task(void *arg)
                 heater_spa_setpoint_valid[i]  = s_state->heaters[i].spa_setpoint_valid;
                 heater_is_configured[i] = heater_configured(s_state, i, &heater_config_known[i]);
             }
+            separate_modes_known = s_state->separate_pool_spa_modes_valid;
             xSemaphoreGive(s_mutex);
         }
 
@@ -143,6 +145,12 @@ static void register_requester_task(void *arg)
         }
         if (!heater_config_known[1]) {
             send_request(REG_ID_HEATER2_CONFIGURED, 0x00, "heater 2 configured");
+        }
+        // Likewise the separate pool/spa modes setting, which decides whether
+        // the mode select is offered; otherwise it waits for the Touchscreen's
+        // ~8-minute register cycle.
+        if (!separate_modes_known) {
+            send_request(REG_ID_SEPARATE_POOL_SPA_MODES, 0x00, "separate pool/spa modes");
         }
 
         if (gateway_present) {

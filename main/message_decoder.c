@@ -974,7 +974,7 @@ static bool handle_heater1_state(
 /**
  * Handler: "Use separate pool and spa modes" setting
  * Register 0x64, Slot 0x00 (0x00=No, 0x01=Yes), as set at the Touchscreen.
- * Log-only.
+ * Decides whether the Pool/Spa mode select is offered over MQTT.
  */
 static bool handle_separate_pool_spa_modes(
     const uint8_t *data, int len,
@@ -992,6 +992,19 @@ static bool handle_separate_pool_spa_modes(
     // Only No (0x00) and Yes (0x01) are documented; flag anything else for research.
     if (value > 0x01) {
         record_undocumented(data, len);
+    }
+
+    pool_state_t snapshot;
+    if (state_lock(ctx, "separate pool/spa modes")) {
+        bool changed = !ctx->pool_state->separate_pool_spa_modes_valid ||
+                       ctx->pool_state->separate_pool_spa_modes != (value != 0);
+        ctx->pool_state->separate_pool_spa_modes       = (value != 0);
+        ctx->pool_state->separate_pool_spa_modes_valid = true;
+        state_unlock(ctx, true, &snapshot);
+
+        if (changed && ctx->enable_mqtt) {
+            mqtt_publish_mode_config(&snapshot);
+        }
     }
 
     return true;

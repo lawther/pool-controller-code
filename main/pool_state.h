@@ -261,6 +261,11 @@ typedef struct {
     uint8_t mode;  // MODE_SPA (0x00) or MODE_POOL (0x01)
     bool mode_valid;
 
+    // Touchscreen's "Use separate pool and spa modes" setting (register 0x64,
+    // slot 0x00). While it is off, there is no Pool/Spa mode to switch.
+    bool separate_pool_spa_modes;
+    bool separate_pool_spa_modes_valid;
+
     // Channels (up to MAX_CHANNELS)
     channel_state_t channels[MAX_CHANNELS];
     uint8_t num_channels;
@@ -400,6 +405,16 @@ static inline bool heater_configured(const pool_state_t *state, int index, bool 
     }
     *known = state->heater2_configured_valid;
     return state->heater2_configured_valid && state->heater2_configured;
+}
+
+// Whether the Touchscreen has reported its "Use separate pool and spa modes"
+// setting (register 0x64) as off. With it off, the Touchscreen offers no
+// Pool/Spa mode, no favourites other than All Off / All Auto, and a single
+// (pool) setpoint per heater.
+// False while the setting is still unknown.
+static inline bool separate_pool_spa_modes_off(const pool_state_t *state)
+{
+    return state->separate_pool_spa_modes_valid && !state->separate_pool_spa_modes;
 }
 
 // Global pool state (defined in main.c)

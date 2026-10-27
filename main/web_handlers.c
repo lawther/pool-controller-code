@@ -255,6 +255,7 @@ static esp_err_t home_get_handler(httpd_req_t *req)
         "<script>"
         "fetch('/status').then(r=>r.json()).then(data=>{"
         "const rows=[];"
+        "if(data.separate_pool_spa_modes!==null)rows.push(['Separate Pool/Spa Modes',data.separate_pool_spa_modes?'Yes':'No']);"
         "if(data.mode!==null)rows.push(['Mode',data.mode]);"
         "const deg='\u00b0'+(data.temperature.scale==='Fahrenheit'?'F':'C');"
         "data.devices.forEach(d=>{"
@@ -797,6 +798,13 @@ static esp_err_t status_get_handler(httpd_req_t *req)
         cJSON_AddStringToObject(root, "mode", mode_str);
     } else {
         cJSON_AddNullToObject(root, "mode");
+    }
+
+    // Touchscreen's "Use separate pool and spa modes" setting (register 0x64)
+    if (state.separate_pool_spa_modes_valid) {
+        cJSON_AddBoolToObject(root, "separate_pool_spa_modes", state.separate_pool_spa_modes);
+    } else {
+        cJSON_AddNullToObject(root, "separate_pool_spa_modes");
     }
 
     // Controller service mode (CMD 0x12 status bitfield, bit 1)
