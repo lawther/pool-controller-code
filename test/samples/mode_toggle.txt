@@ -1,0 +1,236 @@
+# Mode toggle command (CMD 0x15) in its 1-byte form, sent from 0xAC1D.
+#
+# Every 0x15 switches to the other mode, whatever its payload byte holds. In
+# captures 1 and 2, each switch also set the Filter channel to High (0x0B,
+# then 0x18 to the pump), whatever it had been; on this install, whose
+# Touchscreen was set up by the installer, so possibly a per-install setting.
+
+# ======================================================================
+# Capture 1 - started in Spa. 0x15 sent three times, 11 s apart, each with
+# payload 0x01. Each one switches the mode: to Pool, to Spa (heater toggled
+# on), then back to Pool.
+# ======================================================================
+
+I (02:45:16.201) MSG_DECODER: RX MSG: 02 AC 1D FF FF 80 00 15 0D 6B 01 01 03
+I (02:45:16.203) MSG_DECODER: [Pool Controller ESP32 -> Broadcast] Mode toggle command - payload 0x01
+I (02:45:16.492) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 14 0D F1 01 01 03
+I (02:45:16.494) MSG_DECODER: [Touch Screen -> Broadcast] Mode - Pool
+I (02:45:16.773) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0B 25 00 08 01 05 01 02 00 00 12 00 00 12 00 00 12 00 00 09 00 00 00 00 00 00 00 00 50 03
+I (02:45:16.776) MSG_DECODER: [Touch Screen -> Broadcast] Channel status (8 channels):
+I (02:45:16.784) MSG_DECODER:   Ch1: Filter (1) = High (Active)
+I (02:45:16.789) MSG_DECODER:   Ch2: Cleaning (2) = Off (Inactive)
+I (02:45:16.795) MSG_DECODER:   Ch3: Custom Name (18) = Off (Inactive)
+I (02:45:16.801) MSG_DECODER:   Ch4: Custom Name (18) = Off (Inactive)
+I (02:45:16.807) MSG_DECODER:   Ch5: Custom Name (18) = Off (Inactive)
+I (02:45:16.814) MSG_DECODER:   Ch6: Blower (9) = Off (Inactive)
+I (02:45:16.819) MSG_DECODER:   Ch7: Unused
+I (02:45:16.823) MSG_DECODER:   Ch8: Unused
+I (02:45:17.012) MSG_DECODER: RX MSG: 02 00 50 00 7F 00 00 1A 0B F6 03
+I (02:45:17.014) MSG_DECODER: [Touch Screen -> All Heaters] Heater toggle command
+I (02:45:17.132) MSG_DECODER: RX MSG: 02 00 50 00 7F 80 00 41 0E A0 00 01 01 03
+I (02:45:17.134) MSG_DECODER: [Touch Screen -> All Heaters] Heater target state - heater 1, Off
+I (02:45:17.252) MSG_DECODER: RX MSG: 02 00 50 00 A0 80 00 18 0D 97 02 02 03
+I (02:45:17.254) MSG_DECODER: [Touch Screen -> Viron XT Pump] Set Pump speed - High (0x02)
+I (02:45:17.922) MSG_DECODER: RX MSG: 02 00 74 FF FF 80 00 12 10 16 00 00 00 00 00 03
+I (02:45:17.924) MSG_DECODER: [ICI Gas Heater -> Broadcast] Gas heater raw status - [00 00 00 00], decoded status - "Off"
+I (02:45:18.852) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 14 0D F1 01 01 03
+I (02:45:18.854) MSG_DECODER: [Touch Screen -> Broadcast] Mode - Pool
+I (02:45:19.133) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0B 25 00 08 01 05 01 02 00 00 12 00 00 12 00 00 12 00 00 09 00 00 00 00 00 00 00 00 50 03
+I (02:45:19.137) MSG_DECODER: [Touch Screen -> Broadcast] Channel status (8 channels):
+I (02:45:19.144) MSG_DECODER:   Ch1: Filter (1) = High (Active)
+I (02:45:19.149) MSG_DECODER:   Ch2: Cleaning (2) = Off (Inactive)
+I (02:45:19.155) MSG_DECODER:   Ch3: Custom Name (18) = Off (Inactive)
+I (02:45:19.161) MSG_DECODER:   Ch4: Custom Name (18) = Off (Inactive)
+I (02:45:19.167) MSG_DECODER:   Ch5: Custom Name (18) = Off (Inactive)
+I (02:45:19.174) MSG_DECODER:   Ch6: Blower (9) = Off (Inactive)
+I (02:45:19.179) MSG_DECODER:   Ch7: Unused
+I (02:45:19.183) MSG_DECODER:   Ch8: Unused
+I (02:45:19.242) MSG_DECODER: RX MSG: 02 00 50 00 A0 80 00 18 0D 97 02 02 03
+I (02:45:19.245) MSG_DECODER: [Touch Screen -> Viron XT Pump] Set Pump speed - High (0x02)
+I (02:45:27.252) MSG_DECODER: RX MSG: 02 AC 1D FF FF 80 00 15 0D 6B 01 01 03
+I (02:45:27.253) MSG_DECODER: [Pool Controller ESP32 -> Broadcast] Mode toggle command - payload 0x01
+I (02:45:27.402) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 14 0D F1 00 00 03
+I (02:45:27.404) MSG_DECODER: [Touch Screen -> Broadcast] Mode - Spa
+I (02:45:27.833) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0B 25 00 08 01 05 01 02 00 00 12 00 00 12 00 00 12 00 00 09 00 00 00 00 00 00 00 00 50 03
+I (02:45:27.837) MSG_DECODER: [Touch Screen -> Broadcast] Channel status (8 channels):
+I (02:45:27.844) MSG_DECODER:   Ch1: Filter (1) = High (Active)
+I (02:45:27.849) MSG_DECODER:   Ch2: Cleaning (2) = Off (Inactive)
+I (02:45:27.855) MSG_DECODER:   Ch3: Custom Name (18) = Off (Inactive)
+I (02:45:27.861) MSG_DECODER:   Ch4: Custom Name (18) = Off (Inactive)
+I (02:45:27.867) MSG_DECODER:   Ch5: Custom Name (18) = Off (Inactive)
+I (02:45:27.874) MSG_DECODER:   Ch6: Blower (9) = Off (Inactive)
+I (02:45:27.879) MSG_DECODER:   Ch7: Unused
+I (02:45:27.883) MSG_DECODER:   Ch8: Unused
+I (02:45:28.072) MSG_DECODER: RX MSG: 02 00 50 00 7F 00 00 1A 0B F6 03
+I (02:45:28.074) MSG_DECODER: [Touch Screen -> All Heaters] Heater toggle command
+I (02:45:28.192) MSG_DECODER: RX MSG: 02 00 50 00 7F 80 00 41 0E A0 01 01 02 03
+I (02:45:28.194) MSG_DECODER: [Touch Screen -> All Heaters] Heater target state - heater 1, On
+I (02:45:28.312) MSG_DECODER: RX MSG: 02 00 50 00 A0 80 00 18 0D 97 02 02 03
+I (02:45:28.314) MSG_DECODER: [Touch Screen -> Viron XT Pump] Set Pump speed - High (0x02)
+I (02:45:28.682) MSG_DECODER: RX MSG: 02 00 74 FF FF 80 00 12 10 16 00 01 00 00 01 03
+I (02:45:28.684) MSG_DECODER: [ICI Gas Heater -> Broadcast] Gas heater raw status - [00 01 00 00], decoded status - "No Flow"
+I (02:45:28.822) MSG_DECODER: RX MSG: 02 00 50 00 A0 80 00 18 0D 97 02 02 03
+I (02:45:28.824) MSG_DECODER: [Touch Screen -> Viron XT Pump] Set Pump speed - High (0x02)
+I (02:45:29.662) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 14 0D F1 00 00 03
+I (02:45:29.663) MSG_DECODER: [Touch Screen -> Broadcast] Mode - Spa
+I (02:45:29.943) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0B 25 00 08 01 05 01 02 00 00 12 00 00 12 00 00 12 00 00 09 00 00 00 00 00 00 00 00 50 03
+I (02:45:29.946) MSG_DECODER: [Touch Screen -> Broadcast] Channel status (8 channels):
+I (02:45:29.953) MSG_DECODER:   Ch1: Filter (1) = High (Active)
+I (02:45:29.959) MSG_DECODER:   Ch2: Cleaning (2) = Off (Inactive)
+I (02:45:29.965) MSG_DECODER:   Ch3: Custom Name (18) = Off (Inactive)
+I (02:45:29.971) MSG_DECODER:   Ch4: Custom Name (18) = Off (Inactive)
+I (02:45:29.977) MSG_DECODER:   Ch5: Custom Name (18) = Off (Inactive)
+I (02:45:29.983) MSG_DECODER:   Ch6: Blower (9) = Off (Inactive)
+I (02:45:29.989) MSG_DECODER:   Ch7: Unused
+I (02:45:29.993) MSG_DECODER:   Ch8: Unused
+I (02:45:30.062) MSG_DECODER: RX MSG: 02 00 50 00 A0 80 00 18 0D 97 02 02 03
+I (02:45:30.063) MSG_DECODER: [Touch Screen -> Viron XT Pump] Set Pump speed - High (0x02)
+I (02:45:38.202) MSG_DECODER: RX MSG: 02 AC 1D FF FF 80 00 15 0D 6B 01 01 03
+I (02:45:38.204) MSG_DECODER: [Pool Controller ESP32 -> Broadcast] Mode toggle command - payload 0x01
+I (02:45:38.332) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 14 0D F1 01 01 03
+I (02:45:38.334) MSG_DECODER: [Touch Screen -> Broadcast] Mode - Pool
+I (02:45:38.773) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0B 25 00 08 01 05 01 02 00 00 12 00 00 12 00 00 12 00 00 09 00 00 00 00 00 00 00 00 50 03
+I (02:45:38.777) MSG_DECODER: [Touch Screen -> Broadcast] Channel status (8 channels):
+I (02:45:38.783) MSG_DECODER:   Ch1: Filter (1) = High (Active)
+I (02:45:38.789) MSG_DECODER:   Ch2: Cleaning (2) = Off (Inactive)
+I (02:45:38.795) MSG_DECODER:   Ch3: Custom Name (18) = Off (Inactive)
+I (02:45:38.801) MSG_DECODER:   Ch4: Custom Name (18) = Off (Inactive)
+I (02:45:38.807) MSG_DECODER:   Ch5: Custom Name (18) = Off (Inactive)
+I (02:45:38.814) MSG_DECODER:   Ch6: Blower (9) = Off (Inactive)
+I (02:45:38.819) MSG_DECODER:   Ch7: Unused
+I (02:45:38.823) MSG_DECODER:   Ch8: Unused
+I (02:45:39.012) MSG_DECODER: RX MSG: 02 00 50 00 7F 00 00 1A 0B F6 03
+I (02:45:39.014) MSG_DECODER: [Touch Screen -> All Heaters] Heater toggle command
+I (02:45:39.132) MSG_DECODER: RX MSG: 02 00 50 00 7F 80 00 41 0E A0 00 01 01 03
+I (02:45:39.134) MSG_DECODER: [Touch Screen -> All Heaters] Heater target state - heater 1, Off
+I (02:45:39.252) MSG_DECODER: RX MSG: 02 00 50 00 A0 80 00 18 0D 97 02 02 03
+I (02:45:39.254) MSG_DECODER: [Touch Screen -> Viron XT Pump] Set Pump speed - High (0x02)
+I (02:45:39.612) MSG_DECODER: RX MSG: 02 00 74 FF FF 80 00 12 10 16 00 00 00 00 00 03
+I (02:45:39.614) MSG_DECODER: [ICI Gas Heater -> Broadcast] Gas heater raw status - [00 00 00 00], decoded status - "Off"
+I (02:45:40.992) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 14 0D F1 01 01 03
+I (02:45:40.994) MSG_DECODER: [Touch Screen -> Broadcast] Mode - Pool
+
+# ======================================================================
+# Capture 2 - started in Pool, with the Filter set to Off (0x0F) first. 0x15
+# sent twice, 11 s apart, each with payload 0x00. The first switches to Spa
+# and sets the Filter to High; the second switches back to Pool.
+# ======================================================================
+
+I (02:47:13.882) MSG_DECODER: RX MSG: 02 AC 1D 00 50 80 00 0F 0E B8 01 00 01 03
+I (02:47:13.884) MSG_DECODER: [Pool Controller ESP32 -> Touch Screen] Set channel state - channel 1 -> Off (0x00)
+I (02:47:14.523) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0B 25 00 08 01 00 00 02 00 00 12 00 00 12 00 00 12 00 00 09 00 00 00 00 00 00 00 00 4A 03
+I (02:47:14.527) MSG_DECODER: [Touch Screen -> Broadcast] Channel status (8 channels):
+I (02:47:14.533) MSG_DECODER:   Ch1: Filter (1) = Off (Inactive)
+I (02:47:14.539) MSG_DECODER:   Ch2: Cleaning (2) = Off (Inactive)
+I (02:47:14.545) MSG_DECODER:   Ch3: Custom Name (18) = Off (Inactive)
+I (02:47:14.551) MSG_DECODER:   Ch4: Custom Name (18) = Off (Inactive)
+I (02:47:14.557) MSG_DECODER:   Ch5: Custom Name (18) = Off (Inactive)
+I (02:47:14.564) MSG_DECODER:   Ch6: Blower (9) = Off (Inactive)
+I (02:47:14.570) MSG_DECODER:   Ch7: Unused
+I (02:47:14.573) MSG_DECODER:   Ch8: Unused
+I (02:47:16.472) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 14 0D F1 01 01 03
+I (02:47:16.474) MSG_DECODER: [Touch Screen -> Broadcast] Mode - Pool
+I (02:47:16.753) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0B 25 00 08 01 00 00 02 00 00 12 00 00 12 00 00 12 00 00 09 00 00 00 00 00 00 00 00 4A 03
+I (02:47:16.757) MSG_DECODER: [Touch Screen -> Broadcast] Channel status (8 channels):
+I (02:47:16.763) MSG_DECODER:   Ch1: Filter (1) = Off (Inactive)
+I (02:47:16.769) MSG_DECODER:   Ch2: Cleaning (2) = Off (Inactive)
+I (02:47:16.775) MSG_DECODER:   Ch3: Custom Name (18) = Off (Inactive)
+I (02:47:16.781) MSG_DECODER:   Ch4: Custom Name (18) = Off (Inactive)
+I (02:47:16.787) MSG_DECODER:   Ch5: Custom Name (18) = Off (Inactive)
+I (02:47:16.794) MSG_DECODER:   Ch6: Blower (9) = Off (Inactive)
+I (02:47:16.799) MSG_DECODER:   Ch7: Unused
+I (02:47:16.803) MSG_DECODER:   Ch8: Unused
+I (02:47:22.890) MSG_DECODER: RX MSG: 02 AC 1D FF FF 80 00 15 0D 6B 00 00 03
+I (02:47:22.892) MSG_DECODER: [Pool Controller ESP32 -> Broadcast] Mode toggle command - payload 0x00
+I (02:47:23.022) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 14 0D F1 00 00 03
+I (02:47:23.024) MSG_DECODER: [Touch Screen -> Broadcast] Mode - Spa
+I (02:47:23.463) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0B 25 00 08 01 05 01 02 00 00 12 00 00 12 00 00 12 00 00 09 00 00 00 00 00 00 00 00 50 03
+I (02:47:23.467) MSG_DECODER: [Touch Screen -> Broadcast] Channel status (8 channels):
+I (02:47:23.474) MSG_DECODER:   Ch1: Filter (1) = High (Active)
+I (02:47:23.479) MSG_DECODER:   Ch2: Cleaning (2) = Off (Inactive)
+I (02:47:23.485) MSG_DECODER:   Ch3: Custom Name (18) = Off (Inactive)
+I (02:47:23.491) MSG_DECODER:   Ch4: Custom Name (18) = Off (Inactive)
+I (02:47:23.497) MSG_DECODER:   Ch5: Custom Name (18) = Off (Inactive)
+I (02:47:23.504) MSG_DECODER:   Ch6: Blower (9) = Off (Inactive)
+I (02:47:23.509) MSG_DECODER:   Ch7: Unused
+I (02:47:23.513) MSG_DECODER:   Ch8: Unused
+I (02:47:23.693) MSG_DECODER: RX MSG: 02 00 50 00 7F 00 00 1A 0B F6 03
+I (02:47:23.694) MSG_DECODER: [Touch Screen -> All Heaters] Heater toggle command
+I (02:47:23.822) MSG_DECODER: RX MSG: 02 00 50 00 7F 80 00 41 0E A0 01 01 02 03
+I (02:47:23.824) MSG_DECODER: [Touch Screen -> All Heaters] Heater target state - heater 1, On
+I (02:47:23.942) MSG_DECODER: RX MSG: 02 00 50 00 A0 80 00 18 0D 97 02 02 03
+I (02:47:23.944) MSG_DECODER: [Touch Screen -> Viron XT Pump] Set Pump speed - High (0x02)
+I (02:47:24.312) MSG_DECODER: RX MSG: 02 00 74 FF FF 80 00 12 10 16 00 01 00 00 01 03
+I (02:47:24.314) MSG_DECODER: [ICI Gas Heater -> Broadcast] Gas heater raw status - [00 01 00 00], decoded status - "No Flow"
+I (02:47:24.772) MSG_DECODER: RX MSG: 02 00 50 00 A0 80 00 18 0D 97 02 02 03
+I (02:47:24.774) MSG_DECODER: [Touch Screen -> Viron XT Pump] Set Pump speed - High (0x02)
+I (02:47:25.942) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 14 0D F1 00 00 03
+I (02:47:25.944) MSG_DECODER: [Touch Screen -> Broadcast] Mode - Spa
+I (02:47:26.213) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0B 25 00 08 01 05 01 02 00 00 12 00 00 12 00 00 12 00 00 09 00 00 00 00 00 00 00 00 50 03
+I (02:47:26.217) MSG_DECODER: [Touch Screen -> Broadcast] Channel status (8 channels):
+I (02:47:26.223) MSG_DECODER:   Ch1: Filter (1) = High (Active)
+I (02:47:26.229) MSG_DECODER:   Ch2: Cleaning (2) = Off (Inactive)
+I (02:47:26.235) MSG_DECODER:   Ch3: Custom Name (18) = Off (Inactive)
+I (02:47:26.242) MSG_DECODER:   Ch4: Custom Name (18) = Off (Inactive)
+I (02:47:26.247) MSG_DECODER:   Ch5: Custom Name (18) = Off (Inactive)
+I (02:47:26.254) MSG_DECODER:   Ch6: Blower (9) = Off (Inactive)
+I (02:47:26.259) MSG_DECODER:   Ch7: Unused
+I (02:47:26.263) MSG_DECODER:   Ch8: Unused
+I (02:47:26.332) MSG_DECODER: RX MSG: 02 00 50 00 A0 80 00 18 0D 97 02 02 03
+I (02:47:26.334) MSG_DECODER: [Touch Screen -> Viron XT Pump] Set Pump speed - High (0x02)
+I (02:47:33.842) MSG_DECODER: RX MSG: 02 AC 1D FF FF 80 00 15 0D 6B 00 00 03
+I (02:47:33.844) MSG_DECODER: [Pool Controller ESP32 -> Broadcast] Mode toggle command - payload 0x00
+I (02:47:33.972) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 14 0D F1 01 01 03
+I (02:47:33.974) MSG_DECODER: [Touch Screen -> Broadcast] Mode - Pool
+I (02:47:34.413) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0B 25 00 08 01 05 01 02 00 00 12 00 00 12 00 00 12 00 00 09 00 00 00 00 00 00 00 00 50 03
+I (02:47:34.417) MSG_DECODER: [Touch Screen -> Broadcast] Channel status (8 channels):
+I (02:47:34.425) MSG_DECODER:   Ch1: Filter (1) = High (Active)
+I (02:47:34.429) MSG_DECODER:   Ch2: Cleaning (2) = Off (Inactive)
+I (02:47:34.435) MSG_DECODER:   Ch3: Custom Name (18) = Off (Inactive)
+I (02:47:34.441) MSG_DECODER:   Ch4: Custom Name (18) = Off (Inactive)
+I (02:47:34.447) MSG_DECODER:   Ch5: Custom Name (18) = Off (Inactive)
+I (02:47:34.454) MSG_DECODER:   Ch6: Blower (9) = Off (Inactive)
+I (02:47:34.459) MSG_DECODER:   Ch7: Unused
+I (02:47:34.463) MSG_DECODER:   Ch8: Unused
+I (02:47:34.652) MSG_DECODER: RX MSG: 02 00 50 00 7F 00 00 1A 0B F6 03
+I (02:47:34.654) MSG_DECODER: [Touch Screen -> All Heaters] Heater toggle command
+I (02:47:34.772) MSG_DECODER: RX MSG: 02 00 50 00 7F 80 00 41 0E A0 00 01 01 03
+I (02:47:34.774) MSG_DECODER: [Touch Screen -> All Heaters] Heater target state - heater 1, Off
+I (02:47:34.893) MSG_DECODER: RX MSG: 02 00 50 00 A0 80 00 18 0D 97 02 02 03
+I (02:47:34.894) MSG_DECODER: [Touch Screen -> Viron XT Pump] Set Pump speed - High (0x02)
+I (02:47:35.442) MSG_DECODER: RX MSG: 02 00 74 FF FF 80 00 12 10 16 00 00 00 00 00 03
+I (02:47:35.444) MSG_DECODER: [ICI Gas Heater -> Broadcast] Gas heater raw status - [00 00 00 00], decoded status - "Off"
+I (02:47:36.772) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 14 0D F1 01 01 03
+I (02:47:36.774) MSG_DECODER: [Touch Screen -> Broadcast] Mode - Pool
+
+# ======================================================================
+# Capture 3 - 0x15 sent six times, 40 s apart: payload 0x02 twice, then 0x7F
+# twice, then 0xFF twice. Each one switches the mode, to Spa and Pool
+# alternately, with the full mode-change burst (not shown here). Only each
+# 0x15 and the 0x14 confirming it are kept.
+# ======================================================================
+
+I (02:23:22.665) MSG_DECODER: RX MSG: 02 AC 1D FF FF 80 00 15 0D 6B 02 02 03
+I (02:23:22.665) MSG_DECODER: [Pool Controller ESP32 -> Broadcast] Mode toggle command - payload 0x02
+I (02:23:22.797) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 14 0D F1 00 00 03
+I (02:23:22.797) MSG_DECODER: [Touch Screen -> Broadcast] Mode - Spa
+I (02:24:59.145) MSG_DECODER: RX MSG: 02 AC 1D FF FF 80 00 15 0D 6B 02 02 03
+I (02:24:59.145) MSG_DECODER: [Pool Controller ESP32 -> Broadcast] Mode toggle command - payload 0x02
+I (02:24:59.437) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 14 0D F1 01 01 03
+I (02:24:59.437) MSG_DECODER: [Touch Screen -> Broadcast] Mode - Pool
+I (02:25:39.112) MSG_DECODER: RX MSG: 02 AC 1D FF FF 80 00 15 0D 6B 7F 7F 03
+I (02:25:39.112) MSG_DECODER: [Pool Controller ESP32 -> Broadcast] Mode toggle command - payload 0x7F
+I (02:25:39.367) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 14 0D F1 00 00 03
+I (02:25:39.367) MSG_DECODER: [Touch Screen -> Broadcast] Mode - Spa
+I (02:26:19.174) MSG_DECODER: RX MSG: 02 AC 1D FF FF 80 00 15 0D 6B 7F 7F 03
+I (02:26:19.174) MSG_DECODER: [Pool Controller ESP32 -> Broadcast] Mode toggle command - payload 0x7F
+I (02:26:19.307) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 14 0D F1 01 01 03
+I (02:26:19.307) MSG_DECODER: [Touch Screen -> Broadcast] Mode - Pool
+I (02:26:59.185) MSG_DECODER: RX MSG: 02 AC 1D FF FF 80 00 15 0D 6B FF FF 03
+I (02:26:59.185) MSG_DECODER: [Pool Controller ESP32 -> Broadcast] Mode toggle command - payload 0xFF
+I (02:26:59.317) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 14 0D F1 00 00 03
+I (02:26:59.317) MSG_DECODER: [Touch Screen -> Broadcast] Mode - Spa
+I (02:27:39.106) MSG_DECODER: RX MSG: 02 AC 1D FF FF 80 00 15 0D 6B FF FF 03
+I (02:27:39.106) MSG_DECODER: [Pool Controller ESP32 -> Broadcast] Mode toggle command - payload 0xFF
+I (02:27:39.237) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 14 0D F1 01 01 03
+I (02:27:39.237) MSG_DECODER: [Touch Screen -> Broadcast] Mode - Pool

@@ -18,7 +18,7 @@
 # ======================================================================
 
 I (01:57:04.978) MSG_DECODER: RX MSG: 02 AC 1D FF FF 80 00 15 0D 6B 01 01 03
-I (01:57:04.979) MSG_DECODER: [Pool Controller ESP32 -> Broadcast] Mode set command - Pool
+I (01:57:04.979) MSG_DECODER: [Pool Controller ESP32 -> Broadcast] Mode toggle command - payload 0x01
 I (01:57:05.230) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 14 0D F1 01 01 03
 I (01:57:05.232) MSG_DECODER: [Touch Screen -> Broadcast] Mode - Pool
 I (01:57:05.780) MSG_DECODER: RX MSG: 02 00 50 00 7F 00 00 1A 0B F6 03

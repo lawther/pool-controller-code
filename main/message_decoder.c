@@ -260,7 +260,7 @@ static const cmd_name_entry_t CMD_NAME_TABLE[] = {
     {0x10, "Channel Toggle Cmd"},
     {0x12, "Device Status"},
     {0x14, "Mode"},
-    {0x15, "Mode Set Cmd"},
+    {0x15, "Mode Toggle Cmd"},
     {0x16, "Temperature Reading"},
     {0x17, "Temperature Setting"},
     {0x18, "Pump Speed Command"},
@@ -1016,8 +1016,10 @@ static bool handle_separate_pool_spa_modes(
 
 /**
  * Handler: Pool/Spa mode register
- * Register 0x65, Slot 0x00 (0x00=Spa, 0x01=Pool, as CMD 0x14). Log-only — the
- * CMD 0x14 broadcast already updates pool_state->mode, and is sent far more often.
+ * Register 0x65, Slot 0x00 (0x00=Spa, 0x01=Pool, as CMD 0x14). Updates
+ * pool_state->mode like the CMD 0x14 broadcast. The register requester reads
+ * it at startup, so the mode is known without waiting up to a minute for the
+ * next 0x14.
  */
 static bool handle_mode_register(
     const uint8_t *data, int len,
@@ -1034,6 +1036,17 @@ static bool handle_mode_register(
 
     if (mode > MODE_POOL) {
         record_undocumented(data, len);
+        return true;
+    }
+
+    pool_state_t snapshot;
+    if (!state_lock(ctx, "mode register")) return true;
+    ctx->pool_state->mode = mode;
+    ctx->pool_state->mode_valid = true;
+    state_unlock(ctx, true, &snapshot);
+
+    if (ctx->enable_mqtt) {
+        mqtt_publish_mode(&snapshot);
     }
 
     return true;
@@ -1723,17 +1736,15 @@ static bool handle_mode(
 }
 
 /**
- * Handler: Mode set command (CMD 0x15) — source-agnostic.
- * Two forms, told apart by payload length:
- *  - 1 byte (Touchscreen 0x0050): sets the mode; same encoding as the 0x14
- *    status (0x00 = Spa, 0x01 = Pool). Mode is updated optimistically — the
- *    touchscreen broadcasts a 0x14 status to confirm.
- *  - No payload (frame with no data, from the Connect 8/10 0x0062 Pool/Spa
- *    button and the ICI Gas Heater 0x0074): toggles the mode. Log-only, as
- *    the frame names no target — the new mode comes from the 0x14 that
- *    follows.
+ * Handler: Mode toggle command (CMD 0x15) — source-agnostic.
+ * Toggles the mode, in either of two forms:
+ *  - No payload (frame with no data), as sent by the Connect 8/10 0x0062
+ *    Pool/Spa button, the ICI Gas Heater 0x0074 and our firmware.
+ *  - 1-byte payload, which the Touchscreen ignores (0x00, 0x01, 0x02, 0x7F
+ *    and 0xFF tested). Only seen injected, never from a device.
+ * Log-only — the new mode comes from the 0x14 that follows.
  */
-static bool handle_mode_set_cmd(
+static bool handle_mode_toggle_cmd(
     const uint8_t *data, int len,
     const uint8_t *payload, int payload_len,
     const char *addr_info,
@@ -1744,25 +1755,7 @@ static bool handle_mode_set_cmd(
         return true;
     }
 
-    uint8_t mode = payload[0];
-    const char *mode_str = (mode == MODE_SPA) ? "Spa" : (mode == MODE_POOL) ? "Pool" : "Unknown";
-    ESP_LOGI(TAG, "%s Mode set command - %s", addr_info, mode_str);
-
-    // Only MODE_SPA and MODE_POOL are documented; flag anything else.
-    if (mode > MODE_POOL) {
-        record_undocumented(data, len);
-    }
-
-    pool_state_t snapshot;
-    if (!state_lock(ctx, "mode set command")) return true;
-    ctx->pool_state->mode = mode;
-    ctx->pool_state->mode_valid = true;
-    state_unlock(ctx, true, &snapshot);
-
-    if (ctx->enable_mqtt) {
-        mqtt_publish_mode(&snapshot);
-    }
-
+    ESP_LOGI(TAG, "%s Mode toggle command - payload 0x%02X", addr_info, payload[0]);
     return true;
 }
 
@@ -4643,11 +4636,11 @@ static bool dispatch_message(
         return handle_set_channel_state(data, len, payload, payload_len, addr_info, ctx);
     }
 
-    // Mode set command (CMD 0x15) — source-agnostic. 1-byte payload from the
-    // Touchscreen (0x0050) sets the mode; the frame with no data from
-    // the Connect 8/10 (0x0062) and the ICI Gas Heater (0x0074) toggles it.
+    // Mode toggle command (CMD 0x15) — source-agnostic. Both forms toggle the
+    // mode: the frame with no data, and the 1-byte form, whatever the byte
+    // holds.
     if (cmd == 0x15) {
-        return handle_mode_set_cmd(data, len, payload, payload_len, addr_info, ctx);
+        return handle_mode_toggle_cmd(data, len, payload, payload_len, addr_info, ctx);
     }
 
     // Valve button (CMD 0x29) — source-agnostic; only the Connect 8/10
