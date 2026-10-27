@@ -28,7 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Security
 
-## [1.18.0] - 2026-10-17
+## [1.19.0] - 2026-10-19
 ### Added
 - Cleaning channels now get a Mode select in Home Assistant (e.g. "Cleaner Mode"), like the Filter channel's. It sets the channel directly to Off, Auto or On with CMD `0x0F`, instead of stepping it round with the toggle button. Like the Filter select, it only changes once the Touchscreen reports the new state
 - Filter and Cleaning channel entities in Home Assistant now have their own icons: `mdi:air-filter` for Filter and `mdi:vacuum` for Cleaning, on the state sensor, toggle button, Active sensor and Mode select. Icons customised in Home Assistant still take precedence
