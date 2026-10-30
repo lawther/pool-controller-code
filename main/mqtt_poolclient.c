@@ -277,6 +277,17 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
                  event->topic_len, event->topic,
                  event->data_len, event->data);
 
+        // The broker sets RETAIN only when replaying a stored message on
+        // subscribe, never on live delivery. Every topic past this point is a
+        // one-shot command, so a retained copy would re-run it on each
+        // reconnect (a retained reboot is a boot loop). Checked after the
+        // entity reset above, which relies on retained discovery configs.
+        if (event->retain) {
+            ESP_LOGW(TAG, "Ignoring retained command on %.*s - clear it on the broker",
+                     event->topic_len, event->topic);
+            break;
+        }
+
         // The firmware-update commands are device management, not pool bus
         // commands, so route them here rather than through mqtt_commands.c.
         if (event->topic_len >= 15 &&

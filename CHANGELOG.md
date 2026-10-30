@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Fixed the heater and Pool/Spa mode MQTT commands accepting a partial or empty payload, e.g. clearing a retained heater command with an empty message switched the heater on. Payloads must now match in full, as the light and valve commands already do
 - Fixed an interrupted firmware upload from the web page (a dropped connection or a closed tab) leaving the web server stuck in a loop until the device was restarted. The upload is now abandoned when the connection closes or stalls for longer than the 2-minute upload limit
+- Fixed retained MQTT commands being re-run every time the device reconnected to the broker, e.g. a retained reboot command caused a boot loop and a retained heater command switched the heater back on after every reconnect. Retained messages on command topics are now ignored with a warning, while live commands work as before
 ### Removed
 ### Deprecated
 ### Security
