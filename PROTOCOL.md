@@ -951,8 +951,8 @@ Observed values:
 
 | Value  | Source   | Where seen |
 |--------|----------|------------|
-| `0x00` | RolaChem | On the reference install, from a setup change saved at the RolaChem's screen onwards (see `test/samples/rolachem_controls.txt`) |
-| `0x01` | RolaChem | Every other capture, from every RolaChem install |
+| `0x00` | RolaChem | From a setup change saved at the RolaChem's screen onwards (see `test/samples/rolachem_controls.txt`) |
+| `0x01` | RolaChem | Every earlier capture. All RolaChem captures so far come from one install |
 | `0x02` | Viron    | Every capture from the Viron install |
 | `0x12` | Viron    | Four frames in one capture: `0x02` with bit 4 also set |
 
