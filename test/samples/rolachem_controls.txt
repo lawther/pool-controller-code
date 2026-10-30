@@ -84,7 +84,7 @@ I (02:28:14.016) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature - 
 I (02:28:14.084) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 31 0E 21 19 AA C3 03 
 W (02:28:14.086) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature (alt) - 25°C, temp2: INVALID (raw 0xAA)
 I (02:28:14.154) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 12 0F 03 00 00 08 08 03 
-I (02:28:14.155) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off
+I (02:28:14.155) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off, Solar output - Inactive
 I (02:28:14.224) MSG_DECODER: RX MSG: 02 00 62 00 50 80 00 2B 0E 6D 02 00 02 03 
 I (02:28:14.226) MSG_DECODER: [Connect 8/10 -> Touch Screen] Controller heartbeat (CMD 0x2B): 0x02 0x00
 I (02:28:14.604) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D0 01 05 D6 03 
@@ -185,7 +185,7 @@ I (02:29:13.716) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature - 
 I (02:29:13.784) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 31 0E 21 19 AA C3 03 
 W (02:29:13.785) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature (alt) - 25°C, temp2: INVALID (raw 0xAA)
 I (02:29:13.854) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 12 0F 03 00 00 08 08 03 
-I (02:29:13.854) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off
+I (02:29:13.854) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off, Solar output - Inactive
 I (02:29:13.924) MSG_DECODER: RX MSG: 02 00 62 00 50 80 00 2B 0E 6D 02 00 02 03 
 I (02:29:13.925) MSG_DECODER: [Connect 8/10 -> Touch Screen] Controller heartbeat (CMD 0x2B): 0x02 0x00
 I (02:29:14.149) FW_UPDATE: installed=v1.19.0-24-g8616f28-dirty latest=v1.19.0 (5 releases) update_available=0
@@ -297,7 +297,7 @@ I (02:30:13.416) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature - 
 I (02:30:13.484) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 31 0E 21 19 AA C3 03 
 W (02:30:13.486) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature (alt) - 25°C, temp2: INVALID (raw 0xAA)
 I (02:30:13.554) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 12 0F 03 00 00 08 08 03 
-I (02:30:13.555) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off
+I (02:30:13.555) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off, Solar output - Inactive
 I (02:30:13.624) MSG_DECODER: RX MSG: 02 00 62 00 50 80 00 2B 0E 6D 02 00 02 03 
 I (02:30:13.624) MSG_DECODER: [Connect 8/10 -> Touch Screen] Controller heartbeat (CMD 0x2B): 0x02 0x00
 I (02:30:21.274) MSG_DECODER: RX MSG: 02 00 90 FF FF 00 00 15 0B B0 03 
@@ -387,7 +387,7 @@ I (02:30:26.576) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature - 
 I (02:30:26.644) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 31 0E 21 19 AA C3 03 
 W (02:30:26.645) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature (alt) - 25°C, temp2: INVALID (raw 0xAA)
 I (02:30:26.714) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 12 0F 03 00 00 08 08 03 
-I (02:30:26.714) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off
+I (02:30:26.714) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off, Solar output - Inactive
 I (02:30:26.784) MSG_DECODER: RX MSG: 02 00 62 00 50 80 00 2B 0E 6D 02 00 02 03 
 I (02:30:26.784) MSG_DECODER: [Connect 8/10 -> Touch Screen] Controller heartbeat (CMD 0x2B): 0x02 0x00
 I (02:30:31.604) MSG_DECODER: RX MSG: 02 00 90 FF FF 00 00 15 0B B0 03 
@@ -465,7 +465,7 @@ I (02:30:36.696) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature - 
 I (02:30:36.754) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 31 0E 21 19 AA C3 03 
 W (02:30:36.755) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature (alt) - 25°C, temp2: INVALID (raw 0xAA)
 I (02:30:36.834) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 12 0F 03 00 00 08 08 03 
-I (02:30:36.835) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off
+I (02:30:36.835) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off, Solar output - Inactive
 I (02:30:36.894) MSG_DECODER: RX MSG: 02 00 62 00 50 80 00 2B 0E 6D 02 00 02 03 
 I (02:30:36.895) MSG_DECODER: [Connect 8/10 -> Touch Screen] Controller heartbeat (CMD 0x2B): 0x02 0x00
 I (02:30:37.074) MSG_DECODER: RX MSG: 02 00 90 00 50 80 00 11 0D 80 01 01 03 
@@ -499,7 +499,7 @@ I (02:30:39.726) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature - 
 I (02:30:39.794) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 31 0E 21 19 AA C3 03 
 W (02:30:39.795) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature (alt) - 25°C, temp2: INVALID (raw 0xAA)
 I (02:30:39.864) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 12 0F 03 00 00 08 08 03 
-I (02:30:39.864) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off
+I (02:30:39.864) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off, Solar output - Inactive
 I (02:30:39.934) MSG_DECODER: RX MSG: 02 00 62 00 50 80 00 2B 0E 6D 02 00 02 03 
 I (02:30:39.935) MSG_DECODER: [Connect 8/10 -> Touch Screen] Controller heartbeat (CMD 0x2B): 0x02 0x00
 I (02:30:40.054) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 12 0E F0 05 00 05 03 
@@ -557,7 +557,7 @@ I (02:30:42.756) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature - 
 I (02:30:42.824) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 31 0E 21 19 AA C3 03 
 W (02:30:42.825) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature (alt) - 25°C, temp2: INVALID (raw 0xAA)
 I (02:30:42.894) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 12 0F 03 00 00 08 08 03 
-I (02:30:42.894) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off
+I (02:30:42.894) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off, Solar output - Inactive
 I (02:30:42.964) MSG_DECODER: RX MSG: 02 00 62 00 50 80 00 2B 0E 6D 02 00 02 03 
 I (02:30:42.964) MSG_DECODER: [Connect 8/10 -> Touch Screen] Controller heartbeat (CMD 0x2B): 0x02 0x00
 I (02:30:44.624) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 20 03 FF 22 03 
@@ -639,7 +639,7 @@ I (02:31:42.466) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature - 
 I (02:31:42.534) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 31 0E 21 19 AA C3 03 
 W (02:31:42.535) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature (alt) - 25°C, temp2: INVALID (raw 0xAA)
 I (02:31:42.604) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 12 0F 03 00 00 08 08 03 
-I (02:31:42.605) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off
+I (02:31:42.605) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off, Solar output - Inactive
 I (02:31:42.674) MSG_DECODER: RX MSG: 02 00 62 00 50 80 00 2B 0E 6D 02 00 02 03 
 I (02:31:42.676) MSG_DECODER: [Connect 8/10 -> Touch Screen] Controller heartbeat (CMD 0x2B): 0x02 0x00
 I (02:31:44.634) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 B8 0B 01 C4 03 
@@ -722,7 +722,7 @@ I (02:32:43.186) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature - 
 I (02:32:43.254) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 31 0E 21 19 AA C3 03 
 W (02:32:43.256) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature (alt) - 25°C, temp2: INVALID (raw 0xAA)
 I (02:32:43.324) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 12 0F 03 00 00 08 08 03 
-I (02:32:43.325) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off
+I (02:32:43.325) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off, Solar output - Inactive
 I (02:32:43.394) MSG_DECODER: RX MSG: 02 00 62 00 50 80 00 2B 0E 6D 02 00 02 03 
 I (02:32:43.396) MSG_DECODER: [Connect 8/10 -> Touch Screen] Controller heartbeat (CMD 0x2B): 0x02 0x00
 I (02:32:44.644) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 65 00 01 66 03 
@@ -804,7 +804,7 @@ I (02:33:42.896) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature - 
 I (02:33:42.964) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 31 0E 21 19 AA C3 03 
 W (02:33:42.965) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature (alt) - 25°C, temp2: INVALID (raw 0xAA)
 I (02:33:43.034) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 12 0F 03 00 00 08 08 03 
-I (02:33:43.034) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off
+I (02:33:43.034) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off, Solar output - Inactive
 I (02:33:43.104) MSG_DECODER: RX MSG: 02 00 62 00 50 80 00 2B 0E 6D 02 00 02 03 
 I (02:33:43.104) MSG_DECODER: [Connect 8/10 -> Touch Screen] Controller heartbeat (CMD 0x2B): 0x02 0x00
 I (02:33:44.654) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E6 00 00 E6 03 
@@ -888,7 +888,7 @@ I (02:34:42.635) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature - 
 I (02:34:42.704) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 31 0E 21 19 AA C3 03 
 W (02:34:42.705) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature (alt) - 25°C, temp2: INVALID (raw 0xAA)
 I (02:34:42.774) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 12 0F 03 00 00 08 08 03 
-I (02:34:42.775) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off
+I (02:34:42.775) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off, Solar output - Inactive
 I (02:34:42.844) MSG_DECODER: RX MSG: 02 00 62 00 50 80 00 2B 0E 6D 02 00 02 03 
 I (02:34:42.846) MSG_DECODER: [Connect 8/10 -> Touch Screen] Controller heartbeat (CMD 0x2B): 0x02 0x00
 I (02:34:43.004) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0B 25 00 08 01 02 01 02 01 00 FE 00 00 FE 00 00 0B 00 00 09 00 00 FD 00 00 00 00 00 1C 03 
@@ -936,7 +936,7 @@ I (02:34:45.626) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature - 
 I (02:34:45.684) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 31 0E 21 19 AA C3 03 
 W (02:34:45.685) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature (alt) - 25°C, temp2: INVALID (raw 0xAA)
 I (02:34:45.754) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 12 0F 03 00 00 08 08 03 
-I (02:34:45.755) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off
+I (02:34:45.755) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off, Solar output - Inactive
 I (02:34:45.824) MSG_DECODER: RX MSG: 02 00 62 00 50 80 00 2B 0E 6D 02 00 02 03 
 I (02:34:45.825) MSG_DECODER: [Connect 8/10 -> Touch Screen] Controller heartbeat (CMD 0x2B): 0x02 0x00
 I (02:34:45.944) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0A 0E E8 02 08 0A 03 
@@ -1003,7 +1003,7 @@ I (02:34:49.666) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature - 
 I (02:34:49.734) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 31 0E 21 19 AA C3 03 
 W (02:34:49.735) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature (alt) - 25°C, temp2: INVALID (raw 0xAA)
 I (02:34:49.804) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 12 0F 03 00 00 08 08 03 
-I (02:34:49.805) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off
+I (02:34:49.805) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off, Solar output - Inactive
 I (02:34:49.874) MSG_DECODER: RX MSG: 02 00 62 00 50 80 00 2B 0E 6D 02 00 02 03 
 I (02:34:49.876) MSG_DECODER: [Connect 8/10 -> Touch Screen] Controller heartbeat (CMD 0x2B): 0x02 0x00
 I (02:34:59.664) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 AC 0D FF B8 03 
@@ -1103,7 +1103,7 @@ I (02:35:49.356) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature - 
 I (02:35:49.424) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 31 0E 21 19 AA C3 03 
 W (02:35:49.425) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature (alt) - 25°C, temp2: INVALID (raw 0xAA)
 I (02:35:49.494) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 12 0F 03 00 00 08 08 03 
-I (02:35:49.496) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off
+I (02:35:49.496) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off, Solar output - Inactive
 I (02:35:49.564) MSG_DECODER: RX MSG: 02 00 62 00 50 80 00 2B 0E 6D 02 00 02 03 
 I (02:35:49.566) MSG_DECODER: [Connect 8/10 -> Touch Screen] Controller heartbeat (CMD 0x2B): 0x02 0x00
 I (02:35:59.674) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C0 01 00 C1 03 
@@ -1157,7 +1157,7 @@ I (02:36:43.025) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature - 
 I (02:36:43.094) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 31 0E 21 19 AA C3 03 
 W (02:36:43.095) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature (alt) - 25°C, temp2: INVALID (raw 0xAA)
 I (02:36:43.164) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 12 0F 03 00 00 08 08 03 
-I (02:36:43.165) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off
+I (02:36:43.165) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off, Solar output - Inactive
 I (02:36:43.234) MSG_DECODER: RX MSG: 02 00 62 00 50 80 00 2B 0E 6D 02 00 02 03 
 I (02:36:43.235) MSG_DECODER: [Connect 8/10 -> Touch Screen] Controller heartbeat (CMD 0x2B): 0x02 0x00
 I (02:36:43.354) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 06 0E E4 00 00 00 03 
@@ -1213,7 +1213,7 @@ I (02:36:46.026) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature - 
 I (02:36:46.094) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 31 0E 21 19 AA C3 03 
 W (02:36:46.095) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature (alt) - 25°C, temp2: INVALID (raw 0xAA)
 I (02:36:46.164) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 12 0F 03 00 00 08 08 03 
-I (02:36:46.166) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off
+I (02:36:46.166) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off, Solar output - Inactive
 I (02:36:46.234) MSG_DECODER: RX MSG: 02 00 62 00 50 80 00 2B 0E 6D 02 00 02 03 
 I (02:36:46.236) MSG_DECODER: [Connect 8/10 -> Touch Screen] Controller heartbeat (CMD 0x2B): 0x02 0x00
 I (02:36:48.794) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 12 0D 2F 00 00 03 
@@ -1353,7 +1353,7 @@ I (02:37:40.665) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature - 
 I (02:37:40.734) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 31 0E 21 19 AA C3 03 
 W (02:37:40.735) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature (alt) - 25°C, temp2: INVALID (raw 0xAA)
 I (02:37:40.804) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 12 0F 03 00 00 08 08 03 
-I (02:37:40.805) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off
+I (02:37:40.805) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off, Solar output - Inactive
 I (02:37:40.840) FW_UPDATE: installed=v1.19.0-24-g8616f28-dirty latest=v1.19.0 (5 releases) update_available=0
 I (02:37:40.874) MSG_DECODER: RX MSG: 02 00 62 00 50 80 00 2B 0E 6D 02 00 02 03 
 I (02:37:40.875) MSG_DECODER: [Connect 8/10 -> Touch Screen] Controller heartbeat (CMD 0x2B): 0x02 0x00
@@ -1427,7 +1427,7 @@ I (02:38:34.296) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature - 
 I (02:38:34.364) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 31 0E 21 19 AA C3 03 
 W (02:38:34.365) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature (alt) - 25°C, temp2: INVALID (raw 0xAA)
 I (02:38:34.434) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 12 0F 03 00 00 08 08 03 
-I (02:38:34.434) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off
+I (02:38:34.434) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off, Solar output - Inactive
 I (02:38:34.504) MSG_DECODER: RX MSG: 02 00 62 00 50 80 00 2B 0E 6D 02 00 02 03 
 I (02:38:34.505) MSG_DECODER: [Connect 8/10 -> Touch Screen] Controller heartbeat (CMD 0x2B): 0x02 0x00
 I (02:38:34.624) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 14 0D F1 01 01 03 
@@ -1483,7 +1483,7 @@ I (02:38:37.326) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature - 
 I (02:38:37.394) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 31 0E 21 19 AA C3 03 
 W (02:38:37.396) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature (alt) - 25°C, temp2: INVALID (raw 0xAA)
 I (02:38:37.464) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 12 0F 03 00 00 08 08 03 
-I (02:38:37.465) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off
+I (02:38:37.465) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off, Solar output - Inactive
 I (02:38:37.534) MSG_DECODER: RX MSG: 02 00 62 00 50 80 00 2B 0E 6D 02 00 02 03 
 I (02:38:37.536) MSG_DECODER: [Connect 8/10 -> Touch Screen] Controller heartbeat (CMD 0x2B): 0x02 0x00
 I (02:38:44.704) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 20 03 00 23 03 
@@ -1571,7 +1571,7 @@ I (02:39:02.626) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature - 
 I (02:39:02.694) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 31 0E 21 19 AA C3 03 
 W (02:39:02.695) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature (alt) - 25°C, temp2: INVALID (raw 0xAA)
 I (02:39:02.764) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 12 0F 03 00 00 08 08 03 
-I (02:39:02.765) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off
+I (02:39:02.765) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off, Solar output - Inactive
 I (02:39:02.834) MSG_DECODER: RX MSG: 02 00 62 00 50 80 00 2B 0E 6D 02 00 02 03 
 I (02:39:02.836) MSG_DECODER: [Connect 8/10 -> Touch Screen] Controller heartbeat (CMD 0x2B): 0x02 0x00
 I (02:39:29.704) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E8 03 01 EC 03 
@@ -1651,7 +1651,7 @@ I (02:40:03.326) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature - 
 I (02:40:03.394) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 31 0E 21 19 AA C3 03 
 W (02:40:03.395) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature (alt) - 25°C, temp2: INVALID (raw 0xAA)
 I (02:40:03.464) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 12 0F 03 00 00 08 08 03 
-I (02:40:03.464) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off
+I (02:40:03.464) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off, Solar output - Inactive
 I (02:40:03.534) MSG_DECODER: RX MSG: 02 00 62 00 50 80 00 2B 0E 6D 02 00 02 03 
 I (02:40:03.534) MSG_DECODER: [Connect 8/10 -> Touch Screen] Controller heartbeat (CMD 0x2B): 0x02 0x00
 I (02:40:20.064) MSG_DECODER: RX MSG: 02 00 90 FF FF 00 00 13 0B AE 03 
@@ -1733,7 +1733,7 @@ I (02:40:25.586) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature - 
 I (02:40:25.654) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 31 0E 21 19 AA C3 03 
 W (02:40:25.656) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature (alt) - 25°C, temp2: INVALID (raw 0xAA)
 I (02:40:25.724) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 12 0F 03 00 00 08 08 03 
-I (02:40:25.725) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off
+I (02:40:25.725) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off, Solar output - Inactive
 I (02:40:25.794) MSG_DECODER: RX MSG: 02 00 62 00 50 80 00 2B 0E 6D 02 00 02 03 
 I (02:40:25.795) MSG_DECODER: [Connect 8/10 -> Touch Screen] Controller heartbeat (CMD 0x2B): 0x02 0x00
 I (02:40:29.714) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 64 00 01 65 03 
@@ -1781,7 +1781,7 @@ I (02:40:36.786) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature - 
 I (02:40:36.854) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 31 0E 21 19 AA C3 03 
 W (02:40:36.855) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature (alt) - 25°C, temp2: INVALID (raw 0xAA)
 I (02:40:36.924) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 12 0F 03 00 00 08 08 03 
-I (02:40:36.925) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off
+I (02:40:36.925) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off, Solar output - Inactive
 I (02:40:36.994) MSG_DECODER: RX MSG: 02 00 62 00 50 80 00 2B 0E 6D 02 00 02 03 
 I (02:40:36.995) MSG_DECODER: [Connect 8/10 -> Touch Screen] Controller heartbeat (CMD 0x2B): 0x02 0x00
 I (02:40:37.114) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 06 0E E4 00 00 00 03 
@@ -1835,7 +1835,7 @@ I (02:40:39.745) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature - 
 I (02:40:39.814) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 31 0E 21 19 AA C3 03 
 W (02:40:39.815) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature (alt) - 25°C, temp2: INVALID (raw 0xAA)
 I (02:40:39.884) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 12 0F 03 00 00 08 08 03 
-I (02:40:39.885) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off
+I (02:40:39.885) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off, Solar output - Inactive
 I (02:40:39.954) MSG_DECODER: RX MSG: 02 00 62 00 50 80 00 2B 0E 6D 02 00 02 03 
 I (02:40:39.955) MSG_DECODER: [Connect 8/10 -> Touch Screen] Controller heartbeat (CMD 0x2B): 0x02 0x00
 I (02:40:44.714) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 65 00 01 66 03 
@@ -1915,7 +1915,7 @@ I (02:41:39.436) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature - 
 I (02:41:39.504) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 31 0E 21 19 AA C3 03 
 W (02:41:39.506) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature (alt) - 25°C, temp2: INVALID (raw 0xAA)
 I (02:41:39.574) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 12 0F 03 00 00 08 08 03 
-I (02:41:39.575) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off
+I (02:41:39.575) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off, Solar output - Inactive
 I (02:41:39.644) MSG_DECODER: RX MSG: 02 00 62 00 50 80 00 2B 0E 6D 02 00 02 03 
 I (02:41:39.646) MSG_DECODER: [Connect 8/10 -> Touch Screen] Controller heartbeat (CMD 0x2B): 0x02 0x00
 I (02:41:44.724) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E6 00 00 E6 03 

@@ -849,6 +849,7 @@ static esp_err_t status_get_handler(httpd_req_t *req)
         cJSON_AddStringToObject(ch, "name",  state.channels[i].name[0] ? state.channels[i].name : type_name);
         cJSON_AddStringToObject(ch, "type",  type_name);
         cJSON_AddStringToObject(ch, "state", state_name);
+        cJSON_AddBoolToObject(ch, "active", state.channels[i].active);
         cJSON_AddItemToArray(channels, ch);
     }
     cJSON_AddItemToObject(root, "channels", channels);
