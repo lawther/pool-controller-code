@@ -65,7 +65,9 @@ static void apply_sta_roaming_config(wifi_config_t *cfg)
 esp_err_t wifi_credentials_save(const char *ssid, const char *password)
 {
     wifi_config_t wifi_cfg = {0};
-    strncpy((char *)wifi_cfg.sta.ssid, ssid, sizeof(wifi_cfg.sta.ssid) - 1);
+    // Full field width: a 32-character SSID fills it with no NUL terminator,
+    // which the driver accepts
+    strncpy((char *)wifi_cfg.sta.ssid, ssid, sizeof(wifi_cfg.sta.ssid));
     strncpy((char *)wifi_cfg.sta.password, password, sizeof(wifi_cfg.sta.password) - 1);
     apply_sta_roaming_config(&wifi_cfg);
     return esp_wifi_set_config(WIFI_IF_STA, &wifi_cfg);
@@ -472,7 +474,9 @@ static esp_err_t start_station(void)
     wifi_config_t wifi_cfg = {0};
     esp_wifi_get_config(WIFI_IF_STA, &wifi_cfg);
     if (wifi_cfg.sta.ssid[0] != '\0') {
-        ESP_LOGI(TAG, "WiFi credentials found, connecting to SSID: %s", wifi_cfg.sta.ssid);
+        // Bounded: a 32-character SSID has no NUL, and the password follows it
+        ESP_LOGI(TAG, "WiFi credentials found, connecting to SSID: %.*s",
+                 (int)sizeof(wifi_cfg.sta.ssid), (char *)wifi_cfg.sta.ssid);
     } else {
         ESP_LOGI(TAG, "No WiFi credentials configured");
     }
