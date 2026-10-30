@@ -1680,8 +1680,6 @@ static bool handle_heater(
     ctx->pool_state->service_mode_valid = true;
     ctx->pool_state->solar_active = solar_active;
     ctx->pool_state->solar_active_valid = true;
-    ctx->pool_state->solar_status_byte = status;
-    ctx->pool_state->solar_status_ms = xTaskGetTickCount() * portTICK_PERIOD_MS;
     uint8_t solar_channels[MAX_CHANNELS];
     int solar_count = 0;
     for (int i = 0; i < MAX_CHANNELS; i++) {
@@ -3200,7 +3198,7 @@ static bool handle_solar_status_broadcast(
     const char *mode_name = off_auto_on_name(mode);
 
     ESP_LOGI(TAG, "%s Solar status - Mode: %s, Season: %s, Flush daily: %s, "
-             "Filter pump required: %s, Unknown config: 0x%02X, Differential: %d°C, Unknown: 0x%02X",
+             "Filter pump required: %s, Byte 12: 0x%02X, Differential: %d°C, Byte 13: 0x%02X",
              addr_info, mode_name,
              (flags & 0x20) ? "Summer" : "Winter",
              (flags & 0x02) ? "on" : "off",
@@ -3208,14 +3206,14 @@ static bool handle_solar_status_broadcast(
              payload[2],
              payload[5], payload[3]);
 
-    // Byte 12 stays 0x02 even with mode Off and the pump physically stopped.
-    // Its meaning is unresolved; do not use it to create an activity sample.
+    // Byte 12 is unknown: it stays 0x02 with mode Off and the pump stopped,
+    // so it does not say whether Solar is running.
     bool mode_known = mode <= 0x02;
     if (!mode_known) {
         ESP_LOGW(TAG, "%s Solar status has undocumented mode 0x%02X", addr_info, mode);
     }
     if (payload[2] > 0x02) {
-        ESP_LOGW(TAG, "%s Solar status has undocumented configuration byte 0x%02X",
+        ESP_LOGW(TAG, "%s Solar status has undocumented byte 12 0x%02X",
                  addr_info, payload[2]);
     }
     if (!mode_known || payload[2] > 0x02) {

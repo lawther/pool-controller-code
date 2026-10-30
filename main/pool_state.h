@@ -285,8 +285,6 @@ typedef struct {
     bool solar_mode_valid;
     bool solar_active;
     bool solar_active_valid;
-    uint8_t solar_status_byte;
-    uint32_t solar_status_ms;
 
     // Valves (up to MAX_VALVE_SLOTS)
     valve_state_t valves[MAX_VALVE_SLOTS];

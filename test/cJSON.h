@@ -1,7 +1,7 @@
 #ifndef TEST_CJSON_H
 #define TEST_CJSON_H
 /* Declarations for compiling mqtt_publish.c. JSON-using functions are removed
- * by --gc-sections in this publisher test; no JSON implementation is mocked. */
+ * by dead-code stripping in this publisher test; no JSON implementation is mocked. */
 typedef struct cJSON cJSON;
 cJSON *cJSON_CreateObject(void);
 cJSON *cJSON_AddStringToObject(cJSON *, const char *, const char *);

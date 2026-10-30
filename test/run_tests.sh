@@ -55,7 +55,14 @@ for test_src in test_*.c; do
     elif [ "$module" = "mqtt_commands" ]; then
         extra_srcs=(../main/lighting_colors.c ../main/channel_states.c)
     elif [ "$module" = "mqtt_publish" ]; then
-        extra_cflags=(-Werror=implicit-function-declaration -ffunction-sections -fdata-sections -Wl,--gc-sections)
+        # Strip the publishers the test doesn't call, and with them their
+        # cJSON and discovery references. Apple's linker spells it -dead_strip.
+        if [ "$(uname)" = "Darwin" ]; then
+            strip_flag=-Wl,-dead_strip
+        else
+            strip_flag=-Wl,--gc-sections
+        fi
+        extra_cflags=(-Werror=implicit-function-declaration -ffunction-sections -fdata-sections "$strip_flag")
     fi
 
     echo "========================================"

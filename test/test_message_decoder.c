@@ -1115,8 +1115,8 @@ void test_dedicated_solar_uses_solar_status_mode_and_activity(void)
     TEST_ASSERT(test_pool_state.solar_active_valid && !test_pool_state.solar_active,
                 "Inactive output comes from controller status");
 
-    // This configuration byte also stays 0x02 with the pump stopped.
-    // It cannot establish activity; the independent controller bit must do so.
+    // Byte 12 also stays 0x02 with the pump stopped, so only the controller's
+    // CMD 0x12 bit can say whether Solar is running.
     uint8_t solar_running[] = {
         0x02, 0x00, 0x50, 0xFF, 0xFF, 0x80, 0x00, 0x2C, 0x12, 0x0E,
         0x2B, 0x01, 0x02, 0x00, 0x02, 0x04, 0x34, 0x03
@@ -1124,7 +1124,7 @@ void test_dedicated_solar_uses_solar_status_mode_and_activity(void)
     TEST_ASSERT(decode_message(solar_running, sizeof(solar_running), &test_ctx),
                 "Running Solar status decoded");
     TEST_ASSERT(!test_pool_state.solar_active,
-                "Nonzero CMD 0x2C configuration does not activate Solar");
+                "CMD 0x2C byte 12 0x02 does not activate Solar");
     uint8_t running[] = {0, 4, 0};
     TEST_ASSERT(decode_test_frame(0x62, 0x12, running, 3), "Running controller output decoded");
     TEST_ASSERT(test_pool_state.solar_active && test_pool_state.channels[1].active,
@@ -1138,7 +1138,7 @@ void test_dedicated_solar_uses_solar_status_mode_and_activity(void)
     TEST_ASSERT(decode_message(solar_auto, sizeof(solar_auto), &test_ctx),
                 "Solar stop status decoded");
     TEST_ASSERT(test_pool_state.channels[1].active,
-                "Zero CMD 0x2C configuration does not clear actual activity");
+                "CMD 0x2C byte 12 0x00 does not clear actual activity");
     TEST_ASSERT(decode_test_frame(0x62, 0x12, stopped, 3), "Stopped output decoded");
     TEST_ASSERT(!test_pool_state.channels[1].active,
                 "Dedicated Solar clears only from controller output status");
@@ -1159,7 +1159,7 @@ void test_dedicated_solar_state_register_does_not_override(void)
         0x02, 0x00, 0x50, 0xFF, 0xFF, 0x80, 0x00, 0x38, 0x0F, 0x17,
         0x6D, 0x02, 0xFC, 0x6B, 0x03
     };
-    // CMD 0x2C: Auto, unknown configuration byte 0x02
+    // CMD 0x2C: Auto, byte 12 0x02
     uint8_t solar_running[] = {
         0x02, 0x00, 0x50, 0xFF, 0xFF, 0x80, 0x00, 0x2C, 0x12, 0x0E,
         0x2B, 0x01, 0x02, 0x00, 0x02, 0x04, 0x34, 0x03
@@ -1222,7 +1222,7 @@ void test_dedicated_solar_undocumented_mode_keeps_active(void)
         0x02, 0x00, 0x50, 0xFF, 0xFF, 0x80, 0x00, 0x38, 0x0F, 0x17,
         0x6D, 0x02, 0xFC, 0x6B, 0x03
     };
-    // Mode 0x03 (undocumented), unknown configuration byte 0x02
+    // Mode 0x03 (undocumented), byte 12 0x02
     uint8_t solar_odd_mode[] = {
         0x02, 0x00, 0x50, 0xFF, 0xFF, 0x80, 0x00, 0x2C, 0x12, 0x0E,
         0x23, 0x03, 0x02, 0x00, 0x04, 0x07, 0x33, 0x03
@@ -2161,7 +2161,10 @@ void test_genus_heater_undocumented_status(void)
 }
 
 /**
- * Run all tests
+ * Test: a dedicated Solar channel takes its mode from CMD 0x2C and whether it
+ * is running from the Connect 10's CMD 0x12 bit 2, and neither changes the
+ * other. CMD 0x0D, a relay Solar channel and the heater/service bits are
+ * unaffected, and bits above bit 2 are still flagged.
  */
 static void test_solar_mode_and_output_are_independent(void)
 {
@@ -2173,7 +2176,7 @@ static void test_solar_mode_and_output_are_independent(void)
     decode_test_frame(0x50, 0x38, type, sizeof(type));
     decode_test_frame(0x50, 0x2C, config, sizeof(config));
     TEST_ASSERT(!test_pool_state.solar_active_valid,
-                "Off mode and persistent config 02 do not establish activity");
+                "Off mode and byte 12 0x02 do not establish activity");
     int before = unknown_buffer_record_count;
     decode_test_frame(0x62, 0x12, status, sizeof(status));
     TEST_ASSERT(unknown_buffer_record_count == before,
@@ -2182,15 +2185,6 @@ static void test_solar_mode_and_output_are_independent(void)
                 "Mode Off does not overwrite a still-active physical output report");
     TEST_ASSERT(!test_pool_state.heaters[0].valid,
                 "Solar sample does not bypass heater configuration guards");
-    TEST_ASSERT(test_pool_state.solar_status_byte == 4 && test_pool_state.solar_status_ms == mock_tick,
-                "Solar diagnostics identify the genuine controller sample");
-    mock_tick += 1000;
-    decode_test_frame(0x50, 0x2C, config, sizeof(config));
-    TEST_ASSERT(test_pool_state.solar_status_ms != mock_tick,
-                "Mode report does not refresh physical output sample time");
-    decode_test_frame(0x62, 0x12, status, sizeof(status));
-    TEST_ASSERT(test_pool_state.solar_status_ms == mock_tick,
-                "Unchanged real output report refreshes its sample time");
     uint8_t mask[] = {0x80};
     decode_test_frame(0x50, 0x0D, mask, sizeof(mask));
     TEST_ASSERT(test_pool_state.channels[1].active,
@@ -2201,7 +2195,7 @@ static void test_solar_mode_and_output_are_independent(void)
                 "Physical stop clears activity while mode remains Off");
     decode_test_frame(0x50, 0x2C, config, sizeof(config));
     TEST_ASSERT(!test_pool_state.channels[1].active,
-                "Persistent config 02 cannot reactivate a stopped pump");
+                "Byte 12 0x02 cannot reactivate a stopped pump");
     config[1] = 2;
     decode_test_frame(0x50, 0x2C, config, sizeof(config));
     TEST_ASSERT(test_pool_state.channels[1].state == 2 && !test_pool_state.channels[1].active,
@@ -2224,6 +2218,10 @@ static void test_solar_mode_and_output_are_independent(void)
                 "Unmapped upper controller bits are still flagged");
 }
 
+/**
+ * Test: CMD 0x16 publishes each valid sensor reading on its own, and an
+ * invalid or missing reading publishes nothing. CMD 0x31 stays log-only.
+ */
 static void test_temperature_samples_are_independent(void)
 {
     init_test_context();
@@ -2254,6 +2252,9 @@ static void test_temperature_samples_are_independent(void)
                 "Alternate CMD 0x31 remains log-only and does not duplicate history");
 }
 
+/**
+ * Run all tests
+ */
 int main(void)
 {
     printf("\n");

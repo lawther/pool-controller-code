@@ -252,7 +252,7 @@ Click any CMD in the first column to jump to the full section in [Commands](#com
 | [`0x29`](#0x29--valve-button-️)                                | Valve Button                        | `0x0062` Connect 8/10 → Broadcast                                      | 1-byte 0-based valve index; sent when a Valve button is pressed on the controller; the Touchscreen answers with `0x27`; dispatched on CMD byte alone | Yes (log-only)          |
 | [`0x2A`](#0x2a--favourite-control-command-)                    | Favourite Control Command           | `0x00F0` Gateway, `0x0062` Connect 8/10, `0xAC1D` → `0x0050` Touchscreen | Unicast; dispatched on CMD byte alone (source-agnostic). The Connect 8/10 sends All Auto (`0x81`) for its Auto button | Yes (unified handler)   |
 | [`0x2B`](#0x2b--unknown-️)                                     | Unknown (heartbeat)                 | `0x0062` Connect 8/10 → `0x0050` Touchscreen                          | Unicast ~60 s; payload `[02 00]` observed; meaning unknown. Handler flags any deviation      | Yes (log-only + flag)   |
-| [`0x2C`](#0x2c--solar-status-broadcast-️)                      | Solar Status Broadcast              | `0x0050` Touchscreen → Broadcast                                       | Byte 11 = solar mode (Off/Auto/On); byte 12 = unresolved configuration, not output activity; byte 15 = temperature differential °C; dispatched on CMD byte alone | Yes                     |
+| [`0x2C`](#0x2c--solar-status-broadcast-️)                      | Solar Status Broadcast              | `0x0050` Touchscreen → Broadcast                                       | Byte 11 = solar mode (Off/Auto/On); byte 15 = temperature differential °C; dispatched on CMD byte alone | Yes                     |
 | [`0x2D`](#0x2d--solar-setpoint-broadcast-)                     | Solar Setpoint Broadcast            | `0x0050` Touchscreen → Broadcast                                       | Fired when the solar setpoint is changed; 1-byte °C value; dispatched on CMD byte alone     | Yes (log-only)          |
 | [`0x31`](#0x31--water-temperature-reading-alt-)                | Water Temperature Reading (alt)     | `0x0062` → Broadcast                                                   | Same `{temp1, temp2}` field layout as `0x16`; different disconnected encoding (`>= 0xA0` vs `0x00`); shared handler, log-only | Yes (unified handler)   |
 | [`0x36`](#0x36--internet-gateway-info-request-)               | Internet Gateway Info Request       | `0x0050` Touchscreen → `0x00F0` Gateway                                | Unicast; byte 10 selects the item (`0x01` network config, `0x02` comms status, `0x04` serial, `0x05` firmware version) and the Gateway answers with the matching `0x37`; `0x03` is a Reconnect command with no reply; dispatched on CMD byte alone | Yes (log-only)          |
@@ -1863,8 +1863,8 @@ Unicast message sent by the Connect 8/10 Controller (`0x0062`) directly to the T
 ### 0x2C — Solar Status Broadcast ⚠️
 
 Broadcast from the Touchscreen (`0x0050`) carrying the Solar mode,
-configuration flags and further not-yet-decoded fields. Live output activity
-is reported independently by Connect 10 CMD `0x12`, byte 11 bit 2. Like
+configuration flags and further not-yet-decoded fields. Whether the Solar
+pump is running is reported by the Connect 10's CMD `0x12`, byte 11 bit 2. Like
 [0x2D](#0x2d--solar-setpoint-broadcast-), it only appears on systems where the
 solar configuration has been touched.
 
@@ -1874,9 +1874,9 @@ solar configuration has been touched.
 
 ```
 02 00 50 FF FF 80 00 2C 12 0E 23 00 00 00 04 07 2E 03   Solar mode Off
-02 00 50 FF FF 80 00 2C 12 0E 23 01 00 00 04 07 2F 03   Solar mode Auto; unknown config byte is 00
-02 00 50 FF FF 80 00 2C 12 0E 2B 01 02 00 02 04 34 03   Solar mode Auto; unknown config byte is 02
-02 00 50 FF FF 80 00 2C 12 0E 2B 00 02 00 02 04 33 03   Solar mode Off; config byte still 02, pump stopped
+02 00 50 FF FF 80 00 2C 12 0E 23 01 00 00 04 07 2F 03   Solar mode Auto, pump stopped
+02 00 50 FF FF 80 00 2C 12 0E 2B 01 02 00 02 04 34 03   Solar mode Auto, pump running
+02 00 50 FF FF 80 00 2C 12 0E 2B 00 02 00 02 04 33 03   Solar mode Off, pump stopped
                                  ^^ Solar mode
 02 00 50 FF FF 80 00 2C 12 0E 03 00 00 00 04 07 0E 03   Winter (byte 10 bit 5 clear)
 02 00 50 FF FF 80 00 2C 12 0E 23 00 00 00 04 07 2E 03   Summer (byte 10 bit 5 set)
@@ -1895,9 +1895,9 @@ solar configuration has been touched.
   - Bit 0: Unknown — always `1` in observed samples
   - Other bits: `0` in observed samples
 - Byte 11: Solar mode (`0x00`=Off, `0x01`=Auto, `0x02`=On — same encoding as channel state)
-- Byte 12: Unresolved configuration. `0x02` persisted with Auto/running, On/running and Off/stopped in the 2026-10-18 capture. It must not be interpreted as live output state. Earlier two-snapshot correlations were insufficient to establish its meaning.
+- Byte 12: Unknown. Observed `0x00` and `0x02`. On one Connect 10 install it read `0x02` throughout Auto/running, On/running and Off/stopped (2026-10-18 capture), so it does not track whether the Solar pump is running.
 - Byte 13: Unknown (`0x00` observed).
-- Byte 14: Unknown. Observed alongside byte 15 as `04`/`07`, `03`/`06` and `02`/`04`; the first two fit (differential − 3) but the output-active capture does not, so no relationship is established
+- Byte 14: Unknown. Observed alongside byte 15 as `04`/`07`, `03`/`06` and `02`/`04`; the first two fit (differential − 3) but the `02`/`04` capture does not, so no relationship is established
 - Byte 15: Temperature differential in °C
 - Byte 16: Data checksum
 
@@ -1910,9 +1910,8 @@ solar configuration has been touched.
   State register (`0x8C`+N) cannot replace those observations.
 - CMD `0x0D` omitted the dedicated Solar output in the capture (`80`, Filter
   channel 8 only), regardless of whether the Solar pump was running.
-- Mode changes and CMD `0x2C` configuration bytes do not manufacture output
-  samples. Until a controller output report arrives, `/status.solar.active`
-  is null; its age and source are exposed alongside the selected mode.
+- CMD `0x2C` does not set whether the Solar channel is running. Until the
+  Connect 10's CMD `0x12` arrives, the Solar channel stays inactive.
 
 ---
 
