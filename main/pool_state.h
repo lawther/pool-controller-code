@@ -333,7 +333,7 @@ typedef struct {
     uint32_t orp_reading_ms;   // When orp_reading arrived (ms since boot)
     bool ph_setpoint_valid;
     bool orp_setpoint_valid;
-    uint8_t chlor_mode;        // CMD 0x12 mode byte: 0=Off, 1=Auto, 2=On (see chlor_mode_name())
+    uint8_t chlor_mode;        // CMD 0x12 status byte, meaning unknown (see PROTOCOL.md)
     bool chlor_mode_valid;
     uint8_t chlor_output_level;       // Chlorine output level 1–8 (from VX 11S v3, address 0x0081)
     bool chlor_output_level_valid;

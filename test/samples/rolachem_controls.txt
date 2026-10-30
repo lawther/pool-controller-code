@@ -18,7 +18,7 @@ I (02:28:00.789) BUS: TX complete: 14 bytes written and transmitted
 I (02:28:00.794) MSG_DECODER: RX MSG: 02 AC 1D FF FF 80 00 0A 0E 61 01 13 14 03 
 I (02:28:00.794) MSG_DECODER: [Pool Controller ESP32 -> Broadcast] Firmware version - 1.19
 I (02:28:07.794) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 12 0D 2F 01 01 03 
-I (02:28:07.796) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator status - mode=Auto (0x01)
+I (02:28:07.796) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator status - 0x01
 I (02:28:07.984) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1D 0F 3C 01 4A 00 4B 03 
 I (02:28:07.986) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator pH setpoint - 7.4
 I (02:28:08.174) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1D 0F 3C 02 9E 02 A2 03 
@@ -118,7 +118,7 @@ I (02:29:00.807) BUS: TX complete: 14 bytes written and transmitted
 I (02:29:00.814) MSG_DECODER: RX MSG: 02 AC 1D FF FF 80 00 0A 0E 61 01 13 14 03 
 I (02:29:00.815) MSG_DECODER: [Pool Controller ESP32 -> Broadcast] Firmware version - 1.19
 I (02:29:08.014) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 12 0D 2F 01 01 03 
-I (02:29:08.016) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator status - mode=Auto (0x01)
+I (02:29:08.016) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator status - 0x01
 I (02:29:08.204) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1D 0F 3C 01 4A 00 4B 03 
 I (02:29:08.206) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator pH setpoint - 7.4
 I (02:29:08.394) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1D 0F 3C 02 9E 02 A2 03 
@@ -567,7 +567,7 @@ I (02:31:00.850) BUS: TX complete: 14 bytes written and transmitted
 I (02:31:00.854) MSG_DECODER: RX MSG: 02 AC 1D FF FF 80 00 0A 0E 61 01 13 14 03 
 I (02:31:00.854) MSG_DECODER: [Pool Controller ESP32 -> Broadcast] Firmware version - 1.19
 I (02:31:07.424) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 12 0D 2F 01 01 03 
-I (02:31:07.426) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator status - mode=Auto (0x01)
+I (02:31:07.426) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator status - 0x01
 I (02:31:07.614) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1D 0F 3C 01 4A 00 4B 03 
 I (02:31:07.616) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator pH setpoint - 7.4
 I (02:31:07.804) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1D 0F 3C 02 9E 02 A2 03 
@@ -654,7 +654,7 @@ I (02:32:00.866) BUS: TX complete: 14 bytes written and transmitted
 I (02:32:00.874) MSG_DECODER: RX MSG: 02 AC 1D FF FF 80 00 0A 0E 61 01 13 14 03 
 I (02:32:00.875) MSG_DECODER: [Pool Controller ESP32 -> Broadcast] Firmware version - 1.19
 I (02:32:07.654) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 12 0D 2F 01 01 03 
-I (02:32:07.656) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator status - mode=Auto (0x01)
+I (02:32:07.656) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator status - 0x01
 I (02:32:07.844) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1D 0F 3C 01 4A 00 4B 03 
 I (02:32:07.846) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator pH setpoint - 7.4
 I (02:32:08.034) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1D 0F 3C 02 A3 02 A7 03 
@@ -734,7 +734,7 @@ I (02:33:00.885) BUS: TX complete: 14 bytes written and transmitted
 I (02:33:00.894) MSG_DECODER: RX MSG: 02 AC 1D FF FF 80 00 0A 0E 61 01 13 14 03 
 I (02:33:00.894) MSG_DECODER: [Pool Controller ESP32 -> Broadcast] Firmware version - 1.19
 I (02:33:07.884) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 12 0D 2F 01 01 03 
-I (02:33:07.886) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator status - mode=Auto (0x01)
+I (02:33:07.886) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator status - 0x01
 I (02:33:08.074) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1D 0F 3C 01 4A 00 4B 03 
 I (02:33:08.076) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator pH setpoint - 7.4
 I (02:33:08.264) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1D 0F 3C 02 9E 02 A2 03 
@@ -816,7 +816,7 @@ I (02:34:00.908) BUS: TX complete: 14 bytes written and transmitted
 I (02:34:00.914) MSG_DECODER: RX MSG: 02 AC 1D FF FF 80 00 0A 0E 61 01 13 14 03 
 I (02:34:00.915) MSG_DECODER: [Pool Controller ESP32 -> Broadcast] Firmware version - 1.19
 I (02:34:07.114) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 12 0D 2F 01 01 03 
-I (02:34:07.116) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator status - mode=Auto (0x01)
+I (02:34:07.116) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator status - 0x01
 I (02:34:07.304) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1D 0F 3C 01 4A 00 4B 03 
 I (02:34:07.306) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator pH setpoint - 7.4
 I (02:34:07.494) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1D 0F 3C 02 9E 02 A2 03 
@@ -1093,7 +1093,7 @@ I (02:35:48.176) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 3 active
 I (02:35:48.294) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E3 01 00 E4 03 
 I (02:35:48.296) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 4 active - No
 I (02:35:48.554) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 12 0D 2F 01 01 03 
-I (02:35:48.556) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator status - mode=Auto (0x01)
+I (02:35:48.556) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator status - 0x01
 I (02:35:48.744) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1D 0F 3C 01 4A 00 4B 03 
 I (02:35:48.746) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator pH setpoint - 7.4
 I (02:35:48.934) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1D 0F 3C 02 9E 02 A2 03 
@@ -1127,7 +1127,7 @@ I (02:36:29.806) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 active
 I (02:36:39.944) MSG_DECODER: RX MSG: 02 00 90 FF FF 00 00 13 0B AE 03 
 W (02:36:39.946) MSG_DECODER: Unhandled [RolaChem -> Broadcast] CMD=0x13 (Unknown CMD 0x13) LEN=11 payload=[]
 I (02:36:40.114) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 12 0D 2F 00 00 03 
-I (02:36:40.116) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator status - mode=Off (0x00)
+I (02:36:40.116) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator status - 0x00
 I (02:36:40.294) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 0A 0E 28 02 01 03 03 
 I (02:36:40.296) MSG_DECODER: [RolaChem -> Broadcast] Firmware version - 2.1
 I (02:36:40.484) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1D 0F 3C 01 4A 00 4B 03 
@@ -1217,7 +1217,7 @@ I (02:36:46.166) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service 
 I (02:36:46.234) MSG_DECODER: RX MSG: 02 00 62 00 50 80 00 2B 0E 6D 02 00 02 03 
 I (02:36:46.236) MSG_DECODER: [Connect 8/10 -> Touch Screen] Controller heartbeat (CMD 0x2B): 0x02 0x00
 I (02:36:48.794) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 12 0D 2F 00 00 03 
-I (02:36:48.796) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator status - mode=Off (0x00)
+I (02:36:48.796) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator status - 0x00
 I (02:36:48.984) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1D 0F 3C 01 4A 00 4B 03 
 I (02:36:48.985) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator pH setpoint - 7.4
 I (02:36:49.224) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1D 0F 3C 02 9E 02 A2 03 
@@ -1372,7 +1372,7 @@ I (02:37:45.306) MSG_DECODER: [Touch Screen -> Broadcast] Channel 6 state - Off
 I (02:37:45.424) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 92 02 00 94 03 
 I (02:37:45.426) MSG_DECODER: [Touch Screen -> Broadcast] Channel 7 state - Off
 I (02:37:48.034) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 12 0D 2F 00 00 03 
-I (02:37:48.036) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator status - mode=Off (0x00)
+I (02:37:48.036) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator status - 0x00
 I (02:37:48.224) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1D 0F 3C 01 4A 00 4B 03 
 I (02:37:48.226) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator pH setpoint - 7.4
 I (02:37:48.414) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1D 0F 3C 02 9E 02 A2 03 
@@ -1449,7 +1449,7 @@ I (02:38:35.016) MSG_DECODER: [Touch Screen -> Broadcast] Heater 1 setpoints - s
 I (02:38:35.134) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 26 0E 04 01 06 07 03 
 I (02:38:35.136) MSG_DECODER: [Touch Screen -> Broadcast] Config - temperature scale=Celsius, step=1°, heater=Off, mode=heat
 I (02:38:35.354) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 12 0D 2F 00 00 03 
-I (02:38:35.356) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator status - mode=Off (0x00)
+I (02:38:35.356) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator status - 0x00
 I (02:38:35.544) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1D 0F 3C 01 4A 00 4B 03 
 I (02:38:35.545) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator pH setpoint - 7.4
 I (02:38:35.734) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1D 0F 3C 02 9E 02 A2 03 
@@ -1491,7 +1491,7 @@ I (02:38:44.706) MSG_DECODER: [Touch Screen -> Broadcast] Active favourite - Poo
 I (02:38:57.564) MSG_DECODER: RX MSG: 02 00 90 FF FF 00 00 13 0B AE 03 
 W (02:38:57.566) MSG_DECODER: Unhandled [RolaChem -> Broadcast] CMD=0x13 (Unknown CMD 0x13) LEN=11 payload=[]
 I (02:38:57.744) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 12 0D 2F 00 00 03 
-I (02:38:57.746) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator status - mode=Off (0x00)
+I (02:38:57.746) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator status - 0x00
 I (02:38:57.924) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 0A 0E 28 02 01 03 03 
 I (02:38:57.926) MSG_DECODER: [RolaChem -> Broadcast] Firmware version - 2.1
 I (02:38:58.114) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1D 0F 3C 01 4A 00 4B 03 
@@ -1579,7 +1579,7 @@ I (02:39:29.706) MSG_DECODER: [Touch Screen -> Broadcast] Timer 1 configured - Y
 I (02:39:29.834) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E9 03 01 ED 03 
 I (02:39:29.836) MSG_DECODER: [Touch Screen -> Broadcast] Timer 2 configured - Yes
 I (02:39:35.484) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 12 0D 2F 00 00 03 
-I (02:39:35.486) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator status - mode=Off (0x00)
+I (02:39:35.486) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator status - 0x00
 I (02:39:35.674) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1D 0F 3C 01 4A 00 4B 03 
 I (02:39:35.675) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator pH setpoint - 7.4
 I (02:39:35.864) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1D 0F 3C 02 9E 02 A2 03 
@@ -1657,7 +1657,7 @@ I (02:40:03.534) MSG_DECODER: [Connect 8/10 -> Touch Screen] Controller heartbea
 I (02:40:20.064) MSG_DECODER: RX MSG: 02 00 90 FF FF 00 00 13 0B AE 03 
 W (02:40:20.066) MSG_DECODER: Unhandled [RolaChem -> Broadcast] CMD=0x13 (Unknown CMD 0x13) LEN=11 payload=[]
 I (02:40:20.234) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 12 0D 2F 00 00 03 
-I (02:40:20.235) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator status - mode=Off (0x00)
+I (02:40:20.235) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator status - 0x00
 I (02:40:20.414) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 0A 0E 28 02 01 03 03 
 I (02:40:20.416) MSG_DECODER: [RolaChem -> Broadcast] Firmware version - 2.1
 I (02:40:20.604) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1D 0F 3C 01 4A 00 4B 03 
@@ -1853,7 +1853,7 @@ I (02:41:15.726) MSG_DECODER: [Touch Screen -> Broadcast] Controller time - 13:4
 I (02:41:29.724) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 10 18 CA 00 00 06 D0 03 
 I (02:41:29.726) MSG_DECODER: [Touch Screen -> Broadcast] Heater 1 power channel - Ch7
 I (02:41:34.964) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 12 0D 2F 00 00 03 
-I (02:41:34.966) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator status - mode=Off (0x00)
+I (02:41:34.966) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator status - 0x00
 I (02:41:35.154) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1D 0F 3C 01 4A 00 4B 03 
 I (02:41:35.156) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator pH setpoint - 7.4
 I (02:41:35.344) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1D 0F 3C 02 9E 02 A2 03 
