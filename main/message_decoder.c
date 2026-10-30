@@ -741,6 +741,43 @@ static void state_unlock(message_decoder_context_t *ctx, bool touched, pool_stat
     xSemaphoreGive(ctx->state_mutex);
 }
 
+// A chlorinator stops sending pH/ORP readings when its sensors lose flow or
+// power (e.g. with the filter pump off). Readings normally arrive every ~60 s;
+// after three missed cycles the held value is cleared, so MQTT and the web UI
+// report it as unknown rather than showing a stale number.
+#define CHLOR_READING_STALE_MS (3 * 60 * 1000)
+
+/**
+ * Clear pH/ORP readings that have gone stale, and publish the change.
+ *
+ * noinline keeps its pool_state_t snapshot out of decode_message()'s frame,
+ * where it would sit on the stack alongside the handlers' own snapshots.
+ */
+static __attribute__((noinline)) void expire_chlor_readings(message_decoder_context_t *ctx)
+{
+    pool_state_t *state = ctx->pool_state;
+    uint32_t now_ms = xTaskGetTickCount() * portTICK_PERIOD_MS;
+    bool cleared = false;
+    pool_state_t snapshot;
+    if (!state_lock(ctx, "chlorinator reading expiry")) return;
+    if (state->ph_valid && now_ms - state->ph_reading_ms >= CHLOR_READING_STALE_MS) {
+        state->ph_valid = false;
+        cleared = true;
+    }
+    if (state->orp_valid && now_ms - state->orp_reading_ms >= CHLOR_READING_STALE_MS) {
+        state->orp_valid = false;
+        cleared = true;
+    }
+    state_unlock(ctx, cleared, cleared ? &snapshot : NULL);
+    if (!cleared) return;
+
+    ESP_LOGI(TAG, "Chlorinator readings stale (none for %d s) - cleared",
+             CHLOR_READING_STALE_MS / 1000);
+    if (ctx->enable_mqtt) {
+        mqtt_publish_chlorinator(&snapshot);
+    }
+}
+
 /**
  * Handler: Water temperature reading (CMD 0x16 and CMD 0x31)
  *
@@ -2802,6 +2839,7 @@ static bool handle_chlor_ph_reading(
     if (!state_lock(ctx, "pH reading")) return true;
     ctx->pool_state->ph_reading = value;
     ctx->pool_state->ph_valid = true;
+    ctx->pool_state->ph_reading_ms = xTaskGetTickCount() * portTICK_PERIOD_MS;
     state_unlock(ctx, true, &snapshot);
 
     if (ctx->enable_mqtt) {
@@ -2832,6 +2870,7 @@ static bool handle_chlor_orp_reading(
     if (!state_lock(ctx, "ORP reading")) return true;
     ctx->pool_state->orp_reading = value;
     ctx->pool_state->orp_valid = true;
+    ctx->pool_state->orp_reading_ms = xTaskGetTickCount() * portTICK_PERIOD_MS;
     state_unlock(ctx, true, &snapshot);
 
     if (ctx->enable_mqtt) {
@@ -4553,6 +4592,9 @@ bool decode_message(const uint8_t *data, int len, message_decoder_context_t *ctx
         state_unlock(ctx, false, NULL);
     }
     if (record_frame) unknown_buffer_record(data, len, UNKNOWN_REASON_UNHANDLED);
+
+    // Checked on every frame, as the bus is never quiet for long.
+    expire_chlor_readings(ctx);
 
     return decoded;
 }
