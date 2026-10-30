@@ -8,11 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 ## [TODO]
-- Solar is not yet supported
+- Solar is partly supported now
 - Add basic controls without home assistant.
 - Optimise for homekit via Homekit Bridge
 
 ## [Unreleased]
+### Added
+### Changed
+### Fixed
+### Removed
+### Deprecated
+### Security
+
+## [1.20.0] - 2026-10-30
 ### Added
 - Decoded the Mode register (`0x65`, slot `0x00`), the Touchscreen's copy of the Pool/Spa mode with the same encoding as CMD `0x14`. It is now logged (e.g. `Mode register - Spa (0x00)`) instead of as an unhandled register. Earlier captures had only seen it read Pool, so its Spa value (`65 00 00`) was recorded on the Unknown Messages page. A sweep of 60 registers read in Pool and in Spa found only it and the Active Favourite register (`0x20`) changing with the mode. A decoder replay test (`mode_register.txt`) covers it following mode changes
 - Decoded register `0x64` (slot `0x00`) as the Touchscreen's "Use separate pool and spa modes" setting (`0x00` = No, `0x01` = Yes). It is now logged (e.g. `Separate pool/spa modes - Yes (0x01)`) instead of as an unhandled register. A decoder replay test (`separate_pool_spa_modes.txt`) covers both values
@@ -41,9 +49,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed the light and valve MQTT commands accepting a partial payload as a state, e.g. `O` as On or an empty payload as the first option. Payloads must now match a state name in full, ignoring case, as the pump-mode select's already did
 - Dedicated Solar activity now comes from Connect 10 `0x0062` CMD `0x12` payload byte 1 bit 2. CMD `0x2C` only supplies mode: its byte 12 remained `02` during physically confirmed running and stopped states, so treating it as activity could leave Solar permanently active
 - Publish both temperature sensors independently. Publishing sensor 1 no longer suppresses sensor 2, and invalid/missing current samples cannot republish cached values as new. Fresh unchanged temperatures and pump reports reach MQTT; temperature and RPM discovery enables measurement statistics and repeated-sample recording in Home Assistant
-### Removed
-### Deprecated
-### Security
+
 
 ## [1.19.0] - 2026-10-19
 ### Added
