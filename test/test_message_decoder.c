@@ -21,9 +21,10 @@
 extern int unknown_buffer_record_count;
 
 // Mock FreeRTOS function implementations
+static uint32_t mock_tick = 1000;
 uint32_t xTaskGetTickCount(void)
 {
-    return 1000;  // Mock tick count
+    return mock_tick;  // Mock tick count (1 ms per tick)
 }
 
 BaseType_t xSemaphoreTake(SemaphoreHandle_t xSemaphore, TickType_t xBlockTime)
@@ -81,6 +82,7 @@ static void init_test_context(void)
     test_ctx.pool_state = &test_pool_state;
     test_ctx.state_mutex = (SemaphoreHandle_t)&dummy_mutex;
     test_ctx.enable_mqtt = false;
+    mock_tick = 1000;
 }
 
 // Helper to set the heater configuration, as registers 0xC8 (Heater 1 Type)
@@ -1597,6 +1599,41 @@ void test_decode_chlor_ph_setpoint(void)
 }
 
 /**
+ * Test: pH/ORP readings are cleared once none has arrived for 3 minutes
+ * (the chlorinator stops sending them while its sensors are unpowered),
+ * while other frames — here its ORP setpoint — keep arriving.
+ * Real messages: round14/longrun7.txt
+ */
+void test_chlor_readings_expire(void)
+{
+    init_test_context();
+
+    uint8_t ph_reading[]   = {0x02, 0x00, 0x90, 0xFF, 0xFF, 0x80, 0x00, 0x1F, 0x0F, 0x3E, 0x01, 0x4C, 0x00, 0x4D, 0x03};
+    uint8_t orp_reading[]  = {0x02, 0x00, 0x90, 0xFF, 0xFF, 0x80, 0x00, 0x1F, 0x0F, 0x3E, 0x02, 0x80, 0x02, 0x84, 0x03};
+    uint8_t orp_setpoint[] = {0x02, 0x00, 0x90, 0xFF, 0xFF, 0x80, 0x00, 0x1D, 0x0F, 0x3C, 0x02, 0x9E, 0x02, 0xA2, 0x03};
+
+    decode_message(ph_reading, sizeof(ph_reading), &test_ctx);
+    decode_message(orp_reading, sizeof(orp_reading), &test_ctx);
+    TEST_ASSERT(test_pool_state.ph_valid && test_pool_state.ph_reading == 76, "pH reading should be 7.6");
+    TEST_ASSERT(test_pool_state.orp_valid && test_pool_state.orp_reading == 640, "ORP reading should be 640 mV");
+
+    mock_tick += 3 * 60 * 1000 - 1;
+    decode_message(orp_setpoint, sizeof(orp_setpoint), &test_ctx);
+    TEST_ASSERT(test_pool_state.ph_valid && test_pool_state.orp_valid,
+                "Readings should still be valid just under 3 minutes old");
+
+    mock_tick += 1;
+    decode_message(orp_setpoint, sizeof(orp_setpoint), &test_ctx);
+    TEST_ASSERT(!test_pool_state.ph_valid && !test_pool_state.orp_valid,
+                "Readings should be cleared once 3 minutes old");
+    TEST_ASSERT(test_pool_state.orp_setpoint_valid, "ORP setpoint should be unaffected");
+
+    decode_message(ph_reading, sizeof(ph_reading), &test_ctx);
+    TEST_ASSERT(test_pool_state.ph_valid, "A new pH reading should make it valid again");
+    TEST_ASSERT(!test_pool_state.orp_valid, "ORP should stay cleared until its own reading arrives");
+}
+
+/**
  * Test: Chlorinator pump mode unicast
  * Real message: 02 00 84 00 50 80 00 0F 0E 73 01 03 04 03 (Low)
  * Pump mode = payload[1] = 0x03
@@ -2164,6 +2201,7 @@ int main(void)
     printf("\n--- Chlorinator Tests ---\n");
     test_decode_chlor_ph_setpoint();
     test_decode_chlor_orp_setpoint();
+    test_chlor_readings_expire();
     test_decode_chlor_set_pump_mode();
     test_decode_chlor_set_pump_mode_bad_byte0();
     test_decode_chlor_set_pump_mode_bad_mode();

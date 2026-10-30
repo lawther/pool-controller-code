@@ -329,6 +329,8 @@ typedef struct {
     uint16_t orp_reading;      // mV
     bool ph_valid;
     bool orp_valid;
+    uint32_t ph_reading_ms;    // When ph_reading arrived (ms since boot)
+    uint32_t orp_reading_ms;   // When orp_reading arrived (ms since boot)
     bool ph_setpoint_valid;
     bool orp_setpoint_valid;
     uint8_t chlor_mode;        // 0=Off, 1=Auto, 2=On (tentative — see PROTOCOL.md §32)
