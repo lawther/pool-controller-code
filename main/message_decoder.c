@@ -2857,7 +2857,7 @@ static bool handle_chlor_orp_reading(
  * Handler: Chlorinator status broadcast (CMD 0x12, source 0x0090 RolaChem or
  * 0x0084 Viron)
  *
- * 1-byte payload: configured operating mode. Mapping is tentative — see §32.
+ * 1-byte payload: status value, meaning unknown — logged raw (see PROTOCOL.md).
  */
 static bool handle_chlor_status(
     const uint8_t *data, int len,
@@ -2868,17 +2868,9 @@ static bool handle_chlor_status(
     if (payload_len < 1) return false;
 
     uint8_t mode = payload[0];
-    const char *mode_name;
-    switch (mode) {
-        case 0x00: mode_name = "Off";  break;
-        case 0x01: mode_name = "Auto"; break;
-        case 0x02: mode_name = "On";   break;
-        default:   mode_name = "Unknown"; break;
-    }
+    ESP_LOGI(TAG, "%s Chlorinator status - 0x%02X", addr_info, mode);
 
-    ESP_LOGI(TAG, "%s Chlorinator status - mode=%s (0x%02X)", addr_info, mode_name, mode);
-
-    // Documented modes are Off/Auto/On (0x00-0x02); flag anything else.
+    // Only 0x00-0x02 are seen routinely; flag anything else.
     if (mode > 0x02) {
         record_undocumented(data, len);
     }
