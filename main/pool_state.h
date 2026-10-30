@@ -8,18 +8,26 @@
 #include <stdbool.h>
 #include "esp_err.h"
 
-// Channel states
+// Channel states (channel_states.c). The first OFF_AUTO_ON_COUNT entries are
+// also the code space of the protocol's 0/1/2 state fields (light zone state,
+// valve state, solar mode).
 #define CHANNEL_STATE_COUNT 6
+#define OFF_AUTO_ON_COUNT   3
 extern const char *CHANNEL_STATE_NAMES[];
+
+// Name of a channel state code (0-5), or "Unknown"
+const char *channel_state_name(uint8_t state);
+
+// Name of an Off/Auto/On state code (0-2), or "Unknown"
+const char *off_auto_on_name(uint8_t state);
+
+// State code of a name from the first `count` CHANNEL_STATE_NAMES entries
+// (exact length, case-insensitive), or -1 if it matches none
+int channel_state_parse(const char *payload, int payload_len, int count);
 
 // This firmware's own bus address ("Pool Controller ESP32")
 #define SELF_DEVICE_ID_HI 0xAC
 #define SELF_DEVICE_ID_LO 0x1D
-
-// Lighting states
-#define LIGHTING_STATE_COUNT 3
-
-extern const char *LIGHTING_STATE_NAMES[];
 
 // Lighting colors
 #define LIGHTING_COLOR_COUNT 51

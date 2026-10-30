@@ -1775,9 +1775,9 @@ static void publish_valve_discovery(const char *device_id, const char *mac_suffi
     cJSON_AddStringToObject(root, "command_topic", command_topic);
 
     cJSON *opts = cJSON_CreateArray();
-    cJSON_AddItemToArray(opts, cJSON_CreateString("Off"));
-    cJSON_AddItemToArray(opts, cJSON_CreateString("Auto"));
-    cJSON_AddItemToArray(opts, cJSON_CreateString("On"));
+    for (int i = 0; i < OFF_AUTO_ON_COUNT; i++) {
+        cJSON_AddItemToArray(opts, cJSON_CreateString(CHANNEL_STATE_NAMES[i]));
+    }
     cJSON_AddItemToObject(root, "options", opts);
 
     cJSON_AddStringToObject(root, "value_template", "{{ value_json.state }}");

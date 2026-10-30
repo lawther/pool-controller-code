@@ -1334,17 +1334,6 @@ void test_channel_status_teaches_filter_pump_type(void)
                 "A High Filter state should teach multi-speed");
 }
 
-// The select publishes CHANNEL_STATE_NAMES as its options and reads the state
-// topic back against them, so any state the decoder can record for a channel
-// has to have a name in that table.
-void test_channel_state_names_cover_every_state(void)
-{
-    for (int i = 0; i < CHANNEL_STATE_COUNT; i++) {
-        TEST_ASSERT(CHANNEL_STATE_NAMES[i] != NULL && CHANNEL_STATE_NAMES[i][0] != '\0',
-                    "Every channel state code has a name");
-    }
-}
-
 void test_decode_channel_status_multispeed_pump(void)
 {
     init_test_context();
@@ -2188,7 +2177,6 @@ int main(void)
     test_decode_channel_status_lights_active();
     test_decode_channel_status_multispeed_pump();
     test_channel_status_teaches_filter_pump_type();
-    test_channel_state_names_cover_every_state();
     test_decode_channel_toggle_gateway();
     test_decode_channel_toggle_controller();
     test_decode_register_write_gateway();

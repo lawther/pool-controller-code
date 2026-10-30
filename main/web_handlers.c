@@ -843,8 +843,7 @@ static esp_err_t status_get_handler(httpd_req_t *req)
             continue;
         }
         const char *type_name  = get_channel_type_name(state.channels[i].type);
-        const char *state_name = (state.channels[i].state < CHANNEL_STATE_COUNT) ?
-                                 CHANNEL_STATE_NAMES[state.channels[i].state] : "Unknown";
+        const char *state_name = channel_state_name(state.channels[i].state);
         cJSON *ch = cJSON_CreateObject();
         cJSON_AddNumberToObject(ch, "id",    state.channels[i].id);
         cJSON_AddStringToObject(ch, "name",  state.channels[i].name[0] ? state.channels[i].name : type_name);
@@ -858,8 +857,7 @@ static esp_err_t status_get_handler(httpd_req_t *req)
     cJSON *lighting = cJSON_CreateArray();
     for (int i = 0; i < MAX_LIGHT_ZONES; i++) {
         if (!state.lighting[i].configured) continue;
-        const char *state_name = (state.lighting[i].state < LIGHTING_STATE_COUNT) ?
-                                 LIGHTING_STATE_NAMES[state.lighting[i].state] : "Unknown";
+        const char *state_name = off_auto_on_name(state.lighting[i].state);
         const char *color_name = (state.lighting[i].color < LIGHTING_COLOR_COUNT) ?
                                  LIGHTING_COLOR_NAMES[state.lighting[i].color] : "Unknown";
         cJSON *zone = cJSON_CreateObject();
@@ -912,8 +910,7 @@ static esp_err_t status_get_handler(httpd_req_t *req)
             label = fallback;
         }
 
-        const char *state_name = (state.valves[i].state < CHANNEL_STATE_COUNT) ?
-                                 CHANNEL_STATE_NAMES[state.valves[i].state] : "Unknown";
+        const char *state_name = off_auto_on_name(state.valves[i].state);
         cJSON *valve = cJSON_CreateObject();
         cJSON_AddNumberToObject(valve, "id",     i + 1);
         cJSON_AddStringToObject(valve, "name",   label);
