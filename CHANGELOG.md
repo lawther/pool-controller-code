@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 ### Changed
 ### Fixed
+- Fixed the heater and Pool/Spa mode MQTT commands accepting a partial or empty payload, e.g. clearing a retained heater command with an empty message switched the heater on. Payloads must now match in full, as the light and valve commands already do
+- Fixed an interrupted firmware upload from the web page (a dropped connection or a closed tab) leaving the web server stuck in a loop until the device was restarted. The upload is now abandoned when the connection closes or stalls for longer than the 2-minute upload limit
 ### Removed
 ### Deprecated
 ### Security

@@ -1660,14 +1660,20 @@ static esp_err_t update_post_handler(httpd_req_t *req)
     int received = 0;
     ESP_LOGI(TAG, "Firmware size: %d bytes", remaining);
 
+    // Socket timeouts are retried, but only until the upload deadline, so a
+    // stalled client can't hold the (single) HTTP server task forever
+    const int64_t deadline_us = esp_timer_get_time() + (int64_t)OTA_UPLOAD_TIMEOUT_MS * 1000;
+
     while (remaining > 0) {
         size_t recv_size = MIN(remaining, buf_size);
         int recv_len = httpd_req_recv(req, buf, recv_size);
-        if (recv_len < 0) {
-            if (recv_len == HTTPD_SOCK_ERR_TIMEOUT) {
-                continue;
-            }
-            ESP_LOGE(TAG, "Firmware receive failed");
+        if (recv_len == HTTPD_SOCK_ERR_TIMEOUT && esp_timer_get_time() < deadline_us) {
+            continue;
+        }
+        // 0 means the client closed the connection mid-upload
+        if (recv_len <= 0) {
+            ESP_LOGE(TAG, "Firmware receive failed (%d) after %d/%d bytes",
+                     recv_len, received, req->content_len);
             free(buf);
             esp_ota_abort(ota_handle);
             const char *resp = "{\"success\":false,\"message\":\"Receive failed\"}";
@@ -1676,25 +1682,23 @@ static esp_err_t update_post_handler(httpd_req_t *req)
             return ESP_FAIL;
         }
 
-        if (recv_len > 0) {
-            err = esp_ota_write(ota_handle, (const void *)buf, recv_len);
-            if (err != ESP_OK) {
-                ESP_LOGE(TAG, "esp_ota_write failed: %s", esp_err_to_name(err));
-                free(buf);
-                esp_ota_abort(ota_handle);
-                const char *resp = "{\"success\":false,\"message\":\"OTA write failed\"}";
-                httpd_resp_set_type(req, "application/json; charset=UTF-8");
-                httpd_resp_send(req, resp, HTTPD_RESP_USE_STRLEN);
-                return ESP_FAIL;
-            }
-            received += recv_len;
-            remaining -= recv_len;
+        err = esp_ota_write(ota_handle, (const void *)buf, recv_len);
+        if (err != ESP_OK) {
+            ESP_LOGE(TAG, "esp_ota_write failed: %s", esp_err_to_name(err));
+            free(buf);
+            esp_ota_abort(ota_handle);
+            const char *resp = "{\"success\":false,\"message\":\"OTA write failed\"}";
+            httpd_resp_set_type(req, "application/json; charset=UTF-8");
+            httpd_resp_send(req, resp, HTTPD_RESP_USE_STRLEN);
+            return ESP_FAIL;
+        }
+        received += recv_len;
+        remaining -= recv_len;
 
-            // Log progress
-            if (received % (100 * 1024) == 0 || remaining == 0) {
-                ESP_LOGI(TAG, "Written %d/%d bytes (%.1f%%)", received, req->content_len,
-                         100.0 * received / req->content_len);
-            }
+        // Log progress
+        if (received % (100 * 1024) == 0 || remaining == 0) {
+            ESP_LOGI(TAG, "Written %d/%d bytes (%.1f%%)", received, req->content_len,
+                     100.0 * received / req->content_len);
         }
     }
 

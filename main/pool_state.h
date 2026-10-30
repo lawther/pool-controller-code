@@ -11,8 +11,14 @@
 // Channel states (channel_states.c). The first OFF_AUTO_ON_COUNT entries are
 // also the code space of the protocol's 0/1/2 state fields (light zone state,
 // valve state, solar mode).
-#define CHANNEL_STATE_COUNT 6
-#define OFF_AUTO_ON_COUNT   3
+#define CHANNEL_STATE_OFF    0
+#define CHANNEL_STATE_AUTO   1
+#define CHANNEL_STATE_ON     2
+#define CHANNEL_STATE_LOW    3
+#define CHANNEL_STATE_MEDIUM 4
+#define CHANNEL_STATE_HIGH   5
+#define CHANNEL_STATE_COUNT  6
+#define OFF_AUTO_ON_COUNT    3
 extern const char *CHANNEL_STATE_NAMES[];
 
 // Name of a channel state code (0-5), or "Unknown"

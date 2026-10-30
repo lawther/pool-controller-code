@@ -301,15 +301,13 @@ static void handle_heater_command(const char *payload, int payload_len, int inde
         return;
     }
 
-    uint8_t state;
-    if (strncmp(payload, "ON", payload_len) == 0) {
-        state = 0x01;
-    } else if (strncmp(payload, "OFF", payload_len) == 0) {
-        state = 0x00;
-    } else {
+    // Heaters are on/off only, so Auto is rejected along with anything else
+    int parsed = channel_state_parse(payload, payload_len, OFF_AUTO_ON_COUNT);
+    if (parsed != CHANNEL_STATE_OFF && parsed != CHANNEL_STATE_ON) {
         ESP_LOGE(TAG, "Invalid heater command: %.*s (expected ON/OFF)", payload_len, payload);
         return;
     }
+    uint8_t state = (parsed == CHANNEL_STATE_ON) ? 0x01 : 0x00;
 
     // Build UART command
     // Pattern: 02 AC 1D FF FF 80 00 3A 0F 92 [REG] 00 [STATE] [CHECKSUM] 03
@@ -406,9 +404,9 @@ static void handle_mode_command(const char *payload, int payload_len)
     ESP_LOGI(TAG, "Mode command: %.*s", payload_len, payload);
 
     uint8_t mode_value;
-    if (strncmp(payload, "Pool", payload_len) == 0) {
+    if (payload_len == 4 && strncmp(payload, "Pool", 4) == 0) {
         mode_value = MODE_POOL;
-    } else if (strncmp(payload, "Spa", payload_len) == 0) {
+    } else if (payload_len == 3 && strncmp(payload, "Spa", 3) == 0) {
         mode_value = MODE_SPA;
     } else {
         ESP_LOGE(TAG, "Invalid mode command: %.*s (expected Pool/Spa)", payload_len, payload);
