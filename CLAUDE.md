@@ -32,6 +32,7 @@ Requires ESP-IDF v5.5+ with environment sourced (`. $IDF_PATH/export.sh`).
 - **channel_states.c**: Channel state name table (CMD 0x0B code space), shared by the decoder, the web UI and the MQTT pump-mode select
 - **filter_pump_type.c/.h**: Learns whether the Filter channel drives a single- or multi-speed pump, from the states CMD 0x0B reports for it, and persists the answer in NVS. Decides the pump-mode select's MQTT option list
 - **register_requester.c/.h**: Proactively sends CMD 0x39 register read requests when Internet Gateway is absent; woken immediately when a new light zone is configured. Also serves one-off read-backs queued after a register write (`register_requester_read_back`), regardless of gateway presence
+- **version_broadcast.c/.h**: Broadcasts this firmware's own CMD 0x0A Firmware Version from `0xAC1D` (release major.minor) at startup and every 60 s, so the Touchscreen lists the bridge among its devices
 - **mqtt_poolclient.c/.h**: MQTT client lifecycle and connection management
 - **mqtt_publish.c/.h**: MQTT publishing functions for pool state updates
 - **mqtt_discovery.c/.h**: Home Assistant MQTT discovery integration
@@ -86,6 +87,8 @@ main.c
   │           └─> register_requester (notify on new light zone)
   ├─> register_requester (auto-poll missing registers when GW absent)
   │     └─> bus (send CMD 0x39 requests)
+  ├─> version_broadcast (announce our CMD 0x0A firmware version)
+  │     └─> bus (send CMD 0x0A)
   ├─> mqtt_poolclient (MQTT connection)
   │     ├─> mqtt_discovery (Home Assistant integration)
   │     ├─> mqtt_commands (handle MQTT commands)
