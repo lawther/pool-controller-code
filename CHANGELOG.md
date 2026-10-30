@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - Added automatic rollback of firmware updates: if a newly installed version crashes or restarts within its first minute, the device boots back into the previous version. This lives in the bootloader, which updates never replace, so existing devices only get it after one USB flash
+- Added the bootloader version to the home page and the startup log, with a note on whether it supports update rollback, so you can tell whether a device still needs that USB flash
 ### Changed
 ### Fixed
 - Fixed the heater and Pool/Spa mode MQTT commands accepting a partial or empty payload, e.g. clearing a retained heater command with an empty message switched the heater on. Payloads must now match in full, as the light and valve commands already do

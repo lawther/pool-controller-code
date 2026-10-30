@@ -189,14 +189,19 @@ static esp_err_t home_get_handler(httpd_req_t *req)
         "<tr><th>Firmware</th><td>%s</td></tr>"
         "<tr><th>Project</th><td>%s</td></tr>"
         "<tr><th>Built</th><td>%s %s</td></tr>"
+        "<tr><th>Bootloader</th><td>v%" PRIu32 " (%s)</td></tr>"
         "<tr><th>Uptime</th><td>%s</td></tr>"
         "<tr><th>IP Address</th><td>%s</td></tr>"
         "<tr><th>Hostname</th><td><a href='http://%s.local/'>%s.local</a></td></tr>";
     const char *device_ip = wifi_get_device_ip();
+    uint32_t bootloader_ver = firmware_update_bootloader_version();
+    const char *bootloader_note = firmware_update_bootloader_has_rollback()
+        ? "update rollback" : "no update rollback - flash over USB to get it";
     int sys_table_len = snprintf(NULL, 0, sys_table_fmt,
         serial,
         app_desc->version, app_desc->project_name,
         app_desc->date, app_desc->time,
+        bootloader_ver, bootloader_note,
         uptime_str, device_ip,
         mdns_host, mdns_host);
     char *sys_table = (sys_table_len > 0) ? malloc((size_t)sys_table_len + 1) : NULL;
@@ -205,6 +210,7 @@ static esp_err_t home_get_handler(httpd_req_t *req)
             serial,
             app_desc->version, app_desc->project_name,
             app_desc->date, app_desc->time,
+            bootloader_ver, bootloader_note,
             uptime_str, device_ip,
             mdns_host, mdns_host);
     }

@@ -171,6 +171,7 @@
 #define OTA_MAX_FIRMWARE_SIZE          0x1E0000 // Must match ota_0/ota_1 partition size in partitions.csv
 #define OTA_CONFIRM_DELAY_MS           60000   // A new image must run this long without a reset before it is
                                                 // confirmed; a reset sooner rolls back to the previous image
+#define BOOTLOADER_ROLLBACK_MIN_VERSION 2      // First CONFIG_BOOTLOADER_PROJECT_VER built with rollback support
 
 // ======================================================
 // GitHub Firmware Update

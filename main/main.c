@@ -1,5 +1,6 @@
 #include <string.h>
 #include <stdbool.h>
+#include <inttypes.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/semphr.h"
@@ -182,6 +183,13 @@ void app_main(void)
     const esp_partition_t *running = esp_ota_get_running_partition();
     ESP_LOGI(TAG, "Running from partition: %s (type %d, subtype %d) at offset 0x%lx",
              running->label, running->type, running->subtype, running->address);
+    if (firmware_update_bootloader_has_rollback()) {
+        ESP_LOGI(TAG, "Bootloader v%" PRIu32 " - failed updates roll back",
+                 firmware_update_bootloader_version());
+    } else {
+        ESP_LOGW(TAG, "Bootloader v%" PRIu32 " has no update rollback - flash over USB to get it",
+                 firmware_update_bootloader_version());
+    }
 
     // Initialize pool state mutex
     s_pool_state_mutex = xSemaphoreCreateMutex();

@@ -45,3 +45,7 @@ CONFIG_BOOTLOADER_LOG_LEVEL_INFO=y
 # confirms it (see confirm_ota_image_when_stable in main.c). Lives in the
 # bootloader, which OTA never replaces, so it needs a USB flash to take effect.
 CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y
+# Stamped into the bootloader image so the app can tell which bootloader is in
+# flash (shown on the home page). Bump it whenever a bootloader setting changes;
+# 2 = rollback support (see BOOTLOADER_ROLLBACK_MIN_VERSION in config.h).
+CONFIG_BOOTLOADER_PROJECT_VER=2

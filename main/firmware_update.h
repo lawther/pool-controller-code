@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 #include "esp_err.h"
 #include "config.h"
 
@@ -68,6 +69,14 @@ esp_err_t firmware_update_start_install(const char *tag);
 // Called internally after checks/installs; also called on MQTT (re)connect so
 // the retained state matches the device.
 void firmware_update_publish_mqtt_state(void);
+
+// Version of the bootloader in flash (its CONFIG_BOOTLOADER_PROJECT_VER), or 0
+// if it has no description block (built before IDF 5.1). OTA never replaces
+// the bootloader, so this can lag the app until the next USB flash.
+uint32_t firmware_update_bootloader_version(void);
+
+// True if the bootloader in flash supports rolling back a failed update.
+bool firmware_update_bootloader_has_rollback(void);
 
 // Parse a version string into {major, minor, patch}. Tolerates a leading 'v'
 // and any trailing "-<n>-g<hash>[-dirty]" suffix from `git describe`; missing

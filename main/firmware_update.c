@@ -103,6 +103,30 @@ void firmware_update_parse_version(const char *s, int out[3])
     }
 }
 
+// ======================================================
+// Bootloader version
+// ======================================================
+
+uint32_t firmware_update_bootloader_version(void)
+{
+    // The bootloader can't change while the app runs, so read flash once
+    static bool s_read;
+    static uint32_t s_version;
+    if (!s_read) {
+        esp_bootloader_desc_t desc;
+        if (esp_ota_get_bootloader_description(NULL, &desc) == ESP_OK) {
+            s_version = desc.version;
+        }
+        s_read = true;
+    }
+    return s_version;
+}
+
+bool firmware_update_bootloader_has_rollback(void)
+{
+    return firmware_update_bootloader_version() >= BOOTLOADER_ROLLBACK_MIN_VERSION;
+}
+
 // Returns <0 if a<b, 0 if equal, >0 if a>b (by major.minor.patch).
 static int semver_cmp(const char *a, const char *b)
 {
