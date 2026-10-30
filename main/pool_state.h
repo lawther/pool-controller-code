@@ -337,30 +337,12 @@ typedef struct {
     bool chlor_mode_valid;
     uint8_t chlor_output_level;       // Chlorine output level 1–8 (from VX 11S v3, address 0x0081)
     bool chlor_output_level_valid;
-    uint8_t chlor_version_major;
-    uint8_t chlor_version_minor;
-    bool chlor_version_valid;
 
     // Controller time/clock
     uint8_t controller_minutes;
     uint8_t controller_hours;
     uint8_t controller_day_of_week; // 0=Monday, 6=Sunday
     bool controller_time_valid;
-
-    // Touchscreen firmware version
-    uint8_t touchscreen_version_major;
-    uint8_t touchscreen_version_minor;
-    bool touchscreen_version_valid;
-
-    // Internet Gateway firmware version
-    uint8_t gateway_version_major;
-    uint8_t gateway_version_minor;
-    bool gateway_version_valid;
-
-    // Connect 8/10 Controller firmware version
-    uint8_t controller_version_major;
-    uint8_t controller_version_minor;
-    bool controller_version_valid;
 
     // Controller service mode (CMD 0x12 status bitfield, bit 1)
     bool service_mode;

@@ -662,6 +662,28 @@ static esp_err_t provision_post_handler(httpd_req_t *req)
 // Pool Status Handler
 // ======================================================
 
+static const seen_device_t *find_seen_device(const pool_state_t *st, uint8_t hi, uint8_t lo)
+{
+    for (int i = 0; i < st->num_seen_devices; i++) {
+        if (st->seen_devices[i].addr_hi == hi && st->seen_devices[i].addr_lo == lo) {
+            return &st->seen_devices[i];
+        }
+    }
+    return NULL;
+}
+
+// Adds "major.minor" under `key`, or null when the device (or its CMD 0x0A) hasn't been seen
+static void add_fw_version(cJSON *obj, const char *key, const seen_device_t *d)
+{
+    if (d && d->fw_version_valid) {
+        char fw_str[16];
+        snprintf(fw_str, sizeof(fw_str), "%d.%d", d->fw_version_major, d->fw_version_minor);
+        cJSON_AddStringToObject(obj, key, fw_str);
+    } else {
+        cJSON_AddNullToObject(obj, key);
+    }
+}
+
 static esp_err_t status_get_handler(httpd_req_t *req)
 {
     const esp_app_desc_t *app_desc = esp_app_get_description();
@@ -714,13 +736,7 @@ static esp_err_t status_get_handler(httpd_req_t *req)
         cJSON *dev = cJSON_CreateObject();
         cJSON_AddStringToObject(dev, "address", addr_str);
         cJSON_AddStringToObject(dev, "name",    name);
-        if (d->fw_version_valid) {
-            char fw_str[16];
-            snprintf(fw_str, sizeof(fw_str), "%d.%d", d->fw_version_major, d->fw_version_minor);
-            cJSON_AddStringToObject(dev, "firmware_version", fw_str);
-        } else {
-            cJSON_AddNullToObject(dev, "firmware_version");
-        }
+        add_fw_version(dev, "firmware_version", d);
 
         // Temperatures hosted by this device — only emitted for devices that
         // have actually broadcast a CMD 0x16 reading (i.e. once temp1_valid
@@ -946,14 +962,7 @@ static esp_err_t status_get_handler(httpd_req_t *req)
     } else {
         cJSON_AddNullToObject(gateway, "serial_number");
     }
-    if (state.gateway_version_valid) {
-        char fw_ver[16];
-        snprintf(fw_ver, sizeof(fw_ver), "%d.%d",
-                 state.gateway_version_major, state.gateway_version_minor);
-        cJSON_AddStringToObject(gateway, "firmware_version", fw_ver);
-    } else {
-        cJSON_AddNullToObject(gateway, "firmware_version");
-    }
+    add_fw_version(gateway, "firmware_version", find_seen_device(&state, 0x00, 0xF0));
     static const char *const GATEWAY_IFACE_KEYS[MAX_GATEWAY_IFACES] = {
         [GATEWAY_IFACE_WIRED] = "wired",
         [GATEWAY_IFACE_WIFI]  = "wifi",
@@ -987,14 +996,7 @@ static esp_err_t status_get_handler(httpd_req_t *req)
 
     // Touchscreen
     cJSON *touchscreen = cJSON_CreateObject();
-    if (state.touchscreen_version_valid) {
-        char ts_ver[16];
-        snprintf(ts_ver, sizeof(ts_ver), "%d.%d",
-                 state.touchscreen_version_major, state.touchscreen_version_minor);
-        cJSON_AddStringToObject(touchscreen, "version", ts_ver);
-    } else {
-        cJSON_AddNullToObject(touchscreen, "version");
-    }
+    add_fw_version(touchscreen, "version", find_seen_device(&state, 0x00, 0x50));
     cJSON_AddNumberToObject(touchscreen, "num_channels", state.num_channels);
     cJSON_AddItemToObject(root, "touchscreen", touchscreen);
 
