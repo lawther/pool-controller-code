@@ -1905,10 +1905,8 @@ static int find_or_insert_seen_device_locked(pool_state_t *st, uint8_t hi, uint8
  * Handler: Firmware version (CMD 0x0A, source-agnostic)
  *
  * Covers PROTOCOL.md command `0x0A` (consolidated). Same 2-byte `{major, minor}`
- * payload shape across every observed source — the source address selects
- * which `pool_state->*_version_*` field is populated.
- *
- * Unknown sources are logged but skipped for state-update purposes.
+ * payload shape across every observed source — the version is recorded on the
+ * source's `seen_devices` entry.
  */
 static bool handle_firmware_version(
     const uint8_t *data, int len,
@@ -1920,35 +1918,10 @@ static bool handle_firmware_version(
 
     uint8_t major = payload[0];
     uint8_t minor = payload[1];
-    uint16_t src = ((uint16_t)data[1] << 8) | data[2];
 
     ESP_LOGI(TAG, "%s Firmware version - %d.%d", addr_info, major, minor);
 
     if (!state_lock(ctx, "firmware version")) return true;
-
-    switch (src) {
-        case 0x0050:
-            ctx->pool_state->touchscreen_version_major = major;
-            ctx->pool_state->touchscreen_version_minor = minor;
-            ctx->pool_state->touchscreen_version_valid = true;
-            break;
-        case 0x0062:
-            ctx->pool_state->controller_version_major = major;
-            ctx->pool_state->controller_version_minor = minor;
-            ctx->pool_state->controller_version_valid = true;
-            break;
-        case 0x0084:
-            ctx->pool_state->chlor_version_major = major;
-            ctx->pool_state->chlor_version_minor = minor;
-            ctx->pool_state->chlor_version_valid = true;
-            break;
-        case 0x00F0:
-            ctx->pool_state->gateway_version_major = major;
-            ctx->pool_state->gateway_version_minor = minor;
-            ctx->pool_state->gateway_version_valid = true;
-            break;
-        // 0x0070 (Genus Heater) and any future device — log-only, no dedicated state field yet
-    }
 
     int dev_idx = find_or_insert_seen_device_locked(ctx->pool_state, data[1], data[2]);
     if (dev_idx >= 0) {

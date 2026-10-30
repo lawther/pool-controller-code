@@ -370,7 +370,7 @@ Firmware-version announcement (`{major, minor}` payload) broadcast by multiple d
 |----------|------------------------------------------|-----------------------------------------|--------------------------------|---------------|
 | `0x0050` | Touchscreen                              | `02 00 50 FF FF 80 00 0A 0E E8`         | `02 08 0A`                     | 2.8           |
 | `0x0062` | Connect 8/10 Controller                  | `02 00 62 FF FF 80 00 0A 0E FA`         | `02 06 08`                     | 2.6           |
-| `0x0070` | Genus Heater (Active i25 Evo)            | `02 00 70 FF FF 80 00 0A 0E 08`         | _(observed; log-only, no dedicated state field)_ | —    |
+| `0x0070` | Genus Heater (Active i25 Evo)            | `02 00 70 FF FF 80 00 0A 0E 08`         | `14 00 14`                     | 20.0          |
 | `0x0081` | VX 11S v3 Salt Chlorinator               | `02 00 81 FF FF 80 00 0A 0E 19`         | `05 02 07`                     | 5.2           |
 | `0x0084` | Viron Chlorinator                        | `02 00 84 FF FF 80 00 0A 0E 1C`         | `05 07 0C`                     | 5.7           |
 | `0x00A0` | Viron XT Pump                            | `02 00 A0 FF FF 80 00 0A 0E 38`         | `01 09 0A`                     | 1.9           |
