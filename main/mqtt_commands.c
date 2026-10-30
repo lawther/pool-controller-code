@@ -79,14 +79,7 @@ static void handle_channel_mode_command(int channel_id, const char *payload, int
 {
     ESP_LOGI(TAG, "Channel %d mode command: %.*s", channel_id, payload_len, payload);
 
-    int state = -1;
-    for (int i = 0; i < CHANNEL_STATE_COUNT; i++) {
-        if ((int)strlen(CHANNEL_STATE_NAMES[i]) == payload_len &&
-            strncmp(payload, CHANNEL_STATE_NAMES[i], payload_len) == 0) {
-            state = i;
-            break;
-        }
-    }
+    int state = channel_state_parse(payload, payload_len, CHANNEL_STATE_COUNT);
     if (state < 0) {
         ESP_LOGE(TAG, "Unknown channel mode: %.*s", payload_len, payload);
         return;
@@ -188,18 +181,13 @@ static void handle_light_command(int zone, const char *payload, int payload_len)
 {
     ESP_LOGI(TAG, "Light zone %d command: %.*s", zone, payload_len, payload);
 
-    // Determine state: OFF=0x00, AUTO=0x01, ON=0x02
-    uint8_t state;
-    if (strncmp(payload, "ON", payload_len) == 0) {
-        state = 0x02;
-    } else if (strncmp(payload, "OFF", payload_len) == 0) {
-        state = 0x00;
-    } else if (strncmp(payload, "AUTO", payload_len) == 0) {
-        state = 0x01;
-    } else {
+    // HA's light entity sends ON/OFF; the parse is case-insensitive
+    int parsed = channel_state_parse(payload, payload_len, OFF_AUTO_ON_COUNT);
+    if (parsed < 0) {
         ESP_LOGE(TAG, "Invalid light command: %.*s (expected ON/OFF/AUTO)", payload_len, payload);
         return;
     }
+    uint8_t state = (uint8_t)parsed;
 
     uint8_t reg_id = REG_ID_LIGHT_ZONE_STATE_0 + (zone - 1);
 
@@ -222,8 +210,7 @@ static void handle_light_command(int zone, const char *payload, int payload_len)
     // Calculate checksum (sum of bytes 10-12)
     cmd[13] = (reg_id + 0x01 + state) & 0xFF;
 
-    ESP_LOGI(TAG, "Sending light zone %d %s command", zone,
-             state == 0x02 ? "ON" : (state == 0x00 ? "OFF" : "AUTO"));
+    ESP_LOGI(TAG, "Sending light zone %d %s command", zone, off_auto_on_name(state));
     send_uart_command(cmd, sizeof(cmd));
 }
 
@@ -418,7 +405,6 @@ static void handle_mode_command(const char *payload, int payload_len)
 {
     ESP_LOGI(TAG, "Mode command: %.*s", payload_len, payload);
 
-    // CMD 0x15 uses the same encoding as the 0x14 status: MODE_SPA/MODE_POOL
     uint8_t mode_value;
     if (strncmp(payload, "Pool", payload_len) == 0) {
         mode_value = MODE_POOL;
@@ -429,21 +415,39 @@ static void handle_mode_command(const char *payload, int payload_len)
         return;
     }
 
-    // Build CMD 0x15 Mode Set broadcast
-    // Pattern: 02 AC 1D FF FF 80 00 15 0D 6B [MODE] [CHECKSUM] 03
+    // CMD 0x15 toggles the mode, so a request for the current mode would
+    // switch to the other one. Only send when the mode is known and differs.
+    bool mode_valid = false;
+    uint8_t current_mode = 0;
+    if (s_pool_state_mutex &&
+        xSemaphoreTake(s_pool_state_mutex, pdMS_TO_TICKS(500)) == pdTRUE) {
+        mode_valid = s_pool_state.mode_valid;
+        current_mode = s_pool_state.mode;
+        xSemaphoreGive(s_pool_state_mutex);
+    }
+    if (!mode_valid) {
+        ESP_LOGW(TAG, "Ignoring mode command: current mode not yet known");
+        return;
+    }
+    if (current_mode == mode_value) {
+        ESP_LOGI(TAG, "Already in %.*s mode, not sending", payload_len, payload);
+        return;
+    }
+
+    // Build CMD 0x15 Mode Toggle broadcast, in the form with no data that the
+    // Connect 8/10's Pool/Spa button sends
+    // Pattern: 02 AC 1D FF FF 00 00 15 0B E9 03
     uint8_t cmd[] = {
         0x02,       // START
         SELF_DEVICE_ID_HI, SELF_DEVICE_ID_LO,   // SOURCE: this firmware (Pool Controller ESP32)
         0xFF, 0xFF, // DEST: Broadcast
-        0x80, 0x00, // CONTROL
-        0x15, 0x0D, // CMD, LEN
+        0x00, 0x00, // CONTROL: frame with no data
+        0x15, 0x0B, // CMD, LEN
         0x00,       // HDR checksum, filled in by send_uart_command
-        mode_value, // Mode value (MODE_SPA or MODE_POOL)
-        mode_value, // Checksum (just the mode value)
         0x03        // END
     };
 
-    ESP_LOGI(TAG, "Sending mode switch to %s", mode_value == MODE_POOL ? "Pool" : "Spa");
+    ESP_LOGI(TAG, "Sending mode toggle, to switch to %s", mode_value == MODE_POOL ? "Pool" : "Spa");
     send_uart_command(cmd, sizeof(cmd));
 }
 
@@ -576,17 +580,12 @@ static void handle_valve_command(int valve_num, const char *payload, int payload
 {
     ESP_LOGI(TAG, "Valve %d command: %.*s", valve_num, payload_len, payload);
 
-    uint8_t state;
-    if (strncmp(payload, "On", payload_len) == 0) {
-        state = 0x02;
-    } else if (strncmp(payload, "Auto", payload_len) == 0) {
-        state = 0x01;
-    } else if (strncmp(payload, "Off", payload_len) == 0) {
-        state = 0x00;
-    } else {
+    int parsed = channel_state_parse(payload, payload_len, OFF_AUTO_ON_COUNT);
+    if (parsed < 0) {
         ESP_LOGE(TAG, "Invalid valve command: %.*s (expected Off/Auto/On)", payload_len, payload);
         return;
     }
+    uint8_t state = (uint8_t)parsed;
 
     // Build UART command
     // Pattern: 02 AC 1D FF FF 80 00 28 0E 7F [VALVE_IDX] [STATE] [CHECKSUM] 03
@@ -605,8 +604,7 @@ static void handle_valve_command(int valve_num, const char *payload, int payload
         0x03               // END
     };
 
-    ESP_LOGI(TAG, "Setting valve %d to %s", valve_num,
-             state == 0x02 ? "On" : (state == 0x01 ? "Auto" : "Off"));
+    ESP_LOGI(TAG, "Setting valve %d to %s", valve_num, off_auto_on_name(state));
     send_uart_command(cmd, sizeof(cmd));
 }
 

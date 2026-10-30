@@ -8,18 +8,26 @@
 #include <stdbool.h>
 #include "esp_err.h"
 
-// Channel states
+// Channel states (channel_states.c). The first OFF_AUTO_ON_COUNT entries are
+// also the code space of the protocol's 0/1/2 state fields (light zone state,
+// valve state, solar mode).
 #define CHANNEL_STATE_COUNT 6
+#define OFF_AUTO_ON_COUNT   3
 extern const char *CHANNEL_STATE_NAMES[];
+
+// Name of a channel state code (0-5), or "Unknown"
+const char *channel_state_name(uint8_t state);
+
+// Name of an Off/Auto/On state code (0-2), or "Unknown"
+const char *off_auto_on_name(uint8_t state);
+
+// State code of a name from the first `count` CHANNEL_STATE_NAMES entries
+// (exact length, case-insensitive), or -1 if it matches none
+int channel_state_parse(const char *payload, int payload_len, int count);
 
 // This firmware's own bus address ("Pool Controller ESP32")
 #define SELF_DEVICE_ID_HI 0xAC
 #define SELF_DEVICE_ID_LO 0x1D
-
-// Lighting states
-#define LIGHTING_STATE_COUNT 3
-
-extern const char *LIGHTING_STATE_NAMES[];
 
 // Lighting colors
 #define LIGHTING_COLOR_COUNT 51
@@ -188,8 +196,8 @@ typedef struct {
     bool single_sensor_source;  // True if this source only ever broadcasts temp1 (LEN 0x0D)
 } seen_device_t;
 
-// Operating mode values (CMD 0x14 status broadcast and CMD 0x15 set command;
-// note CMD 0x2A uses inverted Pool/Spa values)
+// Operating mode values (CMD 0x14 status broadcast and register 0x65; note
+// CMD 0x2A uses inverted Pool/Spa values)
 #define MODE_SPA   0x00
 #define MODE_POOL  0x01
 
@@ -261,6 +269,11 @@ typedef struct {
     uint8_t mode;  // MODE_SPA (0x00) or MODE_POOL (0x01)
     bool mode_valid;
 
+    // Touchscreen's "Use separate pool and spa modes" setting (register 0x64,
+    // slot 0x00). While it is off, there is no Pool/Spa mode to switch.
+    bool separate_pool_spa_modes;
+    bool separate_pool_spa_modes_valid;
+
     // Channels (up to MAX_CHANNELS)
     channel_state_t channels[MAX_CHANNELS];
     uint8_t num_channels;
@@ -326,36 +339,20 @@ typedef struct {
     uint16_t orp_reading;      // mV
     bool ph_valid;
     bool orp_valid;
+    uint32_t ph_reading_ms;    // When ph_reading arrived (ms since boot)
+    uint32_t orp_reading_ms;   // When orp_reading arrived (ms since boot)
     bool ph_setpoint_valid;
     bool orp_setpoint_valid;
-    uint8_t chlor_mode;        // 0=Off, 1=Auto, 2=On (tentative — see PROTOCOL.md §32)
+    uint8_t chlor_mode;        // CMD 0x12 status byte, meaning unknown (see PROTOCOL.md)
     bool chlor_mode_valid;
     uint8_t chlor_output_level;       // Chlorine output level 1–8 (from VX 11S v3, address 0x0081)
     bool chlor_output_level_valid;
-    uint8_t chlor_version_major;
-    uint8_t chlor_version_minor;
-    bool chlor_version_valid;
 
     // Controller time/clock
     uint8_t controller_minutes;
     uint8_t controller_hours;
     uint8_t controller_day_of_week; // 0=Monday, 6=Sunday
     bool controller_time_valid;
-
-    // Touchscreen firmware version
-    uint8_t touchscreen_version_major;
-    uint8_t touchscreen_version_minor;
-    bool touchscreen_version_valid;
-
-    // Internet Gateway firmware version
-    uint8_t gateway_version_major;
-    uint8_t gateway_version_minor;
-    bool gateway_version_valid;
-
-    // Connect 8/10 Controller firmware version
-    uint8_t controller_version_major;
-    uint8_t controller_version_minor;
-    bool controller_version_valid;
 
     // Controller service mode (CMD 0x12 status bitfield, bit 1)
     bool service_mode;
@@ -402,6 +399,16 @@ static inline bool heater_configured(const pool_state_t *state, int index, bool 
     }
     *known = state->heater2_configured_valid;
     return state->heater2_configured_valid && state->heater2_configured;
+}
+
+// Whether the Touchscreen has reported its "Use separate pool and spa modes"
+// setting (register 0x64) as off. With it off, the Touchscreen offers no
+// Pool/Spa mode, no favourites other than All Off / All Auto, and a single
+// (pool) setpoint per heater.
+// False while the setting is still unknown.
+static inline bool separate_pool_spa_modes_off(const pool_state_t *state)
+{
+    return state->separate_pool_spa_modes_valid && !state->separate_pool_spa_modes;
 }
 
 // Global pool state (defined in main.c)

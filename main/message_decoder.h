@@ -77,15 +77,11 @@ const char* get_device_slug(uint8_t addr_hi, uint8_t addr_lo, char *buf, size_t 
  */
 const char* get_gateway_comms_status_text(uint16_t code);
 
-// External constant arrays. CHANNEL_STATE_NAMES lives in channel_states.c and
-// LIGHTING_COLOR_NAMES in lighting_colors.c; the rest are in message_decoder.c.
-extern const char *CHANNEL_STATE_NAMES[];
-extern const char *LIGHTING_STATE_NAMES[];
+// External constant arrays. LIGHTING_COLOR_NAMES lives in lighting_colors.c;
+// the channel state names and helpers are declared in pool_state.h.
 extern const char *LIGHTING_COLOR_NAMES[];
 
 // Constant counts
-#define CHANNEL_STATE_COUNT 6
-#define LIGHTING_STATE_COUNT 3
 #define LIGHTING_COLOR_COUNT 51
 
 /**
@@ -149,6 +145,10 @@ typedef enum {
 
     REG_ID_SOLAR_SETPOINT          = 0x3A,  // Solar temperature setpoint in °C (slot 0x01)
 
+    REG_ID_SEPARATE_POOL_SPA_MODES = 0x64,  // "Use separate pool and spa modes" setting (slot 0x00): 0x00=No, 0x01=Yes
+
+    REG_ID_MODE                    = 0x65,  // Pool/Spa mode (slot 0x00): MODE_SPA/MODE_POOL, same as CMD 0x14
+
     REG_ID_CHANNEL_TYPE_0          = 0x6C,  // Channel 0 type  (0–7 → 0x6C–0x73, slot 0x02)
     REG_ID_CHANNEL_TYPE_7          = 0x73,  // Channel 7 type (last)
 
@@ -163,6 +163,9 @@ typedef enum {
 
     REG_ID_LIGHT_ZONE_MULTICOLOR_0 = 0xA0,  // Zone 0 multicolor (0–7 → 0xA0–0xA7, slot 0x01)
     REG_ID_LIGHT_ZONE_MULTICOLOR_7 = 0xA7,  // Zone 7 multicolor (last)
+
+    REG_ID_CHANNEL_LIGHT_ZONE_0    = 0xAC,  // Channel 0 light zone (0–7 → 0xAC–0xB3, slot 0x0D): 0-based zone, 0xFF = none; 0xB0–0xB3 shares range with REG_ID_LIGHT_ZONE_NAME_[0-3], slot 0x01
+    REG_ID_CHANNEL_LIGHT_ZONE_7    = 0xB3,  // Channel 7 light zone (last)
 
     REG_ID_LIGHT_ZONE_NAME_0       = 0xB0,  // Zone 0 name code (0–7 → 0xB0–0xB7, slot 0x01)
     REG_ID_LIGHT_ZONE_NAME_7       = 0xB7,  // Zone 7 name      (last)

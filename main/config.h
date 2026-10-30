@@ -110,6 +110,15 @@
 #define UART_RX_TIMEOUT_MS             15     // Timeout waiting for RX read (at 9600 baud, ~1ms per byte)
 #define UART_TX_TIMEOUT_MS             100     // Timeout waiting for TX completion
 
+// Bus TX collision avoidance (listen-before-talk) and detection (echo check).
+// At 9600 baud one byte takes ~1.04 ms on the wire.
+#define BUS_TX_IDLE_MS                 5       // Bus must be silent this long before we transmit (~5 byte times)
+#define BUS_TX_IDLE_JITTER_MS          5       // Plus a random 0..N ms so two waiting senders don't start together
+#define BUS_TX_QUIET_TIMEOUT_MS        1000    // Give up waiting for a quiet bus after this and transmit anyway
+#define BUS_TX_ECHO_TIMEOUT_MS         50      // How long after TX completes to wait for our own echo
+#define BUS_TX_MAX_ATTEMPTS            4       // Transmit attempts before giving up on a colliding frame
+#define BUS_TX_BACKOFF_BASE_MS         20      // Backoff before retry n is a random BASE*2^(n-1) .. 2x that
+
 // ======================================================
 // LED Configuration
 // ======================================================

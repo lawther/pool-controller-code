@@ -130,10 +130,9 @@ static void uart_spy_reset(void)
 // FreeRTOS / pool_state globals
 //
 // mqtt_commands.c references s_pool_state and s_pool_state_mutex (used by the
-// favourite-name lookup) and takes the mutex via xSemaphoreTake. The
-// favourite tests in this file don't exercise that path, but the symbols
-// must exist at link time. Leaving the mutex NULL makes mqtt_commands.c skip
-// the favourites lookup safely.
+// favourite-name lookup and the current-mode check) and takes the mutex via
+// xSemaphoreTake. Leaving the mutex NULL makes mqtt_commands.c skip both
+// lookups; the mode tests point it at a dummy handle to exercise the check.
 // ======================================================
 
 pool_state_t       s_pool_state;
@@ -480,16 +479,22 @@ void test_system_power_overflow(void)
 // Mode tests
 // ======================================================
 
+static void set_current_mode(bool valid, uint8_t mode)
+{
+    s_pool_state_mutex = (SemaphoreHandle_t)&s_pool_state;
+    s_pool_state.mode_valid = valid;
+    s_pool_state.mode = mode;
+}
+
 void test_mode_pool(void)
 {
+    set_current_mode(true, MODE_SPA);
     send_cmd("mode/set", "Pool");
 
-    // Expected: 02 AC 1D FF FF 80 00 15 0D 6B 01 01 03
-    // mode_value=0x00 (Pool), checksum=0x00
+    // Expected: 02 AC 1D FF FF 00 00 15 0B E9 03 (mode toggle, no data)
     uint8_t expected[] = {
-        0x02, 0xAC, 0x1D, 0xFF, 0xFF, 0x80, 0x00,
-        0x15, 0x0D, 0x6B,
-        0x01, 0x01,
+        0x02, 0xAC, 0x1D, 0xFF, 0xFF, 0x00, 0x00,
+        0x15, 0x0B, 0xE9,
         0x03
     };
     TEST_ASSERT(s_uart_calls == 1, "mode/set Pool: exactly one UART write");
@@ -499,23 +504,45 @@ void test_mode_pool(void)
 
 void test_mode_spa(void)
 {
+    set_current_mode(true, MODE_POOL);
     send_cmd("mode/set", "Spa");
-    // Expected: 02 AC 1D FF FF 80 00 15 0D 6B 00 00 03
-    // mode_value=0x01 (Spa), checksum=0x01
+    // Expected: 02 AC 1D FF FF 00 00 15 0B E9 03 (mode toggle, no data)
     uint8_t expected[] = {
-        0x02, 0xAC, 0x1D, 0xFF, 0xFF, 0x80, 0x00,
-        0x15, 0x0D, 0x6B,
-        0x00, 0x00,
+        0x02, 0xAC, 0x1D, 0xFF, 0xFF, 0x00, 0x00,
+        0x15, 0x0B, 0xE9,
         0x03
     };
     TEST_ASSERT(s_uart_calls == 1, "mode/set Spa: exactly one UART write");
+    TEST_ASSERT(s_uart_len == sizeof(expected), "mode/set Spa: correct length");
     TEST_ASSERT(memcmp(s_uart_buf, expected, sizeof(expected)) == 0, "mode/set Spa: correct bytes");
 }
 
 void test_mode_invalid(void)
 {
+    set_current_mode(true, MODE_POOL);
     send_cmd("mode/set", "Jacuzzi");
     TEST_ASSERT(s_uart_calls == 0, "mode/set invalid: no UART write");
+}
+
+// CMD 0x15 acts as a toggle, so asking for the current mode must send nothing
+void test_mode_already_current(void)
+{
+    set_current_mode(true, MODE_POOL);
+    send_cmd("mode/set", "Pool");
+    TEST_ASSERT(s_uart_calls == 0, "mode/set Pool while in Pool: no UART write");
+
+    set_current_mode(true, MODE_SPA);
+    send_cmd("mode/set", "Spa");
+    TEST_ASSERT(s_uart_calls == 0, "mode/set Spa while in Spa: no UART write");
+}
+
+void test_mode_unknown(void)
+{
+    set_current_mode(false, MODE_SPA);
+    send_cmd("mode/set", "Pool");
+    TEST_ASSERT(s_uart_calls == 0, "mode/set before mode known: no UART write");
+    set_current_mode(false, 0);
+    s_pool_state_mutex = NULL;
 }
 
 // ======================================================
@@ -869,6 +896,8 @@ int main(void)
     test_mode_pool();
     test_mode_spa();
     test_mode_invalid();
+    test_mode_already_current();
+    test_mode_unknown();
 
     printf("\n--- Temperature Tests ---\n");
     test_temperature_pool();

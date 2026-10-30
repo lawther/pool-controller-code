@@ -84,7 +84,7 @@ void firmware_update_get_status(fw_update_status_t *out)
 // trailing "-<n>-g<hash>[-dirty]" suffix produced by `git describe`)
 // ======================================================
 
-static void parse_semver(const char *s, int out[3])
+void firmware_update_parse_version(const char *s, int out[3])
 {
     out[0] = out[1] = out[2] = 0;
     if (!s) return;
@@ -107,8 +107,8 @@ static void parse_semver(const char *s, int out[3])
 static int semver_cmp(const char *a, const char *b)
 {
     int va[3], vb[3];
-    parse_semver(a, va);
-    parse_semver(b, vb);
+    firmware_update_parse_version(a, va);
+    firmware_update_parse_version(b, vb);
     for (int i = 0; i < 3; i++) {
         if (va[i] != vb[i]) return va[i] < vb[i] ? -1 : 1;
     }

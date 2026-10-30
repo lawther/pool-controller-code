@@ -105,7 +105,7 @@ void mqtt_publish_heater_setpoints(const pool_state_t *current_state, int index)
 
     // Publish discovery on first publish
     if (!s_discovery_published.heater_setpoints[index]) {
-        mqtt_publish_heater_setpoint_discovery_single(index);
+        mqtt_publish_heater_setpoint_discovery_single(index, !separate_pool_spa_modes_off(current_state));
         s_discovery_published.heater_setpoints[index] = true;
     }
 
@@ -351,6 +351,30 @@ void mqtt_publish_mode(const pool_state_t *current_state)
     ESP_LOGI(TAG, "Published mode: %s", payload);
 }
 
+void mqtt_publish_mode_config(const pool_state_t *current_state)
+{
+    if (!current_state->separate_pool_spa_modes_valid) {
+        return;
+    }
+
+    bool separate = current_state->separate_pool_spa_modes;
+    if (separate) {
+        mqtt_publish_mode_discovery_single();
+    } else {
+        mqtt_remove_mode_discovery();
+    }
+
+    // Without separate modes the Touchscreen also hides Pool, Spa and the user
+    // favourites (leaving All Off / All Auto), and keeps only the pool
+    // setpoint. Both publishers follow the setting themselves.
+    mqtt_publish_favourite_discovery_single(current_state);
+    for (int i = 0; i < MAX_HEATERS; i++) {
+        if (s_discovery_published.heater_setpoints[i]) {
+            mqtt_publish_heater_setpoint_discovery_single(i, separate);
+        }
+    }
+}
+
 // ======================================================
 // Channel Publishing
 // ======================================================
@@ -493,9 +517,7 @@ void mqtt_publish_channel(const pool_state_t *current_state, uint8_t channel_id)
     char topic[128];
     snprintf(topic, sizeof(topic), "pool/%s/channel/%d/state", device_id, channel_id);
 
-    // State names
-    const char *state_name = (channel->state < CHANNEL_STATE_COUNT)
-                             ? CHANNEL_STATE_NAMES[channel->state] : "Unknown";
+    const char *state_name = channel_state_name(channel->state);
 
     cJSON *root = cJSON_CreateObject();
     cJSON_AddStringToObject(root, "state",  state_name);
@@ -669,9 +691,7 @@ void mqtt_publish_light(const pool_state_t *current_state, uint8_t zone)
     char topic[128];
     snprintf(topic, sizeof(topic), "pool/%s/light/%d/state", device_id, zone);
 
-    // State names
-    static const char *STATE_NAMES[] = {"Off", "Auto", "On"};
-    const char *state_name = (light->state < 3) ? STATE_NAMES[light->state] : "Unknown";
+    const char *state_name = off_auto_on_name(light->state);
 
     // Color names from the shared color table — must match the discovery
     // effect_list entries so HA can bind the current effect
@@ -990,8 +1010,7 @@ void mqtt_publish_valve(const pool_state_t *current_state, uint8_t valve_num)
     char topic[128];
     snprintf(topic, sizeof(topic), "pool/%s/valve/%d/state", device_id, valve_num);
 
-    static const char *STATE_NAMES[] = {"Off", "Auto", "On"};
-    const char *state_name = (valve->state < 3) ? STATE_NAMES[valve->state] : "Unknown";
+    const char *state_name = off_auto_on_name(valve->state);
 
     const char *display_name = (valve->name[0] != '\0') ? valve->name : NULL;
     char fallback_name[16];

@@ -255,6 +255,7 @@ static esp_err_t home_get_handler(httpd_req_t *req)
         "<script>"
         "fetch('/status').then(r=>r.json()).then(data=>{"
         "const rows=[];"
+        "if(data.separate_pool_spa_modes!==null)rows.push(['Separate Pool/Spa Modes',data.separate_pool_spa_modes?'Yes':'No']);"
         "if(data.mode!==null)rows.push(['Mode',data.mode]);"
         "const deg='\u00b0'+(data.temperature.scale==='Fahrenheit'?'F':'C');"
         "data.devices.forEach(d=>{"
@@ -269,8 +270,11 @@ static esp_err_t home_get_handler(httpd_req_t *req)
         "rows.push(['Lighting zone '+lt.zone,s]);});"
         "if(data.multicolor_light_type)rows.push(['Multicolor Light Type',data.multicolor_light_type]);"
         "const c=data.chlorinator;"
-        "if(c.ph_reading!==null)rows.push(['pH',c.ph_reading+' (setpoint '+c.ph_setpoint+')']);"
-        "if(c.orp_reading!==null)rows.push(['ORP',c.orp_reading+'mV (setpoint '+c.orp_setpoint+'mV)']);"
+        "const sp=(v,u)=>v!==null?' (setpoint '+v+u+')':'';"
+        "if(c.ph_reading!==null||c.ph_setpoint!==null)"
+        "rows.push(['pH',(c.ph_reading!==null?c.ph_reading:'\u2014')+sp(c.ph_setpoint,'')]);"
+        "if(c.orp_reading!==null||c.orp_setpoint!==null)"
+        "rows.push(['ORP',(c.orp_reading!==null?c.orp_reading+'mV':'\u2014')+sp(c.orp_setpoint,'mV')]);"
         "if(c.chlor_output_level!==null)rows.push(['Chlorine Output Level',c.chlor_output_level]);"
         "if(data.timers&&data.timers.length>0){"
         "data.timers.forEach(t=>rows.push(['Timer '+t.num,t.start+' \u2013 '+t.stop+' ['+t.days+']']));}"
@@ -661,6 +665,28 @@ static esp_err_t provision_post_handler(httpd_req_t *req)
 // Pool Status Handler
 // ======================================================
 
+static const seen_device_t *find_seen_device(const pool_state_t *st, uint8_t hi, uint8_t lo)
+{
+    for (int i = 0; i < st->num_seen_devices; i++) {
+        if (st->seen_devices[i].addr_hi == hi && st->seen_devices[i].addr_lo == lo) {
+            return &st->seen_devices[i];
+        }
+    }
+    return NULL;
+}
+
+// Adds "major.minor" under `key`, or null when the device (or its CMD 0x0A) hasn't been seen
+static void add_fw_version(cJSON *obj, const char *key, const seen_device_t *d)
+{
+    if (d && d->fw_version_valid) {
+        char fw_str[16];
+        snprintf(fw_str, sizeof(fw_str), "%d.%d", d->fw_version_major, d->fw_version_minor);
+        cJSON_AddStringToObject(obj, key, fw_str);
+    } else {
+        cJSON_AddNullToObject(obj, key);
+    }
+}
+
 static esp_err_t status_get_handler(httpd_req_t *req)
 {
     const esp_app_desc_t *app_desc = esp_app_get_description();
@@ -713,13 +739,7 @@ static esp_err_t status_get_handler(httpd_req_t *req)
         cJSON *dev = cJSON_CreateObject();
         cJSON_AddStringToObject(dev, "address", addr_str);
         cJSON_AddStringToObject(dev, "name",    name);
-        if (d->fw_version_valid) {
-            char fw_str[16];
-            snprintf(fw_str, sizeof(fw_str), "%d.%d", d->fw_version_major, d->fw_version_minor);
-            cJSON_AddStringToObject(dev, "firmware_version", fw_str);
-        } else {
-            cJSON_AddNullToObject(dev, "firmware_version");
-        }
+        add_fw_version(dev, "firmware_version", d);
 
         // Temperatures hosted by this device — only emitted for devices that
         // have actually broadcast a CMD 0x16 reading (i.e. once temp1_valid
@@ -799,6 +819,13 @@ static esp_err_t status_get_handler(httpd_req_t *req)
         cJSON_AddNullToObject(root, "mode");
     }
 
+    // Touchscreen's "Use separate pool and spa modes" setting (register 0x64)
+    if (state.separate_pool_spa_modes_valid) {
+        cJSON_AddBoolToObject(root, "separate_pool_spa_modes", state.separate_pool_spa_modes);
+    } else {
+        cJSON_AddNullToObject(root, "separate_pool_spa_modes");
+    }
+
     // Controller service mode (CMD 0x12 status bitfield, bit 1)
     if (state.service_mode_valid) {
         cJSON_AddBoolToObject(root, "service_mode", state.service_mode);
@@ -837,8 +864,7 @@ static esp_err_t status_get_handler(httpd_req_t *req)
             continue;
         }
         const char *type_name  = get_channel_type_name(state.channels[i].type);
-        const char *state_name = (state.channels[i].state < CHANNEL_STATE_COUNT) ?
-                                 CHANNEL_STATE_NAMES[state.channels[i].state] : "Unknown";
+        const char *state_name = channel_state_name(state.channels[i].state);
         cJSON *ch = cJSON_CreateObject();
         cJSON_AddNumberToObject(ch, "id",    state.channels[i].id);
         cJSON_AddStringToObject(ch, "name",  state.channels[i].name[0] ? state.channels[i].name : type_name);
@@ -853,8 +879,7 @@ static esp_err_t status_get_handler(httpd_req_t *req)
     cJSON *lighting = cJSON_CreateArray();
     for (int i = 0; i < MAX_LIGHT_ZONES; i++) {
         if (!state.lighting[i].configured) continue;
-        const char *state_name = (state.lighting[i].state < LIGHTING_STATE_COUNT) ?
-                                 LIGHTING_STATE_NAMES[state.lighting[i].state] : "Unknown";
+        const char *state_name = off_auto_on_name(state.lighting[i].state);
         const char *color_name = (state.lighting[i].color < LIGHTING_COLOR_COUNT) ?
                                  LIGHTING_COLOR_NAMES[state.lighting[i].color] : "Unknown";
         cJSON *zone = cJSON_CreateObject();
@@ -907,8 +932,7 @@ static esp_err_t status_get_handler(httpd_req_t *req)
             label = fallback;
         }
 
-        const char *state_name = (state.valves[i].state < CHANNEL_STATE_COUNT) ?
-                                 CHANNEL_STATE_NAMES[state.valves[i].state] : "Unknown";
+        const char *state_name = off_auto_on_name(state.valves[i].state);
         cJSON *valve = cJSON_CreateObject();
         cJSON_AddNumberToObject(valve, "id",     i + 1);
         cJSON_AddStringToObject(valve, "name",   label);
@@ -932,18 +956,24 @@ static esp_err_t status_get_handler(httpd_req_t *req)
 
     // Chlorinator
     cJSON *chlorinator = cJSON_CreateObject();
-    if (state.ph_valid) {
+    if (state.ph_setpoint_valid) {
         cJSON_AddNumberToObject(chlorinator, "ph_setpoint", state.ph_setpoint / 10.0);
-        cJSON_AddNumberToObject(chlorinator, "ph_reading",  state.ph_reading  / 10.0);
     } else {
         cJSON_AddNullToObject(chlorinator, "ph_setpoint");
+    }
+    if (state.ph_valid) {
+        cJSON_AddNumberToObject(chlorinator, "ph_reading", state.ph_reading / 10.0);
+    } else {
         cJSON_AddNullToObject(chlorinator, "ph_reading");
     }
-    if (state.orp_valid) {
+    if (state.orp_setpoint_valid) {
         cJSON_AddNumberToObject(chlorinator, "orp_setpoint", state.orp_setpoint);
-        cJSON_AddNumberToObject(chlorinator, "orp_reading",  state.orp_reading);
     } else {
         cJSON_AddNullToObject(chlorinator, "orp_setpoint");
+    }
+    if (state.orp_valid) {
+        cJSON_AddNumberToObject(chlorinator, "orp_reading", state.orp_reading);
+    } else {
         cJSON_AddNullToObject(chlorinator, "orp_reading");
     }
     if (state.chlor_output_level_valid) {
@@ -960,14 +990,7 @@ static esp_err_t status_get_handler(httpd_req_t *req)
     } else {
         cJSON_AddNullToObject(gateway, "serial_number");
     }
-    if (state.gateway_version_valid) {
-        char fw_ver[16];
-        snprintf(fw_ver, sizeof(fw_ver), "%d.%d",
-                 state.gateway_version_major, state.gateway_version_minor);
-        cJSON_AddStringToObject(gateway, "firmware_version", fw_ver);
-    } else {
-        cJSON_AddNullToObject(gateway, "firmware_version");
-    }
+    add_fw_version(gateway, "firmware_version", find_seen_device(&state, 0x00, 0xF0));
     static const char *const GATEWAY_IFACE_KEYS[MAX_GATEWAY_IFACES] = {
         [GATEWAY_IFACE_WIRED] = "wired",
         [GATEWAY_IFACE_WIFI]  = "wifi",
@@ -1001,14 +1024,7 @@ static esp_err_t status_get_handler(httpd_req_t *req)
 
     // Touchscreen
     cJSON *touchscreen = cJSON_CreateObject();
-    if (state.touchscreen_version_valid) {
-        char ts_ver[16];
-        snprintf(ts_ver, sizeof(ts_ver), "%d.%d",
-                 state.touchscreen_version_major, state.touchscreen_version_minor);
-        cJSON_AddStringToObject(touchscreen, "version", ts_ver);
-    } else {
-        cJSON_AddNullToObject(touchscreen, "version");
-    }
+    add_fw_version(touchscreen, "version", find_seen_device(&state, 0x00, 0x50));
     cJSON_AddNumberToObject(touchscreen, "num_channels", state.num_channels);
     cJSON_AddItemToObject(root, "touchscreen", touchscreen);
 

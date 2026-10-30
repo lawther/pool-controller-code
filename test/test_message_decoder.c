@@ -21,10 +21,10 @@
 extern int unknown_buffer_record_count;
 
 // Mock FreeRTOS function implementations
-static uint32_t mock_ticks = 1000;
+static uint32_t mock_tick = 1000;
 uint32_t xTaskGetTickCount(void)
 {
-    return mock_ticks;
+    return mock_tick;  // Mock tick count (1 ms per tick)
 }
 
 BaseType_t xSemaphoreTake(SemaphoreHandle_t xSemaphore, TickType_t xBlockTime)
@@ -42,6 +42,8 @@ void xSemaphoreGive(SemaphoreHandle_t xSemaphore)
 
 // Mock MQTT functions (disabled in tests)
 void mqtt_publish_mode(const pool_state_t *state) {}
+static int mode_config_publishes = 0;
+void mqtt_publish_mode_config(const pool_state_t *state) { mode_config_publishes++; }
 void mqtt_publish_heater_setpoints(const pool_state_t *state, int index) {}
 static unsigned temperature_publish_calls[2];
 void mqtt_publish_temperature_reading(const pool_state_t *state, int dev_idx, uint8_t sensor_index)
@@ -81,10 +83,10 @@ static int tests_failed = 0;
 static void init_test_context(void)
 {
     memset(&test_pool_state, 0, sizeof(test_pool_state));
-    mock_ticks = 1000;
     test_ctx.pool_state = &test_pool_state;
     test_ctx.state_mutex = (SemaphoreHandle_t)&dummy_mutex;
     test_ctx.enable_mqtt = false;
+    mock_tick = 1000;
 }
 
 // Helper to set the heater configuration, as registers 0xC8 (Heater 1 Type)
@@ -640,6 +642,47 @@ void test_heater_config_change_publishes(void)
     decode_message(cc_none, sizeof(cc_none), &test_ctx);
     TEST_ASSERT(heater_config_publishes == 3 && last_heater_config_index == 1,
                 "First 0xCC should publish Heater 2's configuration");
+
+    test_ctx.enable_mqtt = false;
+}
+
+/**
+ * Test: the separate pool/spa modes register (0x64) is stored, and triggers
+ * mqtt_publish_mode_config when it first arrives and when it changes.
+ */
+void test_separate_pool_spa_modes_register(void)
+{
+    init_test_context();
+    test_ctx.enable_mqtt = true;
+    mode_config_publishes = 0;
+
+    uint8_t modes_yes[] = {
+        0x02, 0x00, 0x50, 0xFF, 0xFF, 0x80, 0x00,
+        0x38, 0x0F, 0x17,
+        0x64, 0x00, 0x01,
+        0x65,
+        0x03
+    };
+    uint8_t modes_no[] = {
+        0x02, 0x00, 0x50, 0xFF, 0xFF, 0x80, 0x00,
+        0x38, 0x0F, 0x17,
+        0x64, 0x00, 0x00,
+        0x64,
+        0x03
+    };
+
+    decode_message(modes_yes, sizeof(modes_yes), &test_ctx);
+    TEST_ASSERT(test_pool_state.separate_pool_spa_modes_valid && test_pool_state.separate_pool_spa_modes,
+                "0x64 = 0x01 should set separate pool/spa modes");
+    TEST_ASSERT(mode_config_publishes == 1, "First 0x64 should publish the mode configuration");
+
+    decode_message(modes_yes, sizeof(modes_yes), &test_ctx);
+    TEST_ASSERT(mode_config_publishes == 1, "Repeated 0x64 with the same value should not publish");
+
+    decode_message(modes_no, sizeof(modes_no), &test_ctx);
+    TEST_ASSERT(test_pool_state.separate_pool_spa_modes_valid && !test_pool_state.separate_pool_spa_modes,
+                "0x64 = 0x00 should clear separate pool/spa modes");
+    TEST_ASSERT(mode_config_publishes == 2, "Changed 0x64 should publish the mode configuration");
 
     test_ctx.enable_mqtt = false;
 }
@@ -1326,17 +1369,6 @@ void test_channel_status_teaches_filter_pump_type(void)
                 "A High Filter state should teach multi-speed");
 }
 
-// The select publishes CHANNEL_STATE_NAMES as its options and reads the state
-// topic back against them, so any state the decoder can record for a channel
-// has to have a name in that table.
-void test_channel_state_names_cover_every_state(void)
-{
-    for (int i = 0; i < CHANNEL_STATE_COUNT; i++) {
-        TEST_ASSERT(CHANNEL_STATE_NAMES[i] != NULL && CHANNEL_STATE_NAMES[i][0] != '\0',
-                    "Every channel state code has a name");
-    }
-}
-
 void test_decode_channel_status_multispeed_pump(void)
 {
     init_test_context();
@@ -1588,6 +1620,41 @@ void test_decode_chlor_ph_setpoint(void)
 
     TEST_ASSERT(decoded, "Chlorinator pH setpoint should be decoded");
     TEST_ASSERT(test_pool_state.ph_setpoint == 78, "pH setpoint should be 78 (7.8 pH)");
+}
+
+/**
+ * Test: pH/ORP readings are cleared once none has arrived for 3 minutes
+ * (the chlorinator stops sending them while its sensors are unpowered),
+ * while other frames — here its ORP setpoint — keep arriving.
+ * Real messages: round14/longrun7.txt
+ */
+void test_chlor_readings_expire(void)
+{
+    init_test_context();
+
+    uint8_t ph_reading[]   = {0x02, 0x00, 0x90, 0xFF, 0xFF, 0x80, 0x00, 0x1F, 0x0F, 0x3E, 0x01, 0x4C, 0x00, 0x4D, 0x03};
+    uint8_t orp_reading[]  = {0x02, 0x00, 0x90, 0xFF, 0xFF, 0x80, 0x00, 0x1F, 0x0F, 0x3E, 0x02, 0x80, 0x02, 0x84, 0x03};
+    uint8_t orp_setpoint[] = {0x02, 0x00, 0x90, 0xFF, 0xFF, 0x80, 0x00, 0x1D, 0x0F, 0x3C, 0x02, 0x9E, 0x02, 0xA2, 0x03};
+
+    decode_message(ph_reading, sizeof(ph_reading), &test_ctx);
+    decode_message(orp_reading, sizeof(orp_reading), &test_ctx);
+    TEST_ASSERT(test_pool_state.ph_valid && test_pool_state.ph_reading == 76, "pH reading should be 7.6");
+    TEST_ASSERT(test_pool_state.orp_valid && test_pool_state.orp_reading == 640, "ORP reading should be 640 mV");
+
+    mock_tick += 3 * 60 * 1000 - 1;
+    decode_message(orp_setpoint, sizeof(orp_setpoint), &test_ctx);
+    TEST_ASSERT(test_pool_state.ph_valid && test_pool_state.orp_valid,
+                "Readings should still be valid just under 3 minutes old");
+
+    mock_tick += 1;
+    decode_message(orp_setpoint, sizeof(orp_setpoint), &test_ctx);
+    TEST_ASSERT(!test_pool_state.ph_valid && !test_pool_state.orp_valid,
+                "Readings should be cleared once 3 minutes old");
+    TEST_ASSERT(test_pool_state.orp_setpoint_valid, "ORP setpoint should be unaffected");
+
+    decode_message(ph_reading, sizeof(ph_reading), &test_ctx);
+    TEST_ASSERT(test_pool_state.ph_valid, "A new pH reading should make it valid again");
+    TEST_ASSERT(!test_pool_state.orp_valid, "ORP should stay cleared until its own reading arrives");
 }
 
 /**
@@ -2115,14 +2182,14 @@ static void test_solar_mode_and_output_are_independent(void)
                 "Mode Off does not overwrite a still-active physical output report");
     TEST_ASSERT(!test_pool_state.heaters[0].valid,
                 "Solar sample does not bypass heater configuration guards");
-    TEST_ASSERT(test_pool_state.solar_status_byte == 4 && test_pool_state.solar_status_ms == mock_ticks,
+    TEST_ASSERT(test_pool_state.solar_status_byte == 4 && test_pool_state.solar_status_ms == mock_tick,
                 "Solar diagnostics identify the genuine controller sample");
-    mock_ticks += 1000;
+    mock_tick += 1000;
     decode_test_frame(0x50, 0x2C, config, sizeof(config));
-    TEST_ASSERT(test_pool_state.solar_status_ms != mock_ticks,
+    TEST_ASSERT(test_pool_state.solar_status_ms != mock_tick,
                 "Mode report does not refresh physical output sample time");
     decode_test_frame(0x62, 0x12, status, sizeof(status));
-    TEST_ASSERT(test_pool_state.solar_status_ms == mock_ticks,
+    TEST_ASSERT(test_pool_state.solar_status_ms == mock_tick,
                 "Unchanged real output report refreshes its sample time");
     uint8_t mask[] = {0x80};
     decode_test_frame(0x50, 0x0D, mask, sizeof(mask));
@@ -2215,6 +2282,7 @@ int main(void)
     test_heater_config_registers();
     test_heater_configured_helper();
     test_heater_config_change_publishes();
+    test_separate_pool_spa_modes_register();
     test_decode_temp_reading();
     test_temperature_samples_are_independent();
     test_decode_heater_on();
@@ -2237,7 +2305,6 @@ int main(void)
     test_decode_channel_status_lights_active();
     test_decode_channel_status_multispeed_pump();
     test_channel_status_teaches_filter_pump_type();
-    test_channel_state_names_cover_every_state();
     test_decode_channel_toggle_gateway();
     test_decode_channel_toggle_controller();
     test_decode_register_write_gateway();
@@ -2250,6 +2317,7 @@ int main(void)
     printf("\n--- Chlorinator Tests ---\n");
     test_decode_chlor_ph_setpoint();
     test_decode_chlor_orp_setpoint();
+    test_chlor_readings_expire();
     test_decode_chlor_set_pump_mode();
     test_decode_chlor_set_pump_mode_bad_byte0();
     test_decode_chlor_set_pump_mode_bad_mode();

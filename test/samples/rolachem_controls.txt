@@ -1,0 +1,1922 @@
+Connected to pool control bus bridge.
+Bus messages will be shown here as RX MSG log lines in hex,
+followed by their decoded meaning.
+Send hex strings (e.g., '02 00 50 FF FF 03') to transmit to the bus.
+
+I (02:27:44.594) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 B0 01 00 B1 03 
+I (02:27:44.596) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 name - Pool (0)
+I (02:27:44.724) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 B1 01 01 B3 03 
+I (02:27:44.726) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 name - Spa (1)
+I (02:27:50.595) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 FD 0F DC 1A 0D 04 2B 03 
+I (02:27:50.596) MSG_DECODER: [Touch Screen -> Broadcast] Controller time - 13:26 Friday
+I (02:27:59.604) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C0 01 01 C2 03 
+I (02:27:59.606) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 state - Auto
+I (02:27:59.724) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C1 01 01 C3 03 
+I (02:27:59.725) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 state - Auto
+I (02:28:00.764) BUS: TX: 02 AC 1D FF FF 80 00 0A 0E 61 01 13 14 03 (14 bytes)
+I (02:28:00.789) BUS: TX complete: 14 bytes written and transmitted
+I (02:28:00.794) MSG_DECODER: RX MSG: 02 AC 1D FF FF 80 00 0A 0E 61 01 13 14 03 
+I (02:28:00.794) MSG_DECODER: [Pool Controller ESP32 -> Broadcast] Firmware version - 1.19
+I (02:28:07.794) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 12 0D 2F 01 01 03 
+I (02:28:07.796) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator status - 0x01
+I (02:28:07.984) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1D 0F 3C 01 4A 00 4B 03 
+I (02:28:07.986) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator pH setpoint - 7.4
+I (02:28:08.174) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1D 0F 3C 02 9E 02 A2 03 
+I (02:28:08.176) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator ORP setpoint - 670 mV
+I (02:28:08.364) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1F 0F 3E 01 4C 00 4D 03 
+I (02:28:08.366) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator pH reading - 7.6
+I (02:28:08.554) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1F 0F 3E 02 98 02 9C 03 
+I (02:28:08.556) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator ORP reading - 664 mV
+I (02:28:10.604) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0A 0E E8 02 08 0A 03 
+I (02:28:10.606) MSG_DECODER: [Touch Screen -> Broadcast] Firmware version - 2.8
+I (02:28:10.724) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 12 0E F0 05 00 05 03 
+I (02:28:10.726) MSG_DECODER: [Touch Screen -> Broadcast] Touchscreen status - 0x05 (bits 3-2 = 1)
+I (02:28:10.844) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 05 0D E2 01 01 03 
+I (02:28:10.846) MSG_DECODER: [Touch Screen -> Broadcast] Touchscreen unknown (CMD 0x05): 0x01
+I (02:28:10.964) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 06 0E E4 00 00 00 03 
+I (02:28:10.966) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 - Off
+I (02:28:11.084) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 06 0E E4 01 00 01 03 
+I (02:28:11.086) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 - Off
+I (02:28:11.204) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 14 0D F1 01 01 03 
+I (02:28:11.206) MSG_DECODER: [Touch Screen -> Broadcast] Mode - Pool
+I (02:28:11.324) MSG_DECODER: RX MSG: 02 00 50 00 6F 80 00 0D 0D 5B 01 01 03 
+I (02:28:11.326) MSG_DECODER: [Touch Screen -> Internal Channels] Active channels - 0x01 [-------1]
+I (02:28:11.474) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0B 25 00 08 01 02 01 02 01 00 FE 01 00 FE 01 00 0B 00 00 09 00 00 FD 00 00 00 00 00 1E 03 
+I (02:28:11.478) MSG_DECODER: [Touch Screen -> Broadcast] Channel status (8 channels):
+I (02:28:11.485) MSG_DECODER:   Ch1: Filter (1) = On (Active)
+I (02:28:11.490) MSG_DECODER:   Ch2: Cleaning (2) = Auto (Inactive)
+I (02:28:11.496) MSG_DECODER:   Ch3: Light Zone (254) = Auto (Inactive)
+I (02:28:11.502) MSG_DECODER:   Ch4: Light Zone (254) = Auto (Inactive)
+I (02:28:11.508) MSG_DECODER:   Ch5: Jets (11) = Off (Inactive)
+I (02:28:11.514) MSG_DECODER:   Ch6: Blower (9) = Off (Inactive)
+I (02:28:11.520) MSG_DECODER:   Ch7: Heater (253) = Off (Inactive)
+I (02:28:11.526) MSG_DECODER:   Ch8: Unused
+I (02:28:11.604) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 17 10 F7 25 1D 63 54 F9 03 
+I (02:28:11.606) MSG_DECODER: [Touch Screen -> Broadcast] Heater 1 setpoints - spa=37°C/99°F, pool=29°C/84°F
+I (02:28:11.724) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 26 0E 04 01 06 07 03 
+I (02:28:11.726) MSG_DECODER: [Touch Screen -> Broadcast] Config - temperature scale=Celsius, step=1°, heater=Off, mode=heat
+I (02:28:11.844) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C0 01 01 C2 03 
+I (02:28:11.846) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 state - Auto
+I (02:28:11.964) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C1 01 01 C3 03 
+I (02:28:11.965) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 state - Auto
+I (02:28:12.084) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C2 01 00 C3 03 
+I (02:28:12.085) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 3 state - Off
+I (02:28:12.214) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C3 01 00 C4 03 
+I (02:28:12.215) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 4 state - Off
+I (02:28:12.334) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D0 01 05 D6 03 
+I (02:28:12.336) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 color - Blue (5)
+I (02:28:12.454) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D1 01 05 D7 03 
+I (02:28:12.455) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 color - Blue (5)
+I (02:28:12.574) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D2 01 05 D8 03 
+I (02:28:12.576) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 3 color - Blue (5)
+I (02:28:12.734) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D3 01 05 D9 03 
+I (02:28:12.736) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 4 color - Blue (5)
+I (02:28:12.864) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E0 01 00 E1 03 
+I (02:28:12.866) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 active - No
+I (02:28:12.984) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E1 01 00 E2 03 
+I (02:28:12.985) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 active - No
+I (02:28:13.104) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E2 01 00 E3 03 
+I (02:28:13.105) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 3 active - No
+I (02:28:13.224) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E3 01 00 E4 03 
+I (02:28:13.225) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 4 active - No
+I (02:28:14.014) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 16 0E 06 19 00 19 03 
+I (02:28:14.016) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature - 25°C (temp2: 0°C)
+I (02:28:14.084) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 31 0E 21 19 AA C3 03 
+W (02:28:14.086) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature (alt) - 25°C, temp2: INVALID (raw 0xAA)
+I (02:28:14.154) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 12 0F 03 00 00 08 08 03 
+I (02:28:14.155) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off, Solar output - Inactive
+I (02:28:14.224) MSG_DECODER: RX MSG: 02 00 62 00 50 80 00 2B 0E 6D 02 00 02 03 
+I (02:28:14.226) MSG_DECODER: [Connect 8/10 -> Touch Screen] Controller heartbeat (CMD 0x2B): 0x02 0x00
+I (02:28:14.604) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D0 01 05 D6 03 
+I (02:28:14.606) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 color - Blue (5)
+I (02:28:14.724) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D1 01 05 D7 03 
+I (02:28:14.726) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 color - Blue (5)
+I (02:28:29.604) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E0 01 00 E1 03 
+I (02:28:29.606) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 active - No
+I (02:28:29.724) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E1 01 00 E2 03 
+I (02:28:29.725) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 active - No
+I (02:28:44.604) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 F4 01 08 FD 03 
+I (02:28:44.606) MSG_DECODER: [Touch Screen -> Broadcast] Channel count - 8
+I (02:28:50.604) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 FD 0F DC 1B 0D 04 2C 03 
+I (02:28:50.606) MSG_DECODER: [Touch Screen -> Broadcast] Controller time - 13:27 Friday
+I (02:28:59.614) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 F5 01 01 F7 03 
+I (02:28:59.616) MSG_DECODER: [Touch Screen -> Broadcast] Channel 1 category - Pool equipment (1)
+I (02:28:59.734) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 F6 01 01 F8 03 
+I (02:28:59.736) MSG_DECODER: [Touch Screen -> Broadcast] Channel 2 category - Pool equipment (1)
+I (02:28:59.854) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 F7 01 02 FA 03 
+I (02:28:59.856) MSG_DECODER: [Touch Screen -> Broadcast] Channel 3 category - Light (2)
+I (02:28:59.974) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 F8 01 02 FB 03 
+I (02:28:59.976) MSG_DECODER: [Touch Screen -> Broadcast] Channel 4 category - Light (2)
+I (02:29:00.104) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 F9 01 01 FB 03 
+I (02:29:00.106) MSG_DECODER: [Touch Screen -> Broadcast] Channel 5 category - Pool equipment (1)
+I (02:29:00.224) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 FA 01 01 FC 03 
+I (02:29:00.225) MSG_DECODER: [Touch Screen -> Broadcast] Channel 6 category - Pool equipment (1)
+I (02:29:00.344) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 FB 01 03 FF 03 
+I (02:29:00.346) MSG_DECODER: [Touch Screen -> Broadcast] Channel 7 category - Controlled Heater Power (3)
+I (02:29:00.784) BUS: TX: 02 AC 1D FF FF 80 00 0A 0E 61 01 13 14 03 (14 bytes)
+I (02:29:00.807) BUS: TX complete: 14 bytes written and transmitted
+I (02:29:00.814) MSG_DECODER: RX MSG: 02 AC 1D FF FF 80 00 0A 0E 61 01 13 14 03 
+I (02:29:00.815) MSG_DECODER: [Pool Controller ESP32 -> Broadcast] Firmware version - 1.19
+I (02:29:08.014) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 12 0D 2F 01 01 03 
+I (02:29:08.016) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator status - 0x01
+I (02:29:08.204) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1D 0F 3C 01 4A 00 4B 03 
+I (02:29:08.206) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator pH setpoint - 7.4
+I (02:29:08.394) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1D 0F 3C 02 9E 02 A2 03 
+I (02:29:08.396) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator ORP setpoint - 670 mV
+I (02:29:08.584) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1F 0F 3E 01 4C 00 4D 03 
+I (02:29:08.586) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator pH reading - 7.6
+I (02:29:08.774) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1F 0F 3E 02 98 02 9C 03 
+I (02:29:08.776) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator ORP reading - 664 mV
+I (02:29:10.615) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0A 0E E8 02 08 0A 03 
+I (02:29:10.617) MSG_DECODER: [Touch Screen -> Broadcast] Firmware version - 2.8
+I (02:29:10.734) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 12 0E F0 05 00 05 03 
+I (02:29:10.735) MSG_DECODER: [Touch Screen -> Broadcast] Touchscreen status - 0x05 (bits 3-2 = 1)
+I (02:29:10.854) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 05 0D E2 01 01 03 
+I (02:29:10.856) MSG_DECODER: [Touch Screen -> Broadcast] Touchscreen unknown (CMD 0x05): 0x01
+I (02:29:10.974) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 06 0E E4 00 00 00 03 
+I (02:29:10.976) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 - Off
+I (02:29:11.094) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 06 0E E4 01 00 01 03 
+I (02:29:11.096) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 - Off
+I (02:29:11.214) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 14 0D F1 01 01 03 
+I (02:29:11.215) MSG_DECODER: [Touch Screen -> Broadcast] Mode - Pool
+I (02:29:11.334) MSG_DECODER: RX MSG: 02 00 50 00 6F 80 00 0D 0D 5B 01 01 03 
+I (02:29:11.336) MSG_DECODER: [Touch Screen -> Internal Channels] Active channels - 0x01 [-------1]
+I (02:29:11.484) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0B 25 00 08 01 02 01 02 01 00 FE 01 00 FE 01 00 0B 00 00 09 00 00 FD 00 00 00 00 00 1E 03 
+I (02:29:11.488) MSG_DECODER: [Touch Screen -> Broadcast] Channel status (8 channels):
+I (02:29:11.495) MSG_DECODER:   Ch1: Filter (1) = On (Active)
+I (02:29:11.500) MSG_DECODER:   Ch2: Cleaning (2) = Auto (Inactive)
+I (02:29:11.506) MSG_DECODER:   Ch3: Light Zone (254) = Auto (Inactive)
+I (02:29:11.512) MSG_DECODER:   Ch4: Light Zone (254) = Auto (Inactive)
+I (02:29:11.519) MSG_DECODER:   Ch5: Jets (11) = Off (Inactive)
+I (02:29:11.524) MSG_DECODER:   Ch6: Blower (9) = Off (Inactive)
+I (02:29:11.530) MSG_DECODER:   Ch7: Heater (253) = Off (Inactive)
+I (02:29:11.536) MSG_DECODER:   Ch8: Unused
+I (02:29:11.604) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 17 10 F7 25 1D 63 54 F9 03 
+I (02:29:11.606) MSG_DECODER: [Touch Screen -> Broadcast] Heater 1 setpoints - spa=37°C/99°F, pool=29°C/84°F
+I (02:29:11.734) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 26 0E 04 01 06 07 03 
+I (02:29:11.735) MSG_DECODER: [Touch Screen -> Broadcast] Config - temperature scale=Celsius, step=1°, heater=Off, mode=heat
+I (02:29:11.854) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C0 01 01 C2 03 
+I (02:29:11.856) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 state - Auto
+I (02:29:11.974) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C1 01 01 C3 03 
+I (02:29:11.976) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 state - Auto
+I (02:29:12.094) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C2 01 00 C3 03 
+I (02:29:12.096) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 3 state - Off
+I (02:29:12.214) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C3 01 00 C4 03 
+I (02:29:12.215) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 4 state - Off
+I (02:29:12.344) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D0 01 05 D6 03 
+I (02:29:12.346) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 color - Blue (5)
+I (02:29:12.464) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D1 01 05 D7 03 
+I (02:29:12.466) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 color - Blue (5)
+I (02:29:12.584) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D2 01 05 D8 03 
+I (02:29:12.586) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 3 color - Blue (5)
+I (02:29:12.744) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D3 01 05 D9 03 
+I (02:29:12.746) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 4 color - Blue (5)
+I (02:29:12.874) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E0 01 00 E1 03 
+I (02:29:12.877) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 active - No
+I (02:29:12.897) esp-x509-crt-bundle: Certificate validated
+I (02:29:12.994) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E1 01 00 E2 03 
+I (02:29:12.996) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 active - No
+I (02:29:13.114) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E2 01 00 E3 03 
+I (02:29:13.116) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 3 active - No
+I (02:29:13.234) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E3 01 00 E4 03 
+I (02:29:13.235) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 4 active - No
+I (02:29:13.714) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 16 0E 06 19 00 19 03 
+I (02:29:13.716) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature - 25°C (temp2: 0°C)
+I (02:29:13.784) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 31 0E 21 19 AA C3 03 
+W (02:29:13.785) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature (alt) - 25°C, temp2: INVALID (raw 0xAA)
+I (02:29:13.854) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 12 0F 03 00 00 08 08 03 
+I (02:29:13.854) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off, Solar output - Inactive
+I (02:29:13.924) MSG_DECODER: RX MSG: 02 00 62 00 50 80 00 2B 0E 6D 02 00 02 03 
+I (02:29:13.925) MSG_DECODER: [Connect 8/10 -> Touch Screen] Controller heartbeat (CMD 0x2B): 0x02 0x00
+I (02:29:14.149) FW_UPDATE: installed=v1.19.0-24-g8616f28-dirty latest=v1.19.0 (5 releases) update_available=0
+I (02:29:14.614) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 6C 02 01 6F 03 
+I (02:29:14.616) MSG_DECODER: [Touch Screen -> Broadcast] Channel 1 type - Filter (1)
+I (02:29:14.734) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 6D 02 02 71 03 
+I (02:29:14.736) MSG_DECODER: [Touch Screen -> Broadcast] Channel 2 type - Cleaning (2)
+I (02:29:14.854) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 6E 02 FE 6E 03 
+I (02:29:14.855) MSG_DECODER: [Touch Screen -> Broadcast] Channel 3 type - Light Zone (254)
+I (02:29:14.984) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 6F 02 FE 6F 03 
+I (02:29:14.985) MSG_DECODER: [Touch Screen -> Broadcast] Channel 4 type - Light Zone (254)
+I (02:29:15.104) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 70 02 0B 7D 03 
+I (02:29:15.105) MSG_DECODER: [Touch Screen -> Broadcast] Channel 5 type - Jets (11)
+I (02:29:15.224) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 71 02 09 7C 03 
+I (02:29:15.226) MSG_DECODER: [Touch Screen -> Broadcast] Channel 6 type - Blower (9)
+I (02:29:15.344) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 72 02 FD 71 03 
+I (02:29:15.346) MSG_DECODER: [Touch Screen -> Broadcast] Channel 7 type - Heater (253)
+I (02:29:29.634) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 1A 22 7C 02 46 69 6C 74 65 72 20 50 75 6D 70 00 A6 03 
+I (02:29:29.636) MSG_DECODER: [Touch Screen -> Broadcast] Channel 1 name - "Filter Pump"
+I (02:29:29.764) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 17 1F 7D 02 43 6C 65 61 6E 69 6E 67 00 A0 03 
+I (02:29:29.766) MSG_DECODER: [Touch Screen -> Broadcast] Channel 2 name - "Cleaning"
+I (02:29:29.884) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 7E 02 00 80 03 
+I (02:29:29.886) MSG_DECODER: [Touch Screen -> Broadcast] Channel 3 name - (empty)
+I (02:29:30.014) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 7F 02 00 81 03 
+I (02:29:30.015) MSG_DECODER: [Touch Screen -> Broadcast] Channel 4 name - (empty)
+I (02:29:30.134) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 13 1B 80 02 4A 65 74 73 00 18 03 
+I (02:29:30.136) MSG_DECODER: [Touch Screen -> Broadcast] Channel 5 name - "Jets"
+I (02:29:30.264) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 15 1D 81 02 42 6C 6F 77 65 72 00 EE 03 
+I (02:29:30.266) MSG_DECODER: [Touch Screen -> Broadcast] Channel 6 name - "Blower"
+I (02:29:30.394) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 82 02 00 84 03 
+I (02:29:30.396) MSG_DECODER: [Touch Screen -> Broadcast] Channel 7 name - (empty)
+I (02:29:44.614) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 8C 02 02 90 03 
+I (02:29:44.616) MSG_DECODER: [Touch Screen -> Broadcast] Channel 1 state - On
+I (02:29:44.744) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 8D 02 01 90 03 
+I (02:29:44.745) MSG_DECODER: [Touch Screen -> Broadcast] Channel 2 state - Auto
+I (02:29:44.864) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 8E 02 01 91 03 
+I (02:29:44.865) MSG_DECODER: [Touch Screen -> Broadcast] Channel 3 state - Auto
+I (02:29:44.984) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 8F 02 01 92 03 
+I (02:29:44.985) MSG_DECODER: [Touch Screen -> Broadcast] Channel 4 state - Auto
+I (02:29:45.104) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 90 02 00 92 03 
+I (02:29:45.106) MSG_DECODER: [Touch Screen -> Broadcast] Channel 5 state - Off
+I (02:29:45.224) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 91 02 00 93 03 
+I (02:29:45.224) MSG_DECODER: [Touch Screen -> Broadcast] Channel 6 state - Off
+I (02:29:45.354) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 92 02 00 94 03 
+I (02:29:45.355) MSG_DECODER: [Touch Screen -> Broadcast] Channel 7 state - Off
+I (02:29:50.614) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 FD 0F DC 1C 0D 04 2D 03 
+I (02:29:50.616) MSG_DECODER: [Touch Screen -> Broadcast] Controller time - 13:28 Friday
+I (02:30:00.804) BUS: TX: 02 AC 1D FF FF 80 00 0A 0E 61 01 13 14 03 (14 bytes)
+I (02:30:00.827) BUS: TX complete: 14 bytes written and transmitted
+I (02:30:00.834) MSG_DECODER: RX MSG: 02 AC 1D FF FF 80 00 0A 0E 61 01 13 14 03 
+I (02:30:00.835) MSG_DECODER: [Pool Controller ESP32 -> Broadcast] Firmware version - 1.19
+W (02:30:09.204) BUS_FRAMING: Discarding 8 byte(s) before next start byte: C7 0F 3C 01 4A 00 4B 03 
+I (02:30:09.324) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1D 0F 3C 02 9E 02 A2 03 
+I (02:30:09.325) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator ORP setpoint - 670 mV
+I (02:30:10.624) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0A 0E E8 02 08 0A 03 
+I (02:30:10.626) MSG_DECODER: [Touch Screen -> Broadcast] Firmware version - 2.8
+I (02:30:10.744) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 12 0E F0 05 00 05 03 
+I (02:30:10.746) MSG_DECODER: [Touch Screen -> Broadcast] Touchscreen status - 0x05 (bits 3-2 = 1)
+I (02:30:10.864) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 05 0D E2 01 01 03 
+I (02:30:10.866) MSG_DECODER: [Touch Screen -> Broadcast] Touchscreen unknown (CMD 0x05): 0x01
+I (02:30:10.984) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 06 0E E4 00 00 00 03 
+I (02:30:10.984) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 - Off
+I (02:30:11.104) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 06 0E E4 01 00 01 03 
+I (02:30:11.105) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 - Off
+I (02:30:11.224) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 14 0D F1 01 01 03 
+I (02:30:11.226) MSG_DECODER: [Touch Screen -> Broadcast] Mode - Pool
+I (02:30:11.344) MSG_DECODER: RX MSG: 02 00 50 00 6F 80 00 0D 0D 5B 01 01 03 
+I (02:30:11.346) MSG_DECODER: [Touch Screen -> Internal Channels] Active channels - 0x01 [-------1]
+I (02:30:11.494) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0B 25 00 08 01 02 01 02 01 00 FE 01 00 FE 01 00 0B 00 00 09 00 00 FD 00 00 00 00 00 1E 03 
+I (02:30:11.498) MSG_DECODER: [Touch Screen -> Broadcast] Channel status (8 channels):
+I (02:30:11.505) MSG_DECODER:   Ch1: Filter (1) = On (Active)
+I (02:30:11.510) MSG_DECODER:   Ch2: Cleaning (2) = Auto (Inactive)
+I (02:30:11.516) MSG_DECODER:   Ch3: Light Zone (254) = Auto (Inactive)
+I (02:30:11.522) MSG_DECODER:   Ch4: Light Zone (254) = Auto (Inactive)
+I (02:30:11.529) MSG_DECODER:   Ch5: Jets (11) = Off (Inactive)
+I (02:30:11.534) MSG_DECODER:   Ch6: Blower (9) = Off (Inactive)
+I (02:30:11.540) MSG_DECODER:   Ch7: Heater (253) = Off (Inactive)
+I (02:30:11.546) MSG_DECODER:   Ch8: Unused
+I (02:30:11.614) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 17 10 F7 25 1D 63 54 F9 03 
+I (02:30:11.615) MSG_DECODER: [Touch Screen -> Broadcast] Heater 1 setpoints - spa=37°C/99°F, pool=29°C/84°F
+I (02:30:11.734) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 26 0E 04 01 06 07 03 
+I (02:30:11.735) MSG_DECODER: [Touch Screen -> Broadcast] Config - temperature scale=Celsius, step=1°, heater=Off, mode=heat
+I (02:30:11.864) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C0 01 01 C2 03 
+I (02:30:11.866) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 state - Auto
+I (02:30:11.984) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C1 01 01 C3 03 
+I (02:30:11.986) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 state - Auto
+I (02:30:12.104) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C2 01 00 C3 03 
+I (02:30:12.106) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 3 state - Off
+I (02:30:12.224) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C3 01 00 C4 03 
+I (02:30:12.226) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 4 state - Off
+I (02:30:12.354) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D0 01 05 D6 03 
+I (02:30:12.356) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 color - Blue (5)
+I (02:30:12.475) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D1 01 05 D7 03 
+I (02:30:12.477) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 color - Blue (5)
+I (02:30:12.594) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D2 01 05 D8 03 
+I (02:30:12.596) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 3 color - Blue (5)
+I (02:30:12.754) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D3 01 05 D9 03 
+I (02:30:12.756) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 4 color - Blue (5)
+I (02:30:12.874) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E0 01 00 E1 03 
+I (02:30:12.876) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 active - No
+I (02:30:13.004) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E1 01 00 E2 03 
+I (02:30:13.006) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 active - No
+I (02:30:13.124) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E2 01 00 E3 03 
+I (02:30:13.125) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 3 active - No
+I (02:30:13.244) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E3 01 00 E4 03 
+I (02:30:13.246) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 4 active - No
+I (02:30:13.414) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 16 0E 06 19 00 19 03 
+I (02:30:13.416) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature - 25°C (temp2: 0°C)
+I (02:30:13.484) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 31 0E 21 19 AA C3 03 
+W (02:30:13.486) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature (alt) - 25°C, temp2: INVALID (raw 0xAA)
+I (02:30:13.554) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 12 0F 03 00 00 08 08 03 
+I (02:30:13.555) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off, Solar output - Inactive
+I (02:30:13.624) MSG_DECODER: RX MSG: 02 00 62 00 50 80 00 2B 0E 6D 02 00 02 03 
+I (02:30:13.624) MSG_DECODER: [Connect 8/10 -> Touch Screen] Controller heartbeat (CMD 0x2B): 0x02 0x00
+I (02:30:21.274) MSG_DECODER: RX MSG: 02 00 90 FF FF 00 00 15 0B B0 03 
+I (02:30:21.276) MSG_DECODER: [RolaChem -> Broadcast] Mode toggle command
+I (02:30:21.394) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 06 0E E4 00 00 00 03 
+I (02:30:21.396) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 - Off
+I (02:30:21.604) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 06 0E E4 01 00 01 03 
+I (02:30:21.606) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 - Off
+I (02:30:21.724) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 14 0D F1 00 00 03 
+I (02:30:21.726) MSG_DECODER: [Touch Screen -> Broadcast] Mode - Spa
+I (02:30:21.844) MSG_DECODER: RX MSG: 02 00 50 00 6F 80 00 0D 0D 5B 01 01 03 
+I (02:30:21.846) MSG_DECODER: [Touch Screen -> Internal Channels] Active channels - 0x01 [-------1]
+I (02:30:22.004) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0B 25 00 08 01 02 01 02 00 00 FE 00 00 FE 00 00 0B 00 00 09 00 00 FD 00 00 00 00 00 1B 03 
+I (02:30:22.008) MSG_DECODER: [Touch Screen -> Broadcast] Channel status (8 channels):
+I (02:30:22.015) MSG_DECODER:   Ch1: Filter (1) = On (Active)
+I (02:30:22.020) MSG_DECODER:   Ch2: Cleaning (2) = Off (Inactive)
+I (02:30:22.026) MSG_DECODER:   Ch3: Light Zone (254) = Off (Inactive)
+I (02:30:22.032) MSG_DECODER:   Ch4: Light Zone (254) = Off (Inactive)
+I (02:30:22.039) MSG_DECODER:   Ch5: Jets (11) = Off (Inactive)
+I (02:30:22.044) MSG_DECODER:   Ch6: Blower (9) = Off (Inactive)
+I (02:30:22.050) MSG_DECODER:   Ch7: Heater (253) = Off (Inactive)
+I (02:30:22.056) MSG_DECODER:   Ch8: Unused
+I (02:30:22.124) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 27 0D 04 00 00 03 
+I (02:30:22.125) MSG_DECODER: [Touch Screen -> Broadcast] Valve state (0 slots):
+I (02:30:22.244) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C0 01 00 C1 03 
+I (02:30:22.245) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 state - Off
+I (02:30:22.364) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C1 01 00 C2 03 
+I (02:30:22.366) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 state - Off
+I (02:30:22.484) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E0 01 00 E1 03 
+I (02:30:22.485) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 active - No
+I (02:30:22.644) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E1 01 00 E2 03 
+I (02:30:22.646) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 active - No
+I (02:30:23.624) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0A 0E E8 02 08 0A 03 
+I (02:30:23.626) MSG_DECODER: [Touch Screen -> Broadcast] Firmware version - 2.8
+I (02:30:23.744) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 12 0E F0 05 00 05 03 
+I (02:30:23.746) MSG_DECODER: [Touch Screen -> Broadcast] Touchscreen status - 0x05 (bits 3-2 = 1)
+I (02:30:23.864) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 05 0D E2 01 01 03 
+I (02:30:23.866) MSG_DECODER: [Touch Screen -> Broadcast] Touchscreen unknown (CMD 0x05): 0x01
+I (02:30:23.984) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 06 0E E4 00 00 00 03 
+I (02:30:23.986) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 - Off
+I (02:30:24.104) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 06 0E E4 01 00 01 03 
+I (02:30:24.105) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 - Off
+I (02:30:24.224) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 14 0D F1 00 00 03 
+I (02:30:24.225) MSG_DECODER: [Touch Screen -> Broadcast] Mode - Spa
+I (02:30:24.344) MSG_DECODER: RX MSG: 02 00 50 00 6F 80 00 0D 0D 5B 01 01 03 
+I (02:30:24.345) MSG_DECODER: [Touch Screen -> Internal Channels] Active channels - 0x01 [-------1]
+I (02:30:24.494) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0B 25 00 08 01 02 01 02 00 00 FE 00 00 FE 00 00 0B 00 00 09 00 00 FD 00 00 00 00 00 1B 03 
+I (02:30:24.498) MSG_DECODER: [Touch Screen -> Broadcast] Channel status (8 channels):
+I (02:30:24.504) MSG_DECODER:   Ch1: Filter (1) = On (Active)
+I (02:30:24.510) MSG_DECODER:   Ch2: Cleaning (2) = Off (Inactive)
+I (02:30:24.516) MSG_DECODER:   Ch3: Light Zone (254) = Off (Inactive)
+I (02:30:24.522) MSG_DECODER:   Ch4: Light Zone (254) = Off (Inactive)
+I (02:30:24.528) MSG_DECODER:   Ch5: Jets (11) = Off (Inactive)
+I (02:30:24.534) MSG_DECODER:   Ch6: Blower (9) = Off (Inactive)
+I (02:30:24.540) MSG_DECODER:   Ch7: Heater (253) = Off (Inactive)
+I (02:30:24.545) MSG_DECODER:   Ch8: Unused
+I (02:30:24.624) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 17 10 F7 25 1D 63 54 F9 03 
+I (02:30:24.625) MSG_DECODER: [Touch Screen -> Broadcast] Heater 1 setpoints - spa=37°C/99°F, pool=29°C/84°F
+I (02:30:24.744) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 26 0E 04 01 06 07 03 
+I (02:30:24.744) MSG_DECODER: [Touch Screen -> Broadcast] Config - temperature scale=Celsius, step=1°, heater=Off, mode=heat
+I (02:30:24.864) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C0 01 00 C1 03 
+I (02:30:24.866) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 state - Off
+I (02:30:24.984) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C1 01 00 C2 03 
+I (02:30:24.986) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 state - Off
+I (02:30:25.104) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C2 01 00 C3 03 
+I (02:30:25.106) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 3 state - Off
+I (02:30:25.234) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C3 01 00 C4 03 
+I (02:30:25.236) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 4 state - Off
+I (02:30:25.354) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D0 01 05 D6 03 
+I (02:30:25.356) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 color - Blue (5)
+I (02:30:25.474) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D1 01 05 D7 03 
+I (02:30:25.476) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 color - Blue (5)
+I (02:30:25.594) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D2 01 05 D8 03 
+I (02:30:25.596) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 3 color - Blue (5)
+I (02:30:25.714) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D3 01 05 D9 03 
+I (02:30:25.715) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 4 color - Blue (5)
+I (02:30:25.844) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E0 01 00 E1 03 
+I (02:30:25.846) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 active - No
+I (02:30:25.964) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E1 01 00 E2 03 
+I (02:30:25.966) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 active - No
+I (02:30:26.084) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E2 01 00 E3 03 
+I (02:30:26.086) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 3 active - No
+I (02:30:26.204) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E3 01 00 E4 03 
+I (02:30:26.205) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 4 active - No
+I (02:30:26.574) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 16 0E 06 19 00 19 03 
+I (02:30:26.576) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature - 25°C (temp2: 0°C)
+I (02:30:26.644) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 31 0E 21 19 AA C3 03 
+W (02:30:26.645) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature (alt) - 25°C, temp2: INVALID (raw 0xAA)
+I (02:30:26.714) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 12 0F 03 00 00 08 08 03 
+I (02:30:26.714) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off, Solar output - Inactive
+I (02:30:26.784) MSG_DECODER: RX MSG: 02 00 62 00 50 80 00 2B 0E 6D 02 00 02 03 
+I (02:30:26.784) MSG_DECODER: [Connect 8/10 -> Touch Screen] Controller heartbeat (CMD 0x2B): 0x02 0x00
+I (02:30:31.604) MSG_DECODER: RX MSG: 02 00 90 FF FF 00 00 15 0B B0 03 
+I (02:30:31.606) MSG_DECODER: [RolaChem -> Broadcast] Mode toggle command
+I (02:30:31.724) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 14 0D F1 01 01 03 
+I (02:30:31.727) MSG_DECODER: [Touch Screen -> Broadcast] Mode - Pool
+I (02:30:31.834) MSG_DECODER: RX MSG: 02 00 50 00 6F 80 00 0D 0D 5B 00 00 03 
+I (02:30:31.836) MSG_DECODER: [Touch Screen -> Internal Channels] Active channels - 0x00 [--------]
+I (02:30:31.994) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0B 25 00 08 01 00 00 02 00 00 FE 00 00 FE 00 00 0B 00 00 09 00 00 FD 00 00 00 00 00 18 03 
+I (02:30:31.998) MSG_DECODER: [Touch Screen -> Broadcast] Channel status (8 channels):
+I (02:30:32.005) MSG_DECODER:   Ch1: Filter (1) = Off (Inactive)
+I (02:30:32.010) MSG_DECODER:   Ch2: Cleaning (2) = Off (Inactive)
+I (02:30:32.016) MSG_DECODER:   Ch3: Light Zone (254) = Off (Inactive)
+I (02:30:32.023) MSG_DECODER:   Ch4: Light Zone (254) = Off (Inactive)
+I (02:30:32.029) MSG_DECODER:   Ch5: Jets (11) = Off (Inactive)
+I (02:30:32.034) MSG_DECODER:   Ch6: Blower (9) = Off (Inactive)
+I (02:30:32.040) MSG_DECODER:   Ch7: Heater (253) = Off (Inactive)
+I (02:30:32.046) MSG_DECODER:   Ch8: Unused
+I (02:30:32.124) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 27 0D 04 00 00 03 
+I (02:30:32.125) MSG_DECODER: [Touch Screen -> Broadcast] Valve state (0 slots):
+I (02:30:33.624) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0A 0E E8 02 08 0A 03 
+I (02:30:33.626) MSG_DECODER: [Touch Screen -> Broadcast] Firmware version - 2.8
+I (02:30:33.744) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 12 0E F0 05 00 05 03 
+I (02:30:33.745) MSG_DECODER: [Touch Screen -> Broadcast] Touchscreen status - 0x05 (bits 3-2 = 1)
+I (02:30:33.864) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 05 0D E2 01 01 03 
+I (02:30:33.866) MSG_DECODER: [Touch Screen -> Broadcast] Touchscreen unknown (CMD 0x05): 0x01
+I (02:30:33.984) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 06 0E E4 00 00 00 03 
+I (02:30:33.986) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 - Off
+I (02:30:34.104) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 06 0E E4 01 00 01 03 
+I (02:30:34.106) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 - Off
+I (02:30:34.224) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 14 0D F1 01 01 03 
+I (02:30:34.226) MSG_DECODER: [Touch Screen -> Broadcast] Mode - Pool
+I (02:30:34.344) MSG_DECODER: RX MSG: 02 00 50 00 6F 80 00 0D 0D 5B 00 00 03 
+I (02:30:34.345) MSG_DECODER: [Touch Screen -> Internal Channels] Active channels - 0x00 [--------]
+I (02:30:34.494) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0B 25 00 08 01 00 00 02 00 00 FE 00 00 FE 00 00 0B 00 00 09 00 00 FD 00 00 00 00 00 18 03 
+I (02:30:34.498) MSG_DECODER: [Touch Screen -> Broadcast] Channel status (8 channels):
+I (02:30:34.504) MSG_DECODER:   Ch1: Filter (1) = Off (Inactive)
+I (02:30:34.510) MSG_DECODER:   Ch2: Cleaning (2) = Off (Inactive)
+I (02:30:34.516) MSG_DECODER:   Ch3: Light Zone (254) = Off (Inactive)
+I (02:30:34.522) MSG_DECODER:   Ch4: Light Zone (254) = Off (Inactive)
+I (02:30:34.528) MSG_DECODER:   Ch5: Jets (11) = Off (Inactive)
+I (02:30:34.535) MSG_DECODER:   Ch6: Blower (9) = Off (Inactive)
+I (02:30:34.540) MSG_DECODER:   Ch7: Heater (253) = Off (Inactive)
+I (02:30:34.546) MSG_DECODER:   Ch8: Unused
+I (02:30:34.624) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 17 10 F7 25 1D 63 54 F9 03 
+I (02:30:34.625) MSG_DECODER: [Touch Screen -> Broadcast] Heater 1 setpoints - spa=37°C/99°F, pool=29°C/84°F
+I (02:30:34.744) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 26 0E 04 01 06 07 03 
+I (02:30:34.745) MSG_DECODER: [Touch Screen -> Broadcast] Config - temperature scale=Celsius, step=1°, heater=Off, mode=heat
+I (02:30:34.864) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C0 01 00 C1 03 
+I (02:30:34.866) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 state - Off
+I (02:30:34.984) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C1 01 00 C2 03 
+I (02:30:34.986) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 state - Off
+I (02:30:35.114) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C2 01 00 C3 03 
+I (02:30:35.115) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 3 state - Off
+I (02:30:35.234) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C3 01 00 C4 03 
+I (02:30:35.236) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 4 state - Off
+I (02:30:35.354) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D0 01 05 D6 03 
+I (02:30:35.356) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 color - Blue (5)
+I (02:30:35.474) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D1 01 05 D7 03 
+I (02:30:35.476) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 color - Blue (5)
+I (02:30:35.594) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D2 01 05 D8 03 
+I (02:30:35.595) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 3 color - Blue (5)
+I (02:30:35.724) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D3 01 05 D9 03 
+I (02:30:35.726) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 4 color - Blue (5)
+I (02:30:35.844) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E0 01 00 E1 03 
+I (02:30:35.846) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 active - No
+I (02:30:35.965) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E1 01 00 E2 03 
+I (02:30:35.967) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 active - No
+I (02:30:36.084) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E2 01 00 E3 03 
+I (02:30:36.086) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 3 active - No
+I (02:30:36.204) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E3 01 00 E4 03 
+I (02:30:36.206) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 4 active - No
+I (02:30:36.694) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 16 0E 06 19 00 19 03 
+I (02:30:36.696) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature - 25°C (temp2: 0°C)
+I (02:30:36.754) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 31 0E 21 19 AA C3 03 
+W (02:30:36.755) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature (alt) - 25°C, temp2: INVALID (raw 0xAA)
+I (02:30:36.834) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 12 0F 03 00 00 08 08 03 
+I (02:30:36.835) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off, Solar output - Inactive
+I (02:30:36.894) MSG_DECODER: RX MSG: 02 00 62 00 50 80 00 2B 0E 6D 02 00 02 03 
+I (02:30:36.895) MSG_DECODER: [Connect 8/10 -> Touch Screen] Controller heartbeat (CMD 0x2B): 0x02 0x00
+I (02:30:37.074) MSG_DECODER: RX MSG: 02 00 90 00 50 80 00 11 0D 80 01 01 03 
+W (02:30:37.076) MSG_DECODER: Unhandled [RolaChem -> Touch Screen] CMD=0x11 (Unknown CMD 0x11) LEN=13 payload=[01]
+I (02:30:37.265) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0B 25 00 08 01 01 00 02 01 00 FE 00 00 FE 00 00 0B 00 00 09 00 00 FD 00 00 00 00 00 1A 03 
+I (02:30:37.268) MSG_DECODER: [Touch Screen -> Broadcast] Channel status (8 channels):
+I (02:30:37.275) MSG_DECODER:   Ch1: Filter (1) = Auto (Inactive)
+I (02:30:37.281) MSG_DECODER:   Ch2: Cleaning (2) = Auto (Inactive)
+I (02:30:37.287) MSG_DECODER:   Ch3: Light Zone (254) = Off (Inactive)
+I (02:30:37.293) MSG_DECODER:   Ch4: Light Zone (254) = Off (Inactive)
+I (02:30:37.299) MSG_DECODER:   Ch5: Jets (11) = Off (Inactive)
+I (02:30:37.305) MSG_DECODER:   Ch6: Blower (9) = Off (Inactive)
+I (02:30:37.311) MSG_DECODER:   Ch7: Heater (253) = Off (Inactive)
+I (02:30:37.316) MSG_DECODER:   Ch8: Unused
+I (02:30:37.664) MSG_DECODER: RX MSG: 02 00 50 00 6F 80 00 0D 0D 5B 01 01 03 
+I (02:30:37.667) MSG_DECODER: [Touch Screen -> Internal Channels] Active channels - 0x01 [-------1]
+I (02:30:37.814) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0B 25 00 08 01 01 01 02 01 00 FE 00 00 FE 00 00 0B 00 00 09 00 00 FD 00 00 00 00 00 1B 03 
+I (02:30:37.818) MSG_DECODER: [Touch Screen -> Broadcast] Channel status (8 channels):
+I (02:30:37.825) MSG_DECODER:   Ch1: Filter (1) = Auto (Active)
+I (02:30:37.830) MSG_DECODER:   Ch2: Cleaning (2) = Auto (Inactive)
+I (02:30:37.836) MSG_DECODER:   Ch3: Light Zone (254) = Off (Inactive)
+I (02:30:37.842) MSG_DECODER:   Ch4: Light Zone (254) = Off (Inactive)
+I (02:30:37.848) MSG_DECODER:   Ch5: Jets (11) = Off (Inactive)
+I (02:30:37.854) MSG_DECODER:   Ch6: Blower (9) = Off (Inactive)
+I (02:30:37.860) MSG_DECODER:   Ch7: Heater (253) = Off (Inactive)
+I (02:30:37.866) MSG_DECODER:   Ch8: Unused
+I (02:30:39.624) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0A 0E E8 02 08 0A 03 
+I (02:30:39.626) MSG_DECODER: [Touch Screen -> Broadcast] Firmware version - 2.8
+I (02:30:39.724) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 16 0E 06 19 00 19 03 
+I (02:30:39.726) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature - 25°C (temp2: 0°C)
+I (02:30:39.794) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 31 0E 21 19 AA C3 03 
+W (02:30:39.795) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature (alt) - 25°C, temp2: INVALID (raw 0xAA)
+I (02:30:39.864) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 12 0F 03 00 00 08 08 03 
+I (02:30:39.864) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off, Solar output - Inactive
+I (02:30:39.934) MSG_DECODER: RX MSG: 02 00 62 00 50 80 00 2B 0E 6D 02 00 02 03 
+I (02:30:39.935) MSG_DECODER: [Connect 8/10 -> Touch Screen] Controller heartbeat (CMD 0x2B): 0x02 0x00
+I (02:30:40.054) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 12 0E F0 05 00 05 03 
+I (02:30:40.056) MSG_DECODER: [Touch Screen -> Broadcast] Touchscreen status - 0x05 (bits 3-2 = 1)
+I (02:30:40.174) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 05 0D E2 01 01 03 
+I (02:30:40.176) MSG_DECODER: [Touch Screen -> Broadcast] Touchscreen unknown (CMD 0x05): 0x01
+I (02:30:40.294) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 06 0E E4 00 00 00 03 
+I (02:30:40.296) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 - Off
+I (02:30:40.414) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 06 0E E4 01 00 01 03 
+I (02:30:40.416) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 - Off
+I (02:30:40.534) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 14 0D F1 01 01 03 
+I (02:30:40.536) MSG_DECODER: [Touch Screen -> Broadcast] Mode - Pool
+I (02:30:40.654) MSG_DECODER: RX MSG: 02 00 50 00 6F 80 00 0D 0D 5B 01 01 03 
+I (02:30:40.656) MSG_DECODER: [Touch Screen -> Internal Channels] Active channels - 0x01 [-------1]
+I (02:30:40.814) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0B 25 00 08 01 01 01 02 01 00 FE 00 00 FE 00 00 0B 00 00 09 00 00 FD 00 00 00 00 00 1B 03 
+I (02:30:40.818) MSG_DECODER: [Touch Screen -> Broadcast] Channel status (8 channels):
+I (02:30:40.824) MSG_DECODER:   Ch1: Filter (1) = Auto (Active)
+I (02:30:40.830) MSG_DECODER:   Ch2: Cleaning (2) = Auto (Inactive)
+I (02:30:40.836) MSG_DECODER:   Ch3: Light Zone (254) = Off (Inactive)
+I (02:30:40.842) MSG_DECODER:   Ch4: Light Zone (254) = Off (Inactive)
+I (02:30:40.849) MSG_DECODER:   Ch5: Jets (11) = Off (Inactive)
+I (02:30:40.854) MSG_DECODER:   Ch6: Blower (9) = Off (Inactive)
+I (02:30:40.860) MSG_DECODER:   Ch7: Heater (253) = Off (Inactive)
+I (02:30:40.866) MSG_DECODER:   Ch8: Unused
+I (02:30:40.934) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 17 10 F7 25 1D 63 54 F9 03 
+I (02:30:40.936) MSG_DECODER: [Touch Screen -> Broadcast] Heater 1 setpoints - spa=37°C/99°F, pool=29°C/84°F
+I (02:30:41.054) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 26 0E 04 01 06 07 03 
+I (02:30:41.056) MSG_DECODER: [Touch Screen -> Broadcast] Config - temperature scale=Celsius, step=1°, heater=Off, mode=heat
+I (02:30:41.174) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C0 01 00 C1 03 
+I (02:30:41.176) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 state - Off
+I (02:30:41.294) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C1 01 00 C2 03 
+I (02:30:41.296) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 state - Off
+I (02:30:41.424) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C2 01 00 C3 03 
+I (02:30:41.425) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 3 state - Off
+I (02:30:41.544) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C3 01 00 C4 03 
+I (02:30:41.544) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 4 state - Off
+I (02:30:41.664) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D0 01 05 D6 03 
+I (02:30:41.666) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 color - Blue (5)
+I (02:30:41.784) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D1 01 05 D7 03 
+I (02:30:41.786) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 color - Blue (5)
+I (02:30:41.904) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D2 01 05 D8 03 
+I (02:30:41.904) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 3 color - Blue (5)
+I (02:30:42.034) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D3 01 05 D9 03 
+I (02:30:42.036) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 4 color - Blue (5)
+I (02:30:42.154) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E0 01 00 E1 03 
+I (02:30:42.155) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 active - No
+I (02:30:42.274) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E1 01 00 E2 03 
+I (02:30:42.276) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 active - No
+I (02:30:42.394) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E2 01 00 E3 03 
+I (02:30:42.396) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 3 active - No
+I (02:30:42.514) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E3 01 00 E4 03 
+I (02:30:42.516) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 4 active - No
+I (02:30:42.754) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 16 0E 06 19 00 19 03 
+I (02:30:42.756) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature - 25°C (temp2: 0°C)
+I (02:30:42.824) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 31 0E 21 19 AA C3 03 
+W (02:30:42.825) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature (alt) - 25°C, temp2: INVALID (raw 0xAA)
+I (02:30:42.894) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 12 0F 03 00 00 08 08 03 
+I (02:30:42.894) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off, Solar output - Inactive
+I (02:30:42.964) MSG_DECODER: RX MSG: 02 00 62 00 50 80 00 2B 0E 6D 02 00 02 03 
+I (02:30:42.964) MSG_DECODER: [Connect 8/10 -> Touch Screen] Controller heartbeat (CMD 0x2B): 0x02 0x00
+I (02:30:44.624) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 20 03 FF 22 03 
+I (02:30:44.626) MSG_DECODER: [Touch Screen -> Broadcast] Active favourite - None (0xFF)
+I (02:31:00.824) BUS: TX: 02 AC 1D FF FF 80 00 0A 0E 61 01 13 14 03 (14 bytes)
+I (02:31:00.850) BUS: TX complete: 14 bytes written and transmitted
+I (02:31:00.854) MSG_DECODER: RX MSG: 02 AC 1D FF FF 80 00 0A 0E 61 01 13 14 03 
+I (02:31:00.854) MSG_DECODER: [Pool Controller ESP32 -> Broadcast] Firmware version - 1.19
+I (02:31:07.424) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 12 0D 2F 01 01 03 
+I (02:31:07.426) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator status - 0x01
+I (02:31:07.614) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1D 0F 3C 01 4A 00 4B 03 
+I (02:31:07.616) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator pH setpoint - 7.4
+I (02:31:07.804) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1D 0F 3C 02 9E 02 A2 03 
+I (02:31:07.806) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator ORP setpoint - 670 mV
+I (02:31:19.634) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 FD 0F DC 1E 0D 04 2F 03 
+I (02:31:19.636) MSG_DECODER: [Touch Screen -> Broadcast] Controller time - 13:30 Friday
+I (02:31:22.174) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1D 0F 3C 01 4B 00 4C 03 
+I (02:31:22.176) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator pH setpoint - 7.5
+I (02:31:28.884) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1D 0F 3C 02 A3 02 A7 03 
+I (02:31:28.886) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator ORP setpoint - 675 mV
+I (02:31:29.634) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E8 03 01 EC 03 
+I (02:31:29.636) MSG_DECODER: [Touch Screen -> Broadcast] Timer 1 configured - Yes
+I (02:31:29.754) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E9 03 01 ED 03 
+I (02:31:29.756) MSG_DECODER: [Touch Screen -> Broadcast] Timer 2 configured - Yes
+I (02:31:39.634) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0A 0E E8 02 08 0A 03 
+I (02:31:39.636) MSG_DECODER: [Touch Screen -> Broadcast] Firmware version - 2.8
+I (02:31:39.754) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 12 0E F0 05 00 05 03 
+I (02:31:39.756) MSG_DECODER: [Touch Screen -> Broadcast] Touchscreen status - 0x05 (bits 3-2 = 1)
+I (02:31:39.874) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 05 0D E2 01 01 03 
+I (02:31:39.876) MSG_DECODER: [Touch Screen -> Broadcast] Touchscreen unknown (CMD 0x05): 0x01
+I (02:31:39.994) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 06 0E E4 00 00 00 03 
+I (02:31:39.996) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 - Off
+I (02:31:40.114) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 06 0E E4 01 00 01 03 
+I (02:31:40.116) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 - Off
+I (02:31:40.234) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 14 0D F1 01 01 03 
+I (02:31:40.236) MSG_DECODER: [Touch Screen -> Broadcast] Mode - Pool
+I (02:31:40.354) MSG_DECODER: RX MSG: 02 00 50 00 6F 80 00 0D 0D 5B 01 01 03 
+I (02:31:40.356) MSG_DECODER: [Touch Screen -> Internal Channels] Active channels - 0x01 [-------1]
+I (02:31:40.504) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0B 25 00 08 01 01 01 02 01 00 FE 00 00 FE 00 00 0B 00 00 09 00 00 FD 00 00 00 00 00 1B 03 
+I (02:31:40.508) MSG_DECODER: [Touch Screen -> Broadcast] Channel status (8 channels):
+I (02:31:40.515) MSG_DECODER:   Ch1: Filter (1) = Auto (Active)
+I (02:31:40.520) MSG_DECODER:   Ch2: Cleaning (2) = Auto (Inactive)
+I (02:31:40.526) MSG_DECODER:   Ch3: Light Zone (254) = Off (Inactive)
+I (02:31:40.533) MSG_DECODER:   Ch4: Light Zone (254) = Off (Inactive)
+I (02:31:40.539) MSG_DECODER:   Ch5: Jets (11) = Off (Inactive)
+I (02:31:40.545) MSG_DECODER:   Ch6: Blower (9) = Off (Inactive)
+I (02:31:40.550) MSG_DECODER:   Ch7: Heater (253) = Off (Inactive)
+I (02:31:40.556) MSG_DECODER:   Ch8: Unused
+I (02:31:40.634) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 17 10 F7 25 1D 63 54 F9 03 
+I (02:31:40.636) MSG_DECODER: [Touch Screen -> Broadcast] Heater 1 setpoints - spa=37°C/99°F, pool=29°C/84°F
+I (02:31:40.754) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 26 0E 04 01 06 07 03 
+I (02:31:40.756) MSG_DECODER: [Touch Screen -> Broadcast] Config - temperature scale=Celsius, step=1°, heater=Off, mode=heat
+I (02:31:40.874) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C0 01 00 C1 03 
+I (02:31:40.876) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 state - Off
+I (02:31:40.994) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C1 01 00 C2 03 
+I (02:31:40.995) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 state - Off
+I (02:31:41.124) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C2 01 00 C3 03 
+I (02:31:41.126) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 3 state - Off
+I (02:31:41.244) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C3 01 00 C4 03 
+I (02:31:41.246) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 4 state - Off
+I (02:31:41.364) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D0 01 05 D6 03 
+I (02:31:41.366) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 color - Blue (5)
+I (02:31:41.484) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D1 01 05 D7 03 
+I (02:31:41.485) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 color - Blue (5)
+I (02:31:41.604) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D2 01 05 D8 03 
+I (02:31:41.605) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 3 color - Blue (5)
+I (02:31:41.734) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D3 01 05 D9 03 
+I (02:31:41.736) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 4 color - Blue (5)
+I (02:31:41.854) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E0 01 00 E1 03 
+I (02:31:41.856) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 active - No
+I (02:31:41.974) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E1 01 00 E2 03 
+I (02:31:41.977) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 active - No
+I (02:31:42.094) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E2 01 00 E3 03 
+I (02:31:42.096) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 3 active - No
+I (02:31:42.214) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E3 01 00 E4 03 
+I (02:31:42.216) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 4 active - No
+I (02:31:42.464) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 16 0E 06 19 00 19 03 
+I (02:31:42.466) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature - 25°C (temp2: 0°C)
+I (02:31:42.534) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 31 0E 21 19 AA C3 03 
+W (02:31:42.535) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature (alt) - 25°C, temp2: INVALID (raw 0xAA)
+I (02:31:42.604) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 12 0F 03 00 00 08 08 03 
+I (02:31:42.605) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off, Solar output - Inactive
+I (02:31:42.674) MSG_DECODER: RX MSG: 02 00 62 00 50 80 00 2B 0E 6D 02 00 02 03 
+I (02:31:42.676) MSG_DECODER: [Connect 8/10 -> Touch Screen] Controller heartbeat (CMD 0x2B): 0x02 0x00
+I (02:31:44.634) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 B8 0B 01 C4 03 
+W (02:31:44.636) MSG_DECODER: [Touch Screen -> Broadcast] Unhandled register - Reg=0xB8, Slot=0x0B, Payload[3]: B8 0B 01
+I (02:31:54.874) HEAP_MON: heap: free=212020 B, min_free=134308 B, largest_block=192512 B
+I (02:31:57.844) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1D 0F 3C 01 4A 00 4B 03 
+I (02:31:57.846) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator pH setpoint - 7.4
+I (02:31:59.634) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 B9 0B 01 C5 03 
+W (02:31:59.636) MSG_DECODER: [Touch Screen -> Broadcast] Unhandled register - Reg=0xB9, Slot=0x0B, Payload[3]: B9 0B 01
+I (02:32:00.844) BUS: TX: 02 AC 1D FF FF 80 00 0A 0E 61 01 13 14 03 (14 bytes)
+I (02:32:00.866) BUS: TX complete: 14 bytes written and transmitted
+I (02:32:00.874) MSG_DECODER: RX MSG: 02 AC 1D FF FF 80 00 0A 0E 61 01 13 14 03 
+I (02:32:00.875) MSG_DECODER: [Pool Controller ESP32 -> Broadcast] Firmware version - 1.19
+I (02:32:07.654) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 12 0D 2F 01 01 03 
+I (02:32:07.656) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator status - 0x01
+I (02:32:07.844) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1D 0F 3C 01 4A 00 4B 03 
+I (02:32:07.846) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator pH setpoint - 7.4
+I (02:32:08.034) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1D 0F 3C 02 A3 02 A7 03 
+I (02:32:08.036) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator ORP setpoint - 675 mV
+I (02:32:10.994) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1D 0F 3C 02 9E 02 A2 03 
+I (02:32:10.996) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator ORP setpoint - 670 mV
+I (02:32:19.644) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 FD 0F DC 1F 0D 04 30 03 
+I (02:32:19.646) MSG_DECODER: [Touch Screen -> Broadcast] Controller time - 13:31 Friday
+I (02:32:29.644) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 64 00 01 65 03 
+I (02:32:29.646) MSG_DECODER: [Touch Screen -> Broadcast] Separate pool/spa modes - Yes (0x01)
+I (02:32:39.644) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0A 0E E8 02 08 0A 03 
+I (02:32:39.646) MSG_DECODER: [Touch Screen -> Broadcast] Firmware version - 2.8
+I (02:32:39.764) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 12 0E F0 05 00 05 03 
+I (02:32:39.765) MSG_DECODER: [Touch Screen -> Broadcast] Touchscreen status - 0x05 (bits 3-2 = 1)
+I (02:32:39.884) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 05 0D E2 01 01 03 
+I (02:32:39.886) MSG_DECODER: [Touch Screen -> Broadcast] Touchscreen unknown (CMD 0x05): 0x01
+I (02:32:40.004) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 06 0E E4 00 00 00 03 
+I (02:32:40.005) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 - Off
+I (02:32:40.124) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 06 0E E4 01 00 01 03 
+I (02:32:40.126) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 - Off
+I (02:32:40.244) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 14 0D F1 01 01 03 
+I (02:32:40.246) MSG_DECODER: [Touch Screen -> Broadcast] Mode - Pool
+I (02:32:40.364) MSG_DECODER: RX MSG: 02 00 50 00 6F 80 00 0D 0D 5B 01 01 03 
+I (02:32:40.366) MSG_DECODER: [Touch Screen -> Internal Channels] Active channels - 0x01 [-------1]
+I (02:32:40.514) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0B 25 00 08 01 01 01 02 01 00 FE 00 00 FE 00 00 0B 00 00 09 00 00 FD 00 00 00 00 00 1B 03 
+I (02:32:40.517) MSG_DECODER: [Touch Screen -> Broadcast] Channel status (8 channels):
+I (02:32:40.524) MSG_DECODER:   Ch1: Filter (1) = Auto (Active)
+I (02:32:40.530) MSG_DECODER:   Ch2: Cleaning (2) = Auto (Inactive)
+I (02:32:40.536) MSG_DECODER:   Ch3: Light Zone (254) = Off (Inactive)
+I (02:32:40.542) MSG_DECODER:   Ch4: Light Zone (254) = Off (Inactive)
+I (02:32:40.548) MSG_DECODER:   Ch5: Jets (11) = Off (Inactive)
+I (02:32:40.554) MSG_DECODER:   Ch6: Blower (9) = Off (Inactive)
+I (02:32:40.560) MSG_DECODER:   Ch7: Heater (253) = Off (Inactive)
+I (02:32:40.566) MSG_DECODER:   Ch8: Unused
+I (02:32:40.644) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 17 10 F7 25 1D 63 54 F9 03 
+I (02:32:40.644) MSG_DECODER: [Touch Screen -> Broadcast] Heater 1 setpoints - spa=37°C/99°F, pool=29°C/84°F
+I (02:32:40.764) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 26 0E 04 01 06 07 03 
+I (02:32:40.766) MSG_DECODER: [Touch Screen -> Broadcast] Config - temperature scale=Celsius, step=1°, heater=Off, mode=heat
+I (02:32:40.884) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C0 01 00 C1 03 
+I (02:32:40.886) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 state - Off
+I (02:32:41.004) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C1 01 00 C2 03 
+I (02:32:41.006) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 state - Off
+I (02:32:41.134) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C2 01 00 C3 03 
+I (02:32:41.136) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 3 state - Off
+I (02:32:41.254) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C3 01 00 C4 03 
+I (02:32:41.256) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 4 state - Off
+I (02:32:41.374) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D0 01 05 D6 03 
+I (02:32:41.376) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 color - Blue (5)
+I (02:32:41.494) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D1 01 05 D7 03 
+I (02:32:41.496) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 color - Blue (5)
+I (02:32:41.614) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D2 01 05 D8 03 
+I (02:32:41.616) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 3 color - Blue (5)
+I (02:32:41.744) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D3 01 05 D9 03 
+I (02:32:41.746) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 4 color - Blue (5)
+I (02:32:41.864) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E0 01 00 E1 03 
+I (02:32:41.866) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 active - No
+I (02:32:41.984) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E1 01 00 E2 03 
+I (02:32:41.986) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 active - No
+I (02:32:42.104) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E2 01 00 E3 03 
+I (02:32:42.105) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 3 active - No
+I (02:32:42.224) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E3 01 00 E4 03 
+I (02:32:42.226) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 4 active - No
+I (02:32:43.184) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 16 0E 06 19 00 19 03 
+I (02:32:43.186) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature - 25°C (temp2: 0°C)
+I (02:32:43.254) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 31 0E 21 19 AA C3 03 
+W (02:32:43.256) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature (alt) - 25°C, temp2: INVALID (raw 0xAA)
+I (02:32:43.324) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 12 0F 03 00 00 08 08 03 
+I (02:32:43.325) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off, Solar output - Inactive
+I (02:32:43.394) MSG_DECODER: RX MSG: 02 00 62 00 50 80 00 2B 0E 6D 02 00 02 03 
+I (02:32:43.396) MSG_DECODER: [Connect 8/10 -> Touch Screen] Controller heartbeat (CMD 0x2B): 0x02 0x00
+I (02:32:44.644) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 65 00 01 66 03 
+I (02:32:44.646) MSG_DECODER: [Touch Screen -> Broadcast] Mode register - Pool (0x01)
+I (02:32:59.644) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C8 00 03 CB 03 
+I (02:32:59.646) MSG_DECODER: [Touch Screen -> Broadcast] Heater 1 type - Connect Inbuilt (3)
+I (02:33:00.864) BUS: TX: 02 AC 1D FF FF 80 00 0A 0E 61 01 13 14 03 (14 bytes)
+I (02:33:00.885) BUS: TX complete: 14 bytes written and transmitted
+I (02:33:00.894) MSG_DECODER: RX MSG: 02 AC 1D FF FF 80 00 0A 0E 61 01 13 14 03 
+I (02:33:00.894) MSG_DECODER: [Pool Controller ESP32 -> Broadcast] Firmware version - 1.19
+I (02:33:07.884) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 12 0D 2F 01 01 03 
+I (02:33:07.886) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator status - 0x01
+I (02:33:08.074) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1D 0F 3C 01 4A 00 4B 03 
+I (02:33:08.076) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator pH setpoint - 7.4
+I (02:33:08.264) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1D 0F 3C 02 9E 02 A2 03 
+I (02:33:08.266) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator ORP setpoint - 670 mV
+I (02:33:14.654) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C9 00 00 C9 03 
+W (02:33:14.656) MSG_DECODER: [Touch Screen -> Broadcast] Unhandled register - Reg=0xC9, Slot=0x00, Payload[3]: C9 00 00
+I (02:33:19.654) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 FD 0F DC 20 0D 04 31 03 
+I (02:33:19.656) MSG_DECODER: [Touch Screen -> Broadcast] Controller time - 13:32 Friday
+I (02:33:25.775) esp-x509-crt-bundle: Certificate validated
+I (02:33:27.416) FW_UPDATE: installed=v1.19.0-24-g8616f28-dirty latest=v1.19.0 (5 releases) update_available=0
+I (02:33:29.654) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 10 18 CA 00 00 06 D0 03 
+I (02:33:29.656) MSG_DECODER: [Touch Screen -> Broadcast] Heater 1 power channel - Ch7
+I (02:33:39.654) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0A 0E E8 02 08 0A 03 
+I (02:33:39.656) MSG_DECODER: [Touch Screen -> Broadcast] Firmware version - 2.8
+I (02:33:39.774) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 12 0E F0 05 00 05 03 
+I (02:33:39.774) MSG_DECODER: [Touch Screen -> Broadcast] Touchscreen status - 0x05 (bits 3-2 = 1)
+I (02:33:39.894) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 05 0D E2 01 01 03 
+I (02:33:39.895) MSG_DECODER: [Touch Screen -> Broadcast] Touchscreen unknown (CMD 0x05): 0x01
+I (02:33:40.014) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 06 0E E4 00 00 00 03 
+I (02:33:40.015) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 - Off
+I (02:33:40.134) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 06 0E E4 01 00 01 03 
+I (02:33:40.135) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 - Off
+I (02:33:40.254) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 14 0D F1 01 01 03 
+I (02:33:40.256) MSG_DECODER: [Touch Screen -> Broadcast] Mode - Pool
+I (02:33:40.374) MSG_DECODER: RX MSG: 02 00 50 00 6F 80 00 0D 0D 5B 01 01 03 
+I (02:33:40.375) MSG_DECODER: [Touch Screen -> Internal Channels] Active channels - 0x01 [-------1]
+I (02:33:40.524) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0B 25 00 08 01 01 01 02 01 00 FE 00 00 FE 00 00 0B 00 00 09 00 00 FD 00 00 00 00 00 1B 03 
+I (02:33:40.528) MSG_DECODER: [Touch Screen -> Broadcast] Channel status (8 channels):
+I (02:33:40.534) MSG_DECODER:   Ch1: Filter (1) = Auto (Active)
+I (02:33:40.540) MSG_DECODER:   Ch2: Cleaning (2) = Auto (Inactive)
+I (02:33:40.546) MSG_DECODER:   Ch3: Light Zone (254) = Off (Inactive)
+I (02:33:40.552) MSG_DECODER:   Ch4: Light Zone (254) = Off (Inactive)
+I (02:33:40.559) MSG_DECODER:   Ch5: Jets (11) = Off (Inactive)
+I (02:33:40.564) MSG_DECODER:   Ch6: Blower (9) = Off (Inactive)
+I (02:33:40.570) MSG_DECODER:   Ch7: Heater (253) = Off (Inactive)
+I (02:33:40.576) MSG_DECODER:   Ch8: Unused
+I (02:33:40.654) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 17 10 F7 25 1D 63 54 F9 03 
+I (02:33:40.656) MSG_DECODER: [Touch Screen -> Broadcast] Heater 1 setpoints - spa=37°C/99°F, pool=29°C/84°F
+I (02:33:40.774) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 26 0E 04 01 06 07 03 
+I (02:33:40.775) MSG_DECODER: [Touch Screen -> Broadcast] Config - temperature scale=Celsius, step=1°, heater=Off, mode=heat
+I (02:33:40.894) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C0 01 00 C1 03 
+I (02:33:40.895) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 state - Off
+I (02:33:41.014) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C1 01 00 C2 03 
+I (02:33:41.015) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 state - Off
+I (02:33:41.134) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C2 01 00 C3 03 
+I (02:33:41.136) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 3 state - Off
+I (02:33:41.264) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C3 01 00 C4 03 
+I (02:33:41.266) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 4 state - Off
+I (02:33:41.384) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D0 01 05 D6 03 
+I (02:33:41.386) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 color - Blue (5)
+I (02:33:41.504) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D1 01 05 D7 03 
+I (02:33:41.506) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 color - Blue (5)
+I (02:33:41.624) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D2 01 05 D8 03 
+I (02:33:41.626) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 3 color - Blue (5)
+I (02:33:41.744) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D3 01 05 D9 03 
+I (02:33:41.746) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 4 color - Blue (5)
+I (02:33:41.874) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E0 01 00 E1 03 
+I (02:33:41.875) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 active - No
+I (02:33:41.994) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E1 01 00 E2 03 
+I (02:33:41.996) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 active - No
+I (02:33:42.114) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E2 01 00 E3 03 
+I (02:33:42.116) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 3 active - No
+I (02:33:42.234) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E3 01 00 E4 03 
+I (02:33:42.236) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 4 active - No
+I (02:33:42.894) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 16 0E 06 19 00 19 03 
+I (02:33:42.896) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature - 25°C (temp2: 0°C)
+I (02:33:42.964) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 31 0E 21 19 AA C3 03 
+W (02:33:42.965) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature (alt) - 25°C, temp2: INVALID (raw 0xAA)
+I (02:33:43.034) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 12 0F 03 00 00 08 08 03 
+I (02:33:43.034) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off, Solar output - Inactive
+I (02:33:43.104) MSG_DECODER: RX MSG: 02 00 62 00 50 80 00 2B 0E 6D 02 00 02 03 
+I (02:33:43.104) MSG_DECODER: [Connect 8/10 -> Touch Screen] Controller heartbeat (CMD 0x2B): 0x02 0x00
+I (02:33:44.654) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E6 00 00 E6 03 
+I (02:33:44.656) MSG_DECODER: [Touch Screen -> Broadcast] Heater 1 state - Off (0x00)
+I (02:33:59.654) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E7 00 1D 04 03 
+I (02:33:59.656) MSG_DECODER: [Touch Screen -> Broadcast] Heater 1 Pool setpoint - 29°C
+I (02:34:00.884) BUS: TX: 02 AC 1D FF FF 80 00 0A 0E 61 01 13 14 03 (14 bytes)
+I (02:34:00.908) BUS: TX complete: 14 bytes written and transmitted
+I (02:34:00.914) MSG_DECODER: RX MSG: 02 AC 1D FF FF 80 00 0A 0E 61 01 13 14 03 
+I (02:34:00.915) MSG_DECODER: [Pool Controller ESP32 -> Broadcast] Firmware version - 1.19
+I (02:34:07.114) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 12 0D 2F 01 01 03 
+I (02:34:07.116) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator status - 0x01
+I (02:34:07.304) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1D 0F 3C 01 4A 00 4B 03 
+I (02:34:07.306) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator pH setpoint - 7.4
+I (02:34:07.494) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1D 0F 3C 02 9E 02 A2 03 
+I (02:34:07.496) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator ORP setpoint - 670 mV
+I (02:34:14.654) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E8 00 25 0D 03 
+I (02:34:14.656) MSG_DECODER: [Touch Screen -> Broadcast] Heater 1 Spa setpoint - 37°C
+I (02:34:19.664) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 FD 0F DC 21 0D 04 32 03 
+I (02:34:19.666) MSG_DECODER: [Touch Screen -> Broadcast] Controller time - 13:33 Friday
+I (02:34:29.664) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 F0 01 FF F0 03 
+I (02:34:29.666) MSG_DECODER: [Touch Screen -> Broadcast] Multicolor light type - None
+I (02:34:39.664) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0A 0E E8 02 08 0A 03 
+I (02:34:39.666) MSG_DECODER: [Touch Screen -> Broadcast] Firmware version - 2.8
+I (02:34:39.784) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 12 0E F0 05 00 05 03 
+I (02:34:39.785) MSG_DECODER: [Touch Screen -> Broadcast] Touchscreen status - 0x05 (bits 3-2 = 1)
+I (02:34:39.904) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 05 0D E2 01 01 03 
+I (02:34:39.906) MSG_DECODER: [Touch Screen -> Broadcast] Touchscreen unknown (CMD 0x05): 0x01
+I (02:34:40.024) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 06 0E E4 00 00 00 03 
+I (02:34:40.025) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 - Off
+I (02:34:40.145) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 06 0E E4 01 00 01 03 
+I (02:34:40.147) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 - Off
+I (02:34:40.264) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 14 0D F1 01 01 03 
+I (02:34:40.266) MSG_DECODER: [Touch Screen -> Broadcast] Mode - Pool
+I (02:34:40.384) MSG_DECODER: RX MSG: 02 00 50 00 6F 80 00 0D 0D 5B 01 01 03 
+I (02:34:40.386) MSG_DECODER: [Touch Screen -> Internal Channels] Active channels - 0x01 [-------1]
+I (02:34:40.534) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0B 25 00 08 01 01 01 02 01 00 FE 00 00 FE 00 00 0B 00 00 09 00 00 FD 00 00 00 00 00 1B 03 
+I (02:34:40.538) MSG_DECODER: [Touch Screen -> Broadcast] Channel status (8 channels):
+I (02:34:40.545) MSG_DECODER:   Ch1: Filter (1) = Auto (Active)
+I (02:34:40.550) MSG_DECODER:   Ch2: Cleaning (2) = Auto (Inactive)
+I (02:34:40.556) MSG_DECODER:   Ch3: Light Zone (254) = Off (Inactive)
+I (02:34:40.562) MSG_DECODER:   Ch4: Light Zone (254) = Off (Inactive)
+I (02:34:40.569) MSG_DECODER:   Ch5: Jets (11) = Off (Inactive)
+I (02:34:40.574) MSG_DECODER:   Ch6: Blower (9) = Off (Inactive)
+I (02:34:40.580) MSG_DECODER:   Ch7: Heater (253) = Off (Inactive)
+I (02:34:40.586) MSG_DECODER:   Ch8: Unused
+I (02:34:40.664) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 17 10 F7 25 1D 63 54 F9 03 
+I (02:34:40.666) MSG_DECODER: [Touch Screen -> Broadcast] Heater 1 setpoints - spa=37°C/99°F, pool=29°C/84°F
+I (02:34:40.784) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 26 0E 04 01 06 07 03 
+I (02:34:40.786) MSG_DECODER: [Touch Screen -> Broadcast] Config - temperature scale=Celsius, step=1°, heater=Off, mode=heat
+I (02:34:40.904) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C0 01 00 C1 03 
+I (02:34:40.906) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 state - Off
+I (02:34:41.024) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C1 01 00 C2 03 
+I (02:34:41.026) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 state - Off
+I (02:34:41.144) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C2 01 00 C3 03 
+I (02:34:41.146) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 3 state - Off
+I (02:34:41.274) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C3 01 00 C4 03 
+I (02:34:41.276) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 4 state - Off
+I (02:34:41.394) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D0 01 05 D6 03 
+I (02:34:41.396) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 color - Blue (5)
+I (02:34:41.514) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D1 01 05 D7 03 
+I (02:34:41.516) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 color - Blue (5)
+I (02:34:41.634) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D2 01 05 D8 03 
+I (02:34:41.634) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 3 color - Blue (5)
+I (02:34:41.754) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D3 01 05 D9 03 
+I (02:34:41.756) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 4 color - Blue (5)
+I (02:34:41.884) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E0 01 00 E1 03 
+I (02:34:41.885) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 active - No
+I (02:34:42.004) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E1 01 00 E2 03 
+I (02:34:42.006) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 active - No
+I (02:34:42.124) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E2 01 00 E3 03 
+I (02:34:42.125) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 3 active - No
+I (02:34:42.284) MSG_DECODER: RX MSG: 02 00 90 00 50 80 00 11 0D 80 01 01 03 
+W (02:34:42.285) MSG_DECODER: Unhandled [RolaChem -> Touch Screen] CMD=0x11 (Unknown CMD 0x11) LEN=13 payload=[01]
+I (02:34:42.454) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E3 01 00 E4 03 
+I (02:34:42.456) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 4 active - No
+I (02:34:42.574) MSG_DECODER: RX MSG: 02 00 50 00 6F 80 00 0D 0D 5B 01 01 03 
+I (02:34:42.576) MSG_DECODER: [Touch Screen -> Internal Channels] Active channels - 0x01 [-------1]
+I (02:34:42.634) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 16 0E 06 19 00 19 03 
+I (02:34:42.635) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature - 25°C (temp2: 0°C)
+I (02:34:42.704) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 31 0E 21 19 AA C3 03 
+W (02:34:42.705) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature (alt) - 25°C, temp2: INVALID (raw 0xAA)
+I (02:34:42.774) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 12 0F 03 00 00 08 08 03 
+I (02:34:42.775) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off, Solar output - Inactive
+I (02:34:42.844) MSG_DECODER: RX MSG: 02 00 62 00 50 80 00 2B 0E 6D 02 00 02 03 
+I (02:34:42.846) MSG_DECODER: [Connect 8/10 -> Touch Screen] Controller heartbeat (CMD 0x2B): 0x02 0x00
+I (02:34:43.004) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0B 25 00 08 01 02 01 02 01 00 FE 00 00 FE 00 00 0B 00 00 09 00 00 FD 00 00 00 00 00 1C 03 
+I (02:34:43.008) MSG_DECODER: [Touch Screen -> Broadcast] Channel status (8 channels):
+I (02:34:43.015) MSG_DECODER:   Ch1: Filter (1) = On (Active)
+I (02:34:43.020) MSG_DECODER:   Ch2: Cleaning (2) = Auto (Inactive)
+I (02:34:43.026) MSG_DECODER:   Ch3: Light Zone (254) = Off (Inactive)
+I (02:34:43.032) MSG_DECODER:   Ch4: Light Zone (254) = Off (Inactive)
+I (02:34:43.039) MSG_DECODER:   Ch5: Jets (11) = Off (Inactive)
+I (02:34:43.044) MSG_DECODER:   Ch6: Blower (9) = Off (Inactive)
+I (02:34:43.050) MSG_DECODER:   Ch7: Heater (253) = Off (Inactive)
+I (02:34:43.056) MSG_DECODER:   Ch8: Unused
+I (02:34:43.294) MSG_DECODER: RX MSG: 02 00 90 00 50 80 00 11 0D 80 01 01 03 
+W (02:34:43.296) MSG_DECODER: Unhandled [RolaChem -> Touch Screen] CMD=0x11 (Unknown CMD 0x11) LEN=13 payload=[01]
+I (02:34:43.454) MSG_DECODER: RX MSG: 02 00 50 00 6F 80 00 0D 0D 5B 00 00 03 
+I (02:34:43.456) MSG_DECODER: [Touch Screen -> Internal Channels] Active channels - 0x00 [--------]
+I (02:34:43.604) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0B 25 00 08 01 00 00 02 00 00 FE 00 00 FE 00 00 0B 00 00 09 00 00 FD 00 00 00 00 00 18 03 
+I (02:34:43.608) MSG_DECODER: [Touch Screen -> Broadcast] Channel status (8 channels):
+I (02:34:43.614) MSG_DECODER:   Ch1: Filter (1) = Off (Inactive)
+I (02:34:43.620) MSG_DECODER:   Ch2: Cleaning (2) = Off (Inactive)
+I (02:34:43.626) MSG_DECODER:   Ch3: Light Zone (254) = Off (Inactive)
+I (02:34:43.632) MSG_DECODER:   Ch4: Light Zone (254) = Off (Inactive)
+I (02:34:43.638) MSG_DECODER:   Ch5: Jets (11) = Off (Inactive)
+I (02:34:43.644) MSG_DECODER:   Ch6: Blower (9) = Off (Inactive)
+I (02:34:43.650) MSG_DECODER:   Ch7: Heater (253) = Off (Inactive)
+I (02:34:43.656) MSG_DECODER:   Ch8: Unused
+I (02:34:44.664) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 BC 0D 00 C9 03 
+W (02:34:44.666) MSG_DECODER: [Touch Screen -> Broadcast] Unhandled register - Reg=0xBC, Slot=0x0D, Payload[3]: BC 0D 00
+I (02:34:44.784) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 BD 0D 00 CA 03 
+W (02:34:44.785) MSG_DECODER: [Touch Screen -> Broadcast] Unhandled register - Reg=0xBD, Slot=0x0D, Payload[3]: BD 0D 00
+I (02:34:44.904) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 BE 0D 00 CB 03 
+W (02:34:44.905) MSG_DECODER: [Touch Screen -> Broadcast] Unhandled register - Reg=0xBE, Slot=0x0D, Payload[3]: BE 0D 00
+I (02:34:45.034) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 BF 0D 00 CC 03 
+W (02:34:45.036) MSG_DECODER: [Touch Screen -> Broadcast] Unhandled register - Reg=0xBF, Slot=0x0D, Payload[3]: BF 0D 00
+I (02:34:45.154) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C0 0D 00 CD 03 
+W (02:34:45.156) MSG_DECODER: [Touch Screen -> Broadcast] Unhandled register - Reg=0xC0, Slot=0x0D, Payload[3]: C0 0D 00
+I (02:34:45.274) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C1 0D 00 CE 03 
+W (02:34:45.275) MSG_DECODER: [Touch Screen -> Broadcast] Unhandled register - Reg=0xC1, Slot=0x0D, Payload[3]: C1 0D 00
+I (02:34:45.394) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C2 0D 00 CF 03 
+W (02:34:45.395) MSG_DECODER: [Touch Screen -> Broadcast] Unhandled register - Reg=0xC2, Slot=0x0D, Payload[3]: C2 0D 00
+I (02:34:45.514) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C3 0D 00 D0 03 
+W (02:34:45.516) MSG_DECODER: [Touch Screen -> Broadcast] Unhandled register - Reg=0xC3, Slot=0x0D, Payload[3]: C3 0D 00
+I (02:34:45.624) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 16 0E 06 19 00 19 03 
+I (02:34:45.626) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature - 25°C (temp2: 0°C)
+I (02:34:45.684) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 31 0E 21 19 AA C3 03 
+W (02:34:45.685) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature (alt) - 25°C, temp2: INVALID (raw 0xAA)
+I (02:34:45.754) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 12 0F 03 00 00 08 08 03 
+I (02:34:45.755) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off, Solar output - Inactive
+I (02:34:45.824) MSG_DECODER: RX MSG: 02 00 62 00 50 80 00 2B 0E 6D 02 00 02 03 
+I (02:34:45.825) MSG_DECODER: [Connect 8/10 -> Touch Screen] Controller heartbeat (CMD 0x2B): 0x02 0x00
+I (02:34:45.944) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0A 0E E8 02 08 0A 03 
+I (02:34:45.945) MSG_DECODER: [Touch Screen -> Broadcast] Firmware version - 2.8
+I (02:34:46.074) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 12 0E F0 05 00 05 03 
+I (02:34:46.076) MSG_DECODER: [Touch Screen -> Broadcast] Touchscreen status - 0x05 (bits 3-2 = 1)
+I (02:34:46.194) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 05 0D E2 01 01 03 
+I (02:34:46.196) MSG_DECODER: [Touch Screen -> Broadcast] Touchscreen unknown (CMD 0x05): 0x01
+I (02:34:46.314) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 06 0E E4 00 00 00 03 
+I (02:34:46.315) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 - Off
+I (02:34:46.434) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 06 0E E4 01 00 01 03 
+I (02:34:46.435) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 - Off
+I (02:34:46.554) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 14 0D F1 01 01 03 
+I (02:34:46.555) MSG_DECODER: [Touch Screen -> Broadcast] Mode - Pool
+I (02:34:46.674) MSG_DECODER: RX MSG: 02 00 50 00 6F 80 00 0D 0D 5B 00 00 03 
+I (02:34:46.676) MSG_DECODER: [Touch Screen -> Internal Channels] Active channels - 0x00 [--------]
+I (02:34:46.824) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0B 25 00 08 01 00 00 02 00 00 FE 00 00 FE 00 00 0B 00 00 09 00 00 FD 00 00 00 00 00 18 03 
+I (02:34:46.828) MSG_DECODER: [Touch Screen -> Broadcast] Channel status (8 channels):
+I (02:34:46.835) MSG_DECODER:   Ch1: Filter (1) = Off (Inactive)
+I (02:34:46.841) MSG_DECODER:   Ch2: Cleaning (2) = Off (Inactive)
+I (02:34:46.846) MSG_DECODER:   Ch3: Light Zone (254) = Off (Inactive)
+I (02:34:46.853) MSG_DECODER:   Ch4: Light Zone (254) = Off (Inactive)
+I (02:34:46.859) MSG_DECODER:   Ch5: Jets (11) = Off (Inactive)
+I (02:34:46.864) MSG_DECODER:   Ch6: Blower (9) = Off (Inactive)
+I (02:34:46.870) MSG_DECODER:   Ch7: Heater (253) = Off (Inactive)
+I (02:34:46.876) MSG_DECODER:   Ch8: Unused
+I (02:34:46.944) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 17 10 F7 25 1D 63 54 F9 03 
+I (02:34:46.946) MSG_DECODER: [Touch Screen -> Broadcast] Heater 1 setpoints - spa=37°C/99°F, pool=29°C/84°F
+I (02:34:47.064) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 26 0E 04 01 06 07 03 
+I (02:34:47.066) MSG_DECODER: [Touch Screen -> Broadcast] Config - temperature scale=Celsius, step=1°, heater=Off, mode=heat
+I (02:34:47.194) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C0 01 00 C1 03 
+I (02:34:47.195) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 state - Off
+I (02:34:47.314) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C1 01 00 C2 03 
+I (02:34:47.316) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 state - Off
+I (02:34:47.434) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C2 01 00 C3 03 
+I (02:34:47.436) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 3 state - Off
+I (02:34:47.554) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C3 01 00 C4 03 
+I (02:34:47.556) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 4 state - Off
+I (02:34:47.724) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D0 01 05 D6 03 
+I (02:34:47.726) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 color - Blue (5)
+I (02:34:47.844) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D1 01 05 D7 03 
+I (02:34:47.846) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 color - Blue (5)
+I (02:34:47.964) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D2 01 05 D8 03 
+I (02:34:47.966) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 3 color - Blue (5)
+I (02:34:48.084) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D3 01 05 D9 03 
+I (02:34:48.086) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 4 color - Blue (5)
+W (02:34:48.284) BUS_FRAMING: Invalid header checksum: calculated BF, got 2F, data: 02 80 90 FF FF 80 00 12 1D 2F 01 , resyncing by 1 byte
+W (02:34:48.294) BUS_FRAMING: No start byte in buffer, discarding 11 bytes: 80 90 FF FF 80 00 12 1D 2F 01 01 
+W (02:34:48.444) BUS_FRAMING: Discarding 1 byte(s) before next start byte: 03 
+I (02:34:48.494) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1D 0F 3C 01 4A 00 4B 03 
+I (02:34:48.495) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator pH setpoint - 7.4
+I (02:34:48.684) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1D 0F 3C 02 9E 02 A2 03 
+I (02:34:48.686) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator ORP setpoint - 670 mV
+I (02:34:48.804) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E0 01 00 E1 03 
+I (02:34:48.806) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 active - No
+I (02:34:48.934) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E1 01 00 E2 03 
+I (02:34:48.936) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 active - No
+I (02:34:49.054) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E2 01 00 E3 03 
+I (02:34:49.056) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 3 active - No
+I (02:34:49.174) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E3 01 00 E4 03 
+I (02:34:49.176) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 4 active - No
+I (02:34:49.664) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 16 0E 06 19 00 19 03 
+I (02:34:49.666) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature - 25°C (temp2: 0°C)
+I (02:34:49.734) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 31 0E 21 19 AA C3 03 
+W (02:34:49.735) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature (alt) - 25°C, temp2: INVALID (raw 0xAA)
+I (02:34:49.804) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 12 0F 03 00 00 08 08 03 
+I (02:34:49.805) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off, Solar output - Inactive
+I (02:34:49.874) MSG_DECODER: RX MSG: 02 00 62 00 50 80 00 2B 0E 6D 02 00 02 03 
+I (02:34:49.876) MSG_DECODER: [Connect 8/10 -> Touch Screen] Controller heartbeat (CMD 0x2B): 0x02 0x00
+I (02:34:59.664) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 AC 0D FF B8 03 
+I (02:34:59.666) MSG_DECODER: [Touch Screen -> Broadcast] Channel 1 light zone - none
+I (02:34:59.784) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 AD 0D FF B9 03 
+I (02:34:59.786) MSG_DECODER: [Touch Screen -> Broadcast] Channel 2 light zone - none
+I (02:34:59.914) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 AE 0D 00 BB 03 
+I (02:34:59.915) MSG_DECODER: [Touch Screen -> Broadcast] Channel 3 light zone - Zone 1
+I (02:35:00.034) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 AF 0D 01 BD 03 
+I (02:35:00.036) MSG_DECODER: [Touch Screen -> Broadcast] Channel 4 light zone - Zone 2
+I (02:35:00.154) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 B0 0D FF BC 03 
+I (02:35:00.155) MSG_DECODER: [Touch Screen -> Broadcast] Channel 5 light zone - none
+I (02:35:00.274) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 B1 0D FF BD 03 
+I (02:35:00.275) MSG_DECODER: [Touch Screen -> Broadcast] Channel 6 light zone - none
+I (02:35:00.394) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 B2 0D FF BE 03 
+I (02:35:00.396) MSG_DECODER: [Touch Screen -> Broadcast] Channel 7 light zone - none
+I (02:35:00.524) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 B3 0D FF BF 03 
+I (02:35:00.524) MSG_DECODER: [Touch Screen -> Broadcast] Channel 8 light zone - none
+I (02:35:00.904) BUS: TX: 02 AC 1D FF FF 80 00 0A 0E 61 01 13 14 03 (14 bytes)
+I (02:35:00.927) BUS: TX complete: 14 bytes written and transmitted
+I (02:35:00.934) MSG_DECODER: RX MSG: 02 AC 1D FF FF 80 00 0A 0E 61 01 13 14 03 
+I (02:35:00.934) MSG_DECODER: [Pool Controller ESP32 -> Broadcast] Firmware version - 1.19
+I (02:35:14.664) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 90 01 01 92 03 
+I (02:35:14.666) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 enabled - Yes
+I (02:35:14.794) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 91 01 01 93 03 
+I (02:35:14.796) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 enabled - Yes
+I (02:35:25.674) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 FD 0F DC 22 0D 04 33 03 
+I (02:35:25.676) MSG_DECODER: [Touch Screen -> Broadcast] Controller time - 13:34 Friday
+I (02:35:29.674) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 A0 01 00 A1 03 
+I (02:35:29.676) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 multicolor - No
+I (02:35:29.794) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 A1 01 00 A2 03 
+I (02:35:29.795) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 multicolor - No
+I (02:35:44.674) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 B0 01 00 B1 03 
+I (02:35:44.676) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 name - Pool (0)
+I (02:35:44.794) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 B1 01 01 B3 03 
+I (02:35:44.796) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 name - Spa (1)
+I (02:35:45.674) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0A 0E E8 02 08 0A 03 
+I (02:35:45.676) MSG_DECODER: [Touch Screen -> Broadcast] Firmware version - 2.8
+I (02:35:45.795) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 12 0E F0 05 00 05 03 
+I (02:35:45.796) MSG_DECODER: [Touch Screen -> Broadcast] Touchscreen status - 0x05 (bits 3-2 = 1)
+I (02:35:45.914) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 05 0D E2 01 01 03 
+I (02:35:45.916) MSG_DECODER: [Touch Screen -> Broadcast] Touchscreen unknown (CMD 0x05): 0x01
+I (02:35:46.034) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 06 0E E4 00 00 00 03 
+I (02:35:46.036) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 - Off
+I (02:35:46.154) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 06 0E E4 01 00 01 03 
+I (02:35:46.155) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 - Off
+I (02:35:46.274) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 14 0D F1 01 01 03 
+I (02:35:46.275) MSG_DECODER: [Touch Screen -> Broadcast] Mode - Pool
+I (02:35:46.394) MSG_DECODER: RX MSG: 02 00 50 00 6F 80 00 0D 0D 5B 00 00 03 
+I (02:35:46.396) MSG_DECODER: [Touch Screen -> Internal Channels] Active channels - 0x00 [--------]
+I (02:35:46.544) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0B 25 00 08 01 00 00 02 00 00 FE 00 00 FE 00 00 0B 00 00 09 00 00 FD 00 00 00 00 00 18 03 
+I (02:35:46.548) MSG_DECODER: [Touch Screen -> Broadcast] Channel status (8 channels):
+I (02:35:46.554) MSG_DECODER:   Ch1: Filter (1) = Off (Inactive)
+I (02:35:46.560) MSG_DECODER:   Ch2: Cleaning (2) = Off (Inactive)
+I (02:35:46.566) MSG_DECODER:   Ch3: Light Zone (254) = Off (Inactive)
+I (02:35:46.572) MSG_DECODER:   Ch4: Light Zone (254) = Off (Inactive)
+I (02:35:46.578) MSG_DECODER:   Ch5: Jets (11) = Off (Inactive)
+I (02:35:46.584) MSG_DECODER:   Ch6: Blower (9) = Off (Inactive)
+I (02:35:46.590) MSG_DECODER:   Ch7: Heater (253) = Off (Inactive)
+I (02:35:46.596) MSG_DECODER:   Ch8: Unused
+I (02:35:46.674) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 17 10 F7 25 1D 63 54 F9 03 
+I (02:35:46.676) MSG_DECODER: [Touch Screen -> Broadcast] Heater 1 setpoints - spa=37°C/99°F, pool=29°C/84°F
+I (02:35:46.794) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 26 0E 04 01 06 07 03 
+I (02:35:46.796) MSG_DECODER: [Touch Screen -> Broadcast] Config - temperature scale=Celsius, step=1°, heater=Off, mode=heat
+I (02:35:46.914) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C0 01 00 C1 03 
+I (02:35:46.916) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 state - Off
+I (02:35:47.034) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C1 01 00 C2 03 
+I (02:35:47.036) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 state - Off
+I (02:35:47.154) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C2 01 00 C3 03 
+I (02:35:47.155) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 3 state - Off
+I (02:35:47.284) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C3 01 00 C4 03 
+I (02:35:47.285) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 4 state - Off
+I (02:35:47.404) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D0 01 05 D6 03 
+I (02:35:47.406) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 color - Blue (5)
+I (02:35:47.524) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D1 01 05 D7 03 
+I (02:35:47.526) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 color - Blue (5)
+I (02:35:47.644) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D2 01 05 D8 03 
+I (02:35:47.646) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 3 color - Blue (5)
+I (02:35:47.804) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D3 01 05 D9 03 
+I (02:35:47.806) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 4 color - Blue (5)
+I (02:35:47.934) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E0 01 00 E1 03 
+I (02:35:47.936) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 active - No
+I (02:35:48.054) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E1 01 00 E2 03 
+I (02:35:48.056) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 active - No
+I (02:35:48.174) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E2 01 00 E3 03 
+I (02:35:48.176) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 3 active - No
+I (02:35:48.294) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E3 01 00 E4 03 
+I (02:35:48.296) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 4 active - No
+I (02:35:48.554) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 12 0D 2F 01 01 03 
+I (02:35:48.556) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator status - 0x01
+I (02:35:48.744) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1D 0F 3C 01 4A 00 4B 03 
+I (02:35:48.746) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator pH setpoint - 7.4
+I (02:35:48.934) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1D 0F 3C 02 9E 02 A2 03 
+I (02:35:48.936) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator ORP setpoint - 670 mV
+I (02:35:49.354) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 16 0E 06 19 00 19 03 
+I (02:35:49.356) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature - 25°C (temp2: 0°C)
+I (02:35:49.424) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 31 0E 21 19 AA C3 03 
+W (02:35:49.425) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature (alt) - 25°C, temp2: INVALID (raw 0xAA)
+I (02:35:49.494) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 12 0F 03 00 00 08 08 03 
+I (02:35:49.496) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off, Solar output - Inactive
+I (02:35:49.564) MSG_DECODER: RX MSG: 02 00 62 00 50 80 00 2B 0E 6D 02 00 02 03 
+I (02:35:49.566) MSG_DECODER: [Connect 8/10 -> Touch Screen] Controller heartbeat (CMD 0x2B): 0x02 0x00
+I (02:35:59.674) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C0 01 00 C1 03 
+I (02:35:59.676) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 state - Off
+I (02:35:59.794) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C1 01 00 C2 03 
+I (02:35:59.796) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 state - Off
+I (02:36:00.924) BUS: TX: 02 AC 1D FF FF 80 00 0A 0E 61 01 13 14 03 (14 bytes)
+I (02:36:00.946) BUS: TX complete: 14 bytes written and transmitted
+I (02:36:00.954) MSG_DECODER: RX MSG: 02 AC 1D FF FF 80 00 0A 0E 61 01 13 14 03 
+I (02:36:00.955) MSG_DECODER: [Pool Controller ESP32 -> Broadcast] Firmware version - 1.19
+I (02:36:14.674) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D0 01 05 D6 03 
+I (02:36:14.676) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 color - Blue (5)
+I (02:36:14.804) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D1 01 05 D7 03 
+I (02:36:14.806) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 color - Blue (5)
+I (02:36:25.674) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 FD 0F DC 23 0D 04 34 03 
+I (02:36:25.676) MSG_DECODER: [Touch Screen -> Broadcast] Controller time - 13:35 Friday
+I (02:36:29.684) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E0 01 00 E1 03 
+I (02:36:29.686) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 active - No
+I (02:36:29.804) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E1 01 00 E2 03 
+I (02:36:29.806) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 active - No
+I (02:36:39.944) MSG_DECODER: RX MSG: 02 00 90 FF FF 00 00 13 0B AE 03 
+W (02:36:39.946) MSG_DECODER: Unhandled [RolaChem -> Broadcast] CMD=0x13 (Unknown CMD 0x13) LEN=11 payload=[]
+I (02:36:40.114) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 12 0D 2F 00 00 03 
+I (02:36:40.116) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator status - 0x00
+I (02:36:40.294) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 0A 0E 28 02 01 03 03 
+I (02:36:40.296) MSG_DECODER: [RolaChem -> Broadcast] Firmware version - 2.1
+I (02:36:40.484) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1D 0F 3C 01 4A 00 4B 03 
+I (02:36:40.486) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator pH setpoint - 7.4
+I (02:36:40.674) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1D 0F 3C 02 9E 02 A2 03 
+I (02:36:40.676) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator ORP setpoint - 670 mV
+I (02:36:40.794) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 14 0D F1 01 01 03 
+I (02:36:40.796) MSG_DECODER: [Touch Screen -> Broadcast] Mode - Pool
+I (02:36:40.944) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0B 25 00 08 01 00 00 02 00 00 FE 00 00 FE 00 00 0B 00 00 09 00 00 FD 00 00 00 00 00 18 03 
+I (02:36:40.948) MSG_DECODER: [Touch Screen -> Broadcast] Channel status (8 channels):
+I (02:36:40.955) MSG_DECODER:   Ch1: Filter (1) = Off (Inactive)
+I (02:36:40.961) MSG_DECODER:   Ch2: Cleaning (2) = Off (Inactive)
+I (02:36:40.966) MSG_DECODER:   Ch3: Light Zone (254) = Off (Inactive)
+I (02:36:40.972) MSG_DECODER:   Ch4: Light Zone (254) = Off (Inactive)
+I (02:36:40.979) MSG_DECODER:   Ch5: Jets (11) = Off (Inactive)
+I (02:36:40.984) MSG_DECODER:   Ch6: Blower (9) = Off (Inactive)
+I (02:36:40.990) MSG_DECODER:   Ch7: Heater (253) = Off (Inactive)
+I (02:36:40.996) MSG_DECODER:   Ch8: Unused
+I (02:36:42.724) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0A 0E E8 02 08 0A 03 
+I (02:36:42.726) MSG_DECODER: [Touch Screen -> Broadcast] Firmware version - 2.8
+I (02:36:42.844) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 12 0E F0 05 00 05 03 
+I (02:36:42.846) MSG_DECODER: [Touch Screen -> Broadcast] Touchscreen status - 0x05 (bits 3-2 = 1)
+I (02:36:42.964) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 05 0D E2 01 01 03 
+I (02:36:42.966) MSG_DECODER: [Touch Screen -> Broadcast] Touchscreen unknown (CMD 0x05): 0x01
+I (02:36:43.024) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 16 0E 06 19 00 19 03 
+I (02:36:43.025) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature - 25°C (temp2: 0°C)
+I (02:36:43.094) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 31 0E 21 19 AA C3 03 
+W (02:36:43.095) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature (alt) - 25°C, temp2: INVALID (raw 0xAA)
+I (02:36:43.164) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 12 0F 03 00 00 08 08 03 
+I (02:36:43.165) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off, Solar output - Inactive
+I (02:36:43.234) MSG_DECODER: RX MSG: 02 00 62 00 50 80 00 2B 0E 6D 02 00 02 03 
+I (02:36:43.235) MSG_DECODER: [Connect 8/10 -> Touch Screen] Controller heartbeat (CMD 0x2B): 0x02 0x00
+I (02:36:43.354) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 06 0E E4 00 00 00 03 
+I (02:36:43.356) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 - Off
+I (02:36:43.474) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 06 0E E4 01 00 01 03 
+I (02:36:43.476) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 - Off
+I (02:36:43.594) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 14 0D F1 01 01 03 
+I (02:36:43.596) MSG_DECODER: [Touch Screen -> Broadcast] Mode - Pool
+I (02:36:43.714) MSG_DECODER: RX MSG: 02 00 50 00 6F 80 00 0D 0D 5B 00 00 03 
+I (02:36:43.716) MSG_DECODER: [Touch Screen -> Internal Channels] Active channels - 0x00 [--------]
+I (02:36:43.874) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0B 25 00 08 01 00 00 02 00 00 FE 00 00 FE 00 00 0B 00 00 09 00 00 FD 00 00 00 00 00 18 03 
+I (02:36:43.878) MSG_DECODER: [Touch Screen -> Broadcast] Channel status (8 channels):
+I (02:36:43.885) MSG_DECODER:   Ch1: Filter (1) = Off (Inactive)
+I (02:36:43.890) MSG_DECODER:   Ch2: Cleaning (2) = Off (Inactive)
+I (02:36:43.896) MSG_DECODER:   Ch3: Light Zone (254) = Off (Inactive)
+I (02:36:43.902) MSG_DECODER:   Ch4: Light Zone (254) = Off (Inactive)
+I (02:36:43.909) MSG_DECODER:   Ch5: Jets (11) = Off (Inactive)
+I (02:36:43.914) MSG_DECODER:   Ch6: Blower (9) = Off (Inactive)
+I (02:36:43.920) MSG_DECODER:   Ch7: Heater (253) = Off (Inactive)
+I (02:36:43.926) MSG_DECODER:   Ch8: Unused
+I (02:36:43.994) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 17 10 F7 25 1D 63 54 F9 03 
+I (02:36:43.996) MSG_DECODER: [Touch Screen -> Broadcast] Heater 1 setpoints - spa=37°C/99°F, pool=29°C/84°F
+I (02:36:44.114) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 26 0E 04 01 06 07 03 
+I (02:36:44.116) MSG_DECODER: [Touch Screen -> Broadcast] Config - temperature scale=Celsius, step=1°, heater=Off, mode=heat
+I (02:36:44.244) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C0 01 00 C1 03 
+I (02:36:44.246) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 state - Off
+I (02:36:44.364) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C1 01 00 C2 03 
+I (02:36:44.366) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 state - Off
+I (02:36:44.484) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C2 01 00 C3 03 
+I (02:36:44.486) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 3 state - Off
+I (02:36:44.604) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C3 01 00 C4 03 
+I (02:36:44.606) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 4 state - Off
+I (02:36:44.724) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D0 01 05 D6 03 
+I (02:36:44.726) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 color - Blue (5)
+I (02:36:44.854) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D1 01 05 D7 03 
+I (02:36:44.855) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 color - Blue (5)
+I (02:36:44.974) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D2 01 05 D8 03 
+I (02:36:44.976) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 3 color - Blue (5)
+I (02:36:45.094) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D3 01 05 D9 03 
+I (02:36:45.096) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 4 color - Blue (5)
+I (02:36:45.214) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E0 01 00 E1 03 
+I (02:36:45.215) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 active - No
+I (02:36:45.334) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E1 01 00 E2 03 
+I (02:36:45.335) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 active - No
+I (02:36:45.464) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E2 01 00 E3 03 
+I (02:36:45.464) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 3 active - No
+I (02:36:45.584) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E3 01 00 E4 03 
+I (02:36:45.585) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 4 active - No
+I (02:36:45.704) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 F4 01 08 FD 03 
+I (02:36:45.706) MSG_DECODER: [Touch Screen -> Broadcast] Channel count - 8
+I (02:36:46.024) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 16 0E 06 19 00 19 03 
+I (02:36:46.026) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature - 25°C (temp2: 0°C)
+I (02:36:46.094) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 31 0E 21 19 AA C3 03 
+W (02:36:46.095) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature (alt) - 25°C, temp2: INVALID (raw 0xAA)
+I (02:36:46.164) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 12 0F 03 00 00 08 08 03 
+I (02:36:46.166) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off, Solar output - Inactive
+I (02:36:46.234) MSG_DECODER: RX MSG: 02 00 62 00 50 80 00 2B 0E 6D 02 00 02 03 
+I (02:36:46.236) MSG_DECODER: [Connect 8/10 -> Touch Screen] Controller heartbeat (CMD 0x2B): 0x02 0x00
+I (02:36:48.794) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 12 0D 2F 00 00 03 
+I (02:36:48.796) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator status - 0x00
+I (02:36:48.984) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1D 0F 3C 01 4A 00 4B 03 
+I (02:36:48.985) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator pH setpoint - 7.4
+I (02:36:49.224) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1D 0F 3C 02 9E 02 A2 03 
+I (02:36:49.226) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator ORP setpoint - 670 mV
+I (02:36:54.874) HEAP_MON: heap: free=211884 B, min_free=134308 B, largest_block=192512 B
+I (02:36:59.684) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 F5 01 01 F7 03 
+I (02:36:59.686) MSG_DECODER: [Touch Screen -> Broadcast] Channel 1 category - Pool equipment (1)
+I (02:36:59.804) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 F6 01 01 F8 03 
+I (02:36:59.806) MSG_DECODER: [Touch Screen -> Broadcast] Channel 2 category - Pool equipment (1)
+I (02:36:59.924) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 F7 01 02 FA 03 
+I (02:36:59.926) MSG_DECODER: [Touch Screen -> Broadcast] Channel 3 category - Light (2)
+I (02:37:00.054) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 F8 01 02 FB 03 
+I (02:37:00.055) MSG_DECODER: [Touch Screen -> Broadcast] Channel 4 category - Light (2)
+I (02:37:00.174) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 F9 01 01 FB 03 
+I (02:37:00.175) MSG_DECODER: [Touch Screen -> Broadcast] Channel 5 category - Pool equipment (1)
+I (02:37:00.294) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 FA 01 01 FC 03 
+I (02:37:00.296) MSG_DECODER: [Touch Screen -> Broadcast] Channel 6 category - Pool equipment (1)
+I (02:37:00.414) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 FB 01 03 FF 03 
+I (02:37:00.416) MSG_DECODER: [Touch Screen -> Broadcast] Channel 7 category - Controlled Heater Power (3)
+I (02:37:00.944) BUS: TX: 02 AC 1D FF FF 80 00 0A 0E 61 01 13 14 03 (14 bytes)
+I (02:37:00.969) BUS: TX complete: 14 bytes written and transmitted
+I (02:37:00.974) MSG_DECODER: RX MSG: 02 AC 1D FF FF 80 00 0A 0E 61 01 13 14 03 
+I (02:37:00.974) MSG_DECODER: [Pool Controller ESP32 -> Broadcast] Firmware version - 1.19
+I (02:37:14.684) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 6C 02 01 6F 03 
+I (02:37:14.686) MSG_DECODER: [Touch Screen -> Broadcast] Channel 1 type - Filter (1)
+I (02:37:14.804) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 6D 02 02 71 03 
+I (02:37:14.805) MSG_DECODER: [Touch Screen -> Broadcast] Channel 2 type - Cleaning (2)
+I (02:37:14.934) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 6E 02 FE 6E 03 
+I (02:37:14.935) MSG_DECODER: [Touch Screen -> Broadcast] Channel 3 type - Light Zone (254)
+I (02:37:15.054) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 6F 02 FE 6F 03 
+I (02:37:15.056) MSG_DECODER: [Touch Screen -> Broadcast] Channel 4 type - Light Zone (254)
+I (02:37:15.174) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 70 02 0B 7D 03 
+I (02:37:15.175) MSG_DECODER: [Touch Screen -> Broadcast] Channel 5 type - Jets (11)
+I (02:37:15.294) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 71 02 09 7C 03 
+I (02:37:15.296) MSG_DECODER: [Touch Screen -> Broadcast] Channel 6 type - Blower (9)
+I (02:37:15.424) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 72 02 FD 71 03 
+I (02:37:15.426) MSG_DECODER: [Touch Screen -> Broadcast] Channel 7 type - Heater (253)
+I (02:37:22.724) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 FD 0F DC 24 0D 04 35 03 
+I (02:37:22.726) MSG_DECODER: [Touch Screen -> Broadcast] Controller time - 13:36 Friday
+I (02:37:29.704) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 1A 22 7C 02 46 69 6C 74 65 72 20 50 75 6D 70 00 A6 03 
+I (02:37:29.706) MSG_DECODER: [Touch Screen -> Broadcast] Channel 1 name - "Filter Pump"
+I (02:37:29.844) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 17 1F 7D 02 43 6C 65 61 6E 69 6E 67 00 A0 03 
+I (02:37:29.845) MSG_DECODER: [Touch Screen -> Broadcast] Channel 2 name - "Cleaning"
+I (02:37:29.964) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 7E 02 00 80 03 
+I (02:37:29.965) MSG_DECODER: [Touch Screen -> Broadcast] Channel 3 name - (empty)
+I (02:37:30.084) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 7F 02 00 81 03 
+I (02:37:30.084) MSG_DECODER: [Touch Screen -> Broadcast] Channel 4 name - (empty)
+I (02:37:30.214) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 13 1B 80 02 4A 65 74 73 00 18 03 
+I (02:37:30.215) MSG_DECODER: [Touch Screen -> Broadcast] Channel 5 name - "Jets"
+I (02:37:30.344) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 15 1D 81 02 42 6C 6F 77 65 72 00 EE 03 
+I (02:37:30.344) MSG_DECODER: [Touch Screen -> Broadcast] Channel 6 name - "Blower"
+I (02:37:30.464) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 82 02 00 84 03 
+I (02:37:30.465) MSG_DECODER: [Touch Screen -> Broadcast] Channel 7 name - (empty)
+I (02:37:34.894) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 10 0D FF 00 00 03 
+I (02:37:34.896) MSG_DECODER: [Connect 8/10 -> Broadcast] Channel toggle command - Channel 1 (Filter Pump)
+I (02:37:35.174) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0B 25 00 08 01 01 00 02 01 00 FE 00 00 FE 00 00 0B 00 00 09 00 00 FD 00 00 00 00 00 1A 03 
+I (02:37:35.178) MSG_DECODER: [Touch Screen -> Broadcast] Channel status (8 channels):
+I (02:37:35.185) MSG_DECODER:   Ch1: Filter (1) = Auto (Inactive)
+I (02:37:35.190) MSG_DECODER:   Ch2: Cleaning (2) = Auto (Inactive)
+I (02:37:35.197) MSG_DECODER:   Ch3: Light Zone (254) = Off (Inactive)
+I (02:37:35.203) MSG_DECODER:   Ch4: Light Zone (254) = Off (Inactive)
+I (02:37:35.209) MSG_DECODER:   Ch5: Jets (11) = Off (Inactive)
+I (02:37:35.214) MSG_DECODER:   Ch6: Blower (9) = Off (Inactive)
+I (02:37:35.220) MSG_DECODER:   Ch7: Heater (253) = Off (Inactive)
+I (02:37:35.226) MSG_DECODER:   Ch8: Unused
+I (02:37:35.684) MSG_DECODER: RX MSG: 02 00 50 00 6F 80 00 0D 0D 5B 01 01 03 
+I (02:37:35.686) MSG_DECODER: [Touch Screen -> Internal Channels] Active channels - 0x01 [-------1]
+I (02:37:35.844) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0B 25 00 08 01 01 01 02 01 00 FE 00 00 FE 00 00 0B 00 00 09 00 00 FD 00 00 00 00 00 1B 03 
+I (02:37:35.848) MSG_DECODER: [Touch Screen -> Broadcast] Channel status (8 channels):
+I (02:37:35.854) MSG_DECODER:   Ch1: Filter (1) = Auto (Active)
+I (02:37:35.860) MSG_DECODER:   Ch2: Cleaning (2) = Auto (Inactive)
+I (02:37:35.866) MSG_DECODER:   Ch3: Light Zone (254) = Off (Inactive)
+I (02:37:35.872) MSG_DECODER:   Ch4: Light Zone (254) = Off (Inactive)
+I (02:37:35.879) MSG_DECODER:   Ch5: Jets (11) = Off (Inactive)
+I (02:37:35.885) MSG_DECODER:   Ch6: Blower (9) = Off (Inactive)
+I (02:37:35.890) MSG_DECODER:   Ch7: Heater (253) = Off (Inactive)
+I (02:37:35.896) MSG_DECODER:   Ch8: Unused
+I (02:37:37.724) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0A 0E E8 02 08 0A 03 
+I (02:37:37.725) MSG_DECODER: [Touch Screen -> Broadcast] Firmware version - 2.8
+I (02:37:37.844) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 12 0E F0 05 00 05 03 
+I (02:37:37.845) MSG_DECODER: [Touch Screen -> Broadcast] Touchscreen status - 0x05 (bits 3-2 = 1)
+I (02:37:37.964) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 05 0D E2 01 01 03 
+I (02:37:37.966) MSG_DECODER: [Touch Screen -> Broadcast] Touchscreen unknown (CMD 0x05): 0x01
+I (02:37:38.084) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 06 0E E4 00 00 00 03 
+I (02:37:38.086) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 - Off
+I (02:37:38.214) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 06 0E E4 01 00 01 03 
+I (02:37:38.216) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 - Off
+I (02:37:38.334) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 14 0D F1 01 01 03 
+I (02:37:38.335) MSG_DECODER: [Touch Screen -> Broadcast] Mode - Pool
+I (02:37:38.444) MSG_DECODER: RX MSG: 02 00 50 00 6F 80 00 0D 0D 5B 01 01 03 
+I (02:37:38.446) MSG_DECODER: [Touch Screen -> Internal Channels] Active channels - 0x01 [-------1]
+I (02:37:38.604) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0B 25 00 08 01 01 01 02 01 00 FE 00 00 FE 00 00 0B 00 00 09 00 00 FD 00 00 00 00 00 1B 03 
+I (02:37:38.608) MSG_DECODER: [Touch Screen -> Broadcast] Channel status (8 channels):
+I (02:37:38.614) MSG_DECODER:   Ch1: Filter (1) = Auto (Active)
+I (02:37:38.620) MSG_DECODER:   Ch2: Cleaning (2) = Auto (Inactive)
+I (02:37:38.626) MSG_DECODER:   Ch3: Light Zone (254) = Off (Inactive)
+I (02:37:38.632) MSG_DECODER:   Ch4: Light Zone (254) = Off (Inactive)
+I (02:37:38.639) MSG_DECODER:   Ch5: Jets (11) = Off (Inactive)
+I (02:37:38.644) MSG_DECODER:   Ch6: Blower (9) = Off (Inactive)
+I (02:37:38.650) MSG_DECODER:   Ch7: Heater (253) = Off (Inactive)
+I (02:37:38.656) MSG_DECODER:   Ch8: Unused
+I (02:37:38.724) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 17 10 F7 25 1D 63 54 F9 03 
+I (02:37:38.726) MSG_DECODER: [Touch Screen -> Broadcast] Heater 1 setpoints - spa=37°C/99°F, pool=29°C/84°F
+I (02:37:38.844) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 26 0E 04 01 06 07 03 
+I (02:37:38.845) MSG_DECODER: [Touch Screen -> Broadcast] Config - temperature scale=Celsius, step=1°, heater=Off, mode=heat
+I (02:37:38.974) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C0 01 00 C1 03 
+I (02:37:38.976) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 state - Off
+I (02:37:39.094) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C1 01 00 C2 03 
+I (02:37:39.096) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 state - Off
+I (02:37:39.172) esp-x509-crt-bundle: Certificate validated
+I (02:37:39.214) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C2 01 00 C3 03 
+I (02:37:39.215) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 3 state - Off
+I (02:37:39.334) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C3 01 00 C4 03 
+I (02:37:39.335) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 4 state - Off
+I (02:37:39.454) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D0 01 05 D6 03 
+I (02:37:39.456) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 color - Blue (5)
+I (02:37:39.584) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D1 01 05 D7 03 
+I (02:37:39.585) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 color - Blue (5)
+I (02:37:39.704) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D2 01 05 D8 03 
+I (02:37:39.706) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 3 color - Blue (5)
+I (02:37:39.824) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D3 01 05 D9 03 
+I (02:37:39.826) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 4 color - Blue (5)
+I (02:37:39.944) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E0 01 00 E1 03 
+I (02:37:39.946) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 active - No
+I (02:37:40.064) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E1 01 00 E2 03 
+I (02:37:40.066) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 active - No
+I (02:37:40.194) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E2 01 00 E3 03 
+I (02:37:40.196) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 3 active - No
+I (02:37:40.314) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E3 01 00 E4 03 
+I (02:37:40.316) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 4 active - No
+I (02:37:40.664) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 16 0E 06 19 00 19 03 
+I (02:37:40.665) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature - 25°C (temp2: 0°C)
+I (02:37:40.734) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 31 0E 21 19 AA C3 03 
+W (02:37:40.735) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature (alt) - 25°C, temp2: INVALID (raw 0xAA)
+I (02:37:40.804) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 12 0F 03 00 00 08 08 03 
+I (02:37:40.805) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off, Solar output - Inactive
+I (02:37:40.840) FW_UPDATE: installed=v1.19.0-24-g8616f28-dirty latest=v1.19.0 (5 releases) update_available=0
+I (02:37:40.874) MSG_DECODER: RX MSG: 02 00 62 00 50 80 00 2B 0E 6D 02 00 02 03 
+I (02:37:40.875) MSG_DECODER: [Connect 8/10 -> Touch Screen] Controller heartbeat (CMD 0x2B): 0x02 0x00
+I (02:37:44.694) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 8C 02 01 8F 03 
+I (02:37:44.696) MSG_DECODER: [Touch Screen -> Broadcast] Channel 1 state - Auto
+I (02:37:44.814) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 8D 02 01 90 03 
+I (02:37:44.816) MSG_DECODER: [Touch Screen -> Broadcast] Channel 2 state - Auto
+I (02:37:44.934) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 8E 02 00 90 03 
+I (02:37:44.936) MSG_DECODER: [Touch Screen -> Broadcast] Channel 3 state - Off
+I (02:37:45.054) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 8F 02 00 91 03 
+I (02:37:45.056) MSG_DECODER: [Touch Screen -> Broadcast] Channel 4 state - Off
+I (02:37:45.184) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 90 02 00 92 03 
+I (02:37:45.186) MSG_DECODER: [Touch Screen -> Broadcast] Channel 5 state - Off
+I (02:37:45.304) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 91 02 00 93 03 
+I (02:37:45.306) MSG_DECODER: [Touch Screen -> Broadcast] Channel 6 state - Off
+I (02:37:45.424) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 92 02 00 94 03 
+I (02:37:45.426) MSG_DECODER: [Touch Screen -> Broadcast] Channel 7 state - Off
+I (02:37:48.034) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 12 0D 2F 00 00 03 
+I (02:37:48.036) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator status - 0x00
+I (02:37:48.224) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1D 0F 3C 01 4A 00 4B 03 
+I (02:37:48.226) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator pH setpoint - 7.4
+I (02:37:48.414) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1D 0F 3C 02 9E 02 A2 03 
+I (02:37:48.416) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator ORP setpoint - 670 mV
+I (02:38:00.964) BUS: TX: 02 AC 1D FF FF 80 00 0A 0E 61 01 13 14 03 (14 bytes)
+I (02:38:00.989) BUS: TX complete: 14 bytes written and transmitted
+I (02:38:00.994) MSG_DECODER: RX MSG: 02 AC 1D FF FF 80 00 0A 0E 61 01 13 14 03 
+I (02:38:00.994) MSG_DECODER: [Pool Controller ESP32 -> Broadcast] Firmware version - 1.19
+I (02:38:17.734) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 FD 0F DC 25 0D 04 36 03 
+I (02:38:17.736) MSG_DECODER: [Touch Screen -> Broadcast] Controller time - 13:37 Friday
+W (02:38:30.124) BUS_FRAMING: Invalid header checksum: calculated A0, got 80, data: 02 00 90 00 70 80 00 11 0D 80 01 , resyncing by 1 byte
+W (02:38:30.127) BUS_FRAMING: No start byte in buffer, discarding 11 bytes: 00 90 00 70 80 00 11 0D 80 01 01 
+W (02:38:30.294) BUS_FRAMING: Discarding 1 byte(s) before next start byte: 03 
+I (02:38:30.296) MSG_DECODER: RX MSG: 02 00 50 00 6F 80 00 0D 0D 5B 01 01 03 
+I (02:38:30.297) MSG_DECODER: [Touch Screen -> Internal Channels] Active channels - 0x01 [-------1]
+I (02:38:30.454) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0B 25 00 08 01 02 01 02 01 00 FE 00 00 FE 00 00 0B 00 00 09 00 00 FD 00 00 00 00 00 1C 03 
+I (02:38:30.458) MSG_DECODER: [Touch Screen -> Broadcast] Channel status (8 channels):
+I (02:38:30.465) MSG_DECODER:   Ch1: Filter (1) = On (Active)
+I (02:38:30.470) MSG_DECODER:   Ch2: Cleaning (2) = Auto (Inactive)
+I (02:38:30.476) MSG_DECODER:   Ch3: Light Zone (254) = Off (Inactive)
+I (02:38:30.482) MSG_DECODER:   Ch4: Light Zone (254) = Off (Inactive)
+I (02:38:30.488) MSG_DECODER:   Ch5: Jets (11) = Off (Inactive)
+I (02:38:30.494) MSG_DECODER:   Ch6: Blower (9) = Off (Inactive)
+I (02:38:30.500) MSG_DECODER:   Ch7: Heater (253) = Off (Inactive)
+I (02:38:30.506) MSG_DECODER:   Ch8: Unused
+I (02:38:31.144) MSG_DECODER: RX MSG: 02 00 90 00 50 80 00 11 0D 80 01 01 03 
+W (02:38:31.146) MSG_DECODER: Unhandled [RolaChem -> Touch Screen] CMD=0x11 (Unknown CMD 0x11) LEN=13 payload=[01]
+I (02:38:31.394) MSG_DECODER: RX MSG: 02 00 50 00 6F 80 00 0D 0D 5B 00 00 03 
+I (02:38:31.396) MSG_DECODER: [Touch Screen -> Internal Channels] Active channels - 0x00 [--------]
+I (02:38:31.544) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0B 25 00 08 01 00 00 02 00 00 FE 00 00 FE 00 00 0B 00 00 09 00 00 FD 00 00 00 00 00 18 03 
+I (02:38:31.548) MSG_DECODER: [Touch Screen -> Broadcast] Channel status (8 channels):
+I (02:38:31.554) MSG_DECODER:   Ch1: Filter (1) = Off (Inactive)
+I (02:38:31.560) MSG_DECODER:   Ch2: Cleaning (2) = Off (Inactive)
+I (02:38:31.566) MSG_DECODER:   Ch3: Light Zone (254) = Off (Inactive)
+I (02:38:31.572) MSG_DECODER:   Ch4: Light Zone (254) = Off (Inactive)
+I (02:38:31.578) MSG_DECODER:   Ch5: Jets (11) = Off (Inactive)
+I (02:38:31.584) MSG_DECODER:   Ch6: Blower (9) = Off (Inactive)
+I (02:38:31.590) MSG_DECODER:   Ch7: Heater (253) = Off (Inactive)
+I (02:38:31.596) MSG_DECODER:   Ch8: Unused
+I (02:38:33.694) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0A 0E E8 02 08 0A 03 
+I (02:38:33.696) MSG_DECODER: [Touch Screen -> Broadcast] Firmware version - 2.8
+I (02:38:33.814) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 12 0E F0 05 00 05 03 
+I (02:38:33.815) MSG_DECODER: [Touch Screen -> Broadcast] Touchscreen status - 0x05 (bits 3-2 = 1)
+I (02:38:33.934) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 05 0D E2 01 01 03 
+I (02:38:33.936) MSG_DECODER: [Touch Screen -> Broadcast] Touchscreen unknown (CMD 0x05): 0x01
+I (02:38:34.054) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 06 0E E4 00 00 00 03 
+I (02:38:34.056) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 - Off
+I (02:38:34.174) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 06 0E E4 01 00 01 03 
+I (02:38:34.176) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 - Off
+I (02:38:34.294) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 16 0E 06 19 00 19 03 
+I (02:38:34.296) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature - 25°C (temp2: 0°C)
+I (02:38:34.364) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 31 0E 21 19 AA C3 03 
+W (02:38:34.365) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature (alt) - 25°C, temp2: INVALID (raw 0xAA)
+I (02:38:34.434) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 12 0F 03 00 00 08 08 03 
+I (02:38:34.434) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off, Solar output - Inactive
+I (02:38:34.504) MSG_DECODER: RX MSG: 02 00 62 00 50 80 00 2B 0E 6D 02 00 02 03 
+I (02:38:34.505) MSG_DECODER: [Connect 8/10 -> Touch Screen] Controller heartbeat (CMD 0x2B): 0x02 0x00
+I (02:38:34.624) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 14 0D F1 01 01 03 
+I (02:38:34.625) MSG_DECODER: [Touch Screen -> Broadcast] Mode - Pool
+I (02:38:34.744) MSG_DECODER: RX MSG: 02 00 50 00 6F 80 00 0D 0D 5B 00 00 03 
+I (02:38:34.746) MSG_DECODER: [Touch Screen -> Internal Channels] Active channels - 0x00 [--------]
+I (02:38:34.894) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0B 25 00 08 01 00 00 02 00 00 FE 00 00 FE 00 00 0B 00 00 09 00 00 FD 00 00 00 00 00 18 03 
+I (02:38:34.898) MSG_DECODER: [Touch Screen -> Broadcast] Channel status (8 channels):
+I (02:38:34.905) MSG_DECODER:   Ch1: Filter (1) = Off (Inactive)
+I (02:38:34.910) MSG_DECODER:   Ch2: Cleaning (2) = Off (Inactive)
+I (02:38:34.916) MSG_DECODER:   Ch3: Light Zone (254) = Off (Inactive)
+I (02:38:34.922) MSG_DECODER:   Ch4: Light Zone (254) = Off (Inactive)
+I (02:38:34.929) MSG_DECODER:   Ch5: Jets (11) = Off (Inactive)
+I (02:38:34.934) MSG_DECODER:   Ch6: Blower (9) = Off (Inactive)
+I (02:38:34.940) MSG_DECODER:   Ch7: Heater (253) = Off (Inactive)
+I (02:38:34.946) MSG_DECODER:   Ch8: Unused
+I (02:38:35.014) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 17 10 F7 25 1D 63 54 F9 03 
+I (02:38:35.016) MSG_DECODER: [Touch Screen -> Broadcast] Heater 1 setpoints - spa=37°C/99°F, pool=29°C/84°F
+I (02:38:35.134) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 26 0E 04 01 06 07 03 
+I (02:38:35.136) MSG_DECODER: [Touch Screen -> Broadcast] Config - temperature scale=Celsius, step=1°, heater=Off, mode=heat
+I (02:38:35.354) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 12 0D 2F 00 00 03 
+I (02:38:35.356) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator status - 0x00
+I (02:38:35.544) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1D 0F 3C 01 4A 00 4B 03 
+I (02:38:35.545) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator pH setpoint - 7.4
+I (02:38:35.734) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1D 0F 3C 02 9E 02 A2 03 
+I (02:38:35.736) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator ORP setpoint - 670 mV
+I (02:38:35.854) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C0 01 00 C1 03 
+I (02:38:35.856) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 state - Off
+I (02:38:35.974) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C1 01 00 C2 03 
+I (02:38:35.975) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 state - Off
+I (02:38:36.104) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C2 01 00 C3 03 
+I (02:38:36.105) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 3 state - Off
+I (02:38:36.224) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C3 01 00 C4 03 
+I (02:38:36.226) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 4 state - Off
+I (02:38:36.344) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D0 01 05 D6 03 
+I (02:38:36.346) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 color - Blue (5)
+I (02:38:36.464) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D1 01 05 D7 03 
+I (02:38:36.465) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 color - Blue (5)
+I (02:38:36.584) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D2 01 05 D8 03 
+I (02:38:36.586) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 3 color - Blue (5)
+I (02:38:36.714) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D3 01 05 D9 03 
+I (02:38:36.715) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 4 color - Blue (5)
+I (02:38:36.834) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E0 01 00 E1 03 
+I (02:38:36.836) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 active - No
+I (02:38:36.954) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E1 01 00 E2 03 
+I (02:38:36.956) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 active - No
+I (02:38:37.074) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E2 01 00 E3 03 
+I (02:38:37.076) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 3 active - No
+I (02:38:37.194) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E3 01 00 E4 03 
+I (02:38:37.196) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 4 active - No
+I (02:38:37.324) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 16 0E 06 19 00 19 03 
+I (02:38:37.326) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature - 25°C (temp2: 0°C)
+I (02:38:37.394) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 31 0E 21 19 AA C3 03 
+W (02:38:37.396) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature (alt) - 25°C, temp2: INVALID (raw 0xAA)
+I (02:38:37.464) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 12 0F 03 00 00 08 08 03 
+I (02:38:37.465) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off, Solar output - Inactive
+I (02:38:37.534) MSG_DECODER: RX MSG: 02 00 62 00 50 80 00 2B 0E 6D 02 00 02 03 
+I (02:38:37.536) MSG_DECODER: [Connect 8/10 -> Touch Screen] Controller heartbeat (CMD 0x2B): 0x02 0x00
+I (02:38:44.704) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 20 03 00 23 03 
+I (02:38:44.706) MSG_DECODER: [Touch Screen -> Broadcast] Active favourite - Pool (0x00)
+I (02:38:57.564) MSG_DECODER: RX MSG: 02 00 90 FF FF 00 00 13 0B AE 03 
+W (02:38:57.566) MSG_DECODER: Unhandled [RolaChem -> Broadcast] CMD=0x13 (Unknown CMD 0x13) LEN=11 payload=[]
+I (02:38:57.744) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 12 0D 2F 00 00 03 
+I (02:38:57.746) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator status - 0x00
+I (02:38:57.924) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 0A 0E 28 02 01 03 03 
+I (02:38:57.926) MSG_DECODER: [RolaChem -> Broadcast] Firmware version - 2.1
+I (02:38:58.114) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1D 0F 3C 01 4A 00 4B 03 
+I (02:38:58.116) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator pH setpoint - 7.4
+I (02:38:58.304) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1D 0F 3C 02 9E 02 A2 03 
+I (02:38:58.306) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator ORP setpoint - 670 mV
+I (02:38:58.424) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 14 0D F1 01 01 03 
+I (02:38:58.425) MSG_DECODER: [Touch Screen -> Broadcast] Mode - Pool
+I (02:38:58.574) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0B 25 00 08 01 00 00 02 00 00 FE 00 00 FE 00 00 0B 00 00 09 00 00 FD 00 00 00 00 00 18 03 
+I (02:38:58.577) MSG_DECODER: [Touch Screen -> Broadcast] Channel status (8 channels):
+I (02:38:58.584) MSG_DECODER:   Ch1: Filter (1) = Off (Inactive)
+I (02:38:58.590) MSG_DECODER:   Ch2: Cleaning (2) = Off (Inactive)
+I (02:38:58.596) MSG_DECODER:   Ch3: Light Zone (254) = Off (Inactive)
+I (02:38:58.602) MSG_DECODER:   Ch4: Light Zone (254) = Off (Inactive)
+I (02:38:58.608) MSG_DECODER:   Ch5: Jets (11) = Off (Inactive)
+I (02:38:58.614) MSG_DECODER:   Ch6: Blower (9) = Off (Inactive)
+I (02:38:58.620) MSG_DECODER:   Ch7: Heater (253) = Off (Inactive)
+I (02:38:58.626) MSG_DECODER:   Ch8: Unused
+I (02:38:59.704) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0A 0E E8 02 08 0A 03 
+I (02:38:59.706) MSG_DECODER: [Touch Screen -> Broadcast] Firmware version - 2.8
+I (02:38:59.824) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 12 0E F0 05 00 05 03 
+I (02:38:59.825) MSG_DECODER: [Touch Screen -> Broadcast] Touchscreen status - 0x05 (bits 3-2 = 1)
+I (02:38:59.944) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 05 0D E2 01 01 03 
+I (02:38:59.946) MSG_DECODER: [Touch Screen -> Broadcast] Touchscreen unknown (CMD 0x05): 0x01
+I (02:39:00.064) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 06 0E E4 00 00 00 03 
+I (02:39:00.066) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 - Off
+I (02:39:00.184) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 06 0E E4 01 00 01 03 
+I (02:39:00.186) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 - Off
+I (02:39:00.304) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 14 0D F1 01 01 03 
+I (02:39:00.306) MSG_DECODER: [Touch Screen -> Broadcast] Mode - Pool
+I (02:39:00.424) MSG_DECODER: RX MSG: 02 00 50 00 6F 80 00 0D 0D 5B 00 00 03 
+I (02:39:00.426) MSG_DECODER: [Touch Screen -> Internal Channels] Active channels - 0x00 [--------]
+I (02:39:00.574) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0B 25 00 08 01 00 00 02 00 00 FE 00 00 FE 00 00 0B 00 00 09 00 00 FD 00 00 00 00 00 18 03 
+I (02:39:00.578) MSG_DECODER: [Touch Screen -> Broadcast] Channel status (8 channels):
+I (02:39:00.584) MSG_DECODER:   Ch1: Filter (1) = Off (Inactive)
+I (02:39:00.590) MSG_DECODER:   Ch2: Cleaning (2) = Off (Inactive)
+I (02:39:00.596) MSG_DECODER:   Ch3: Light Zone (254) = Off (Inactive)
+I (02:39:00.602) MSG_DECODER:   Ch4: Light Zone (254) = Off (Inactive)
+I (02:39:00.609) MSG_DECODER:   Ch5: Jets (11) = Off (Inactive)
+I (02:39:00.614) MSG_DECODER:   Ch6: Blower (9) = Off (Inactive)
+I (02:39:00.620) MSG_DECODER:   Ch7: Heater (253) = Off (Inactive)
+I (02:39:00.626) MSG_DECODER:   Ch8: Unused
+I (02:39:00.704) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 17 10 F7 25 1D 63 54 F9 03 
+I (02:39:00.706) MSG_DECODER: [Touch Screen -> Broadcast] Heater 1 setpoints - spa=37°C/99°F, pool=29°C/84°F
+I (02:39:00.824) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 26 0E 04 01 06 07 03 
+I (02:39:00.826) MSG_DECODER: [Touch Screen -> Broadcast] Config - temperature scale=Celsius, step=1°, heater=Off, mode=heat
+I (02:39:00.944) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C0 01 00 C1 03 
+I (02:39:00.946) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 state - Off
+I (02:39:00.984) BUS: TX: 02 AC 1D FF FF 80 00 0A 0E 61 01 13 14 03 (14 bytes)
+I (02:39:01.009) BUS: TX complete: 14 bytes written and transmitted
+I (02:39:01.014) MSG_DECODER: RX MSG: 02 AC 1D FF FF 80 00 0A 0E 61 01 13 14 03 
+I (02:39:01.014) MSG_DECODER: [Pool Controller ESP32 -> Broadcast] Firmware version - 1.19
+I (02:39:01.134) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C1 01 00 C2 03 
+I (02:39:01.135) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 state - Off
+I (02:39:01.264) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C2 01 00 C3 03 
+I (02:39:01.264) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 3 state - Off
+I (02:39:01.384) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C3 01 00 C4 03 
+I (02:39:01.386) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 4 state - Off
+I (02:39:01.504) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D0 01 05 D6 03 
+I (02:39:01.506) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 color - Blue (5)
+I (02:39:01.624) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D1 01 05 D7 03 
+I (02:39:01.625) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 color - Blue (5)
+I (02:39:01.744) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D2 01 05 D8 03 
+I (02:39:01.746) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 3 color - Blue (5)
+I (02:39:01.874) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D3 01 05 D9 03 
+I (02:39:01.876) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 4 color - Blue (5)
+I (02:39:01.994) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E0 01 00 E1 03 
+I (02:39:01.996) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 active - No
+I (02:39:02.114) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E1 01 00 E2 03 
+I (02:39:02.116) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 active - No
+I (02:39:02.234) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E2 01 00 E3 03 
+I (02:39:02.236) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 3 active - No
+I (02:39:02.354) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E3 01 00 E4 03 
+I (02:39:02.356) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 4 active - No
+I (02:39:02.624) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 16 0E 06 19 00 19 03 
+I (02:39:02.626) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature - 25°C (temp2: 0°C)
+I (02:39:02.694) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 31 0E 21 19 AA C3 03 
+W (02:39:02.695) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature (alt) - 25°C, temp2: INVALID (raw 0xAA)
+I (02:39:02.764) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 12 0F 03 00 00 08 08 03 
+I (02:39:02.765) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off, Solar output - Inactive
+I (02:39:02.834) MSG_DECODER: RX MSG: 02 00 62 00 50 80 00 2B 0E 6D 02 00 02 03 
+I (02:39:02.836) MSG_DECODER: [Connect 8/10 -> Touch Screen] Controller heartbeat (CMD 0x2B): 0x02 0x00
+I (02:39:29.704) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E8 03 01 EC 03 
+I (02:39:29.706) MSG_DECODER: [Touch Screen -> Broadcast] Timer 1 configured - Yes
+I (02:39:29.834) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E9 03 01 ED 03 
+I (02:39:29.836) MSG_DECODER: [Touch Screen -> Broadcast] Timer 2 configured - Yes
+I (02:39:35.484) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 12 0D 2F 00 00 03 
+I (02:39:35.486) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator status - 0x00
+I (02:39:35.674) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1D 0F 3C 01 4A 00 4B 03 
+I (02:39:35.675) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator pH setpoint - 7.4
+I (02:39:35.864) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1D 0F 3C 02 9E 02 A2 03 
+I (02:39:35.866) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator ORP setpoint - 670 mV
+I (02:39:39.704) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 FD 0F DC 26 0D 04 37 03 
+I (02:39:39.706) MSG_DECODER: [Touch Screen -> Broadcast] Controller time - 13:38 Friday
+I (02:39:44.704) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 B8 0B 01 C4 03 
+W (02:39:44.706) MSG_DECODER: [Touch Screen -> Broadcast] Unhandled register - Reg=0xB8, Slot=0x0B, Payload[3]: B8 0B 01
+I (02:39:59.714) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0A 0E E8 02 08 0A 03 
+I (02:39:59.716) MSG_DECODER: [Touch Screen -> Broadcast] Firmware version - 2.8
+I (02:39:59.834) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 12 0E F0 05 00 05 03 
+I (02:39:59.835) MSG_DECODER: [Touch Screen -> Broadcast] Touchscreen status - 0x05 (bits 3-2 = 1)
+I (02:39:59.954) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 05 0D E2 01 01 03 
+I (02:39:59.956) MSG_DECODER: [Touch Screen -> Broadcast] Touchscreen unknown (CMD 0x05): 0x01
+I (02:40:00.074) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 06 0E E4 00 00 00 03 
+I (02:40:00.076) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 - Off
+I (02:40:00.194) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 06 0E E4 01 00 01 03 
+I (02:40:00.196) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 - Off
+I (02:40:00.314) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 14 0D F1 01 01 03 
+I (02:40:00.316) MSG_DECODER: [Touch Screen -> Broadcast] Mode - Pool
+I (02:40:00.434) MSG_DECODER: RX MSG: 02 00 50 00 6F 80 00 0D 0D 5B 00 00 03 
+I (02:40:00.435) MSG_DECODER: [Touch Screen -> Internal Channels] Active channels - 0x00 [--------]
+I (02:40:00.584) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0B 25 00 08 01 00 00 02 00 00 FE 00 00 FE 00 00 0B 00 00 09 00 00 FD 00 00 00 00 00 18 03 
+I (02:40:00.588) MSG_DECODER: [Touch Screen -> Broadcast] Channel status (8 channels):
+I (02:40:00.595) MSG_DECODER:   Ch1: Filter (1) = Off (Inactive)
+I (02:40:00.600) MSG_DECODER:   Ch2: Cleaning (2) = Off (Inactive)
+I (02:40:00.606) MSG_DECODER:   Ch3: Light Zone (254) = Off (Inactive)
+I (02:40:00.612) MSG_DECODER:   Ch4: Light Zone (254) = Off (Inactive)
+I (02:40:00.618) MSG_DECODER:   Ch5: Jets (11) = Off (Inactive)
+I (02:40:00.624) MSG_DECODER:   Ch6: Blower (9) = Off (Inactive)
+I (02:40:00.630) MSG_DECODER:   Ch7: Heater (253) = Off (Inactive)
+I (02:40:00.636) MSG_DECODER:   Ch8: Unused
+I (02:40:00.704) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 17 10 F7 25 1D 63 54 F9 03 
+I (02:40:00.706) MSG_DECODER: [Touch Screen -> Broadcast] Heater 1 setpoints - spa=37°C/99°F, pool=29°C/84°F
+I (02:40:00.834) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 26 0E 04 01 06 07 03 
+I (02:40:00.836) MSG_DECODER: [Touch Screen -> Broadcast] Config - temperature scale=Celsius, step=1°, heater=Off, mode=heat
+I (02:40:00.954) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C0 01 00 C1 03 
+I (02:40:00.956) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 state - Off
+I (02:40:01.004) BUS: TX: 02 AC 1D FF FF 80 00 0A 0E 61 01 13 14 03 (14 bytes)
+I (02:40:01.026) BUS: TX complete: 14 bytes written and transmitted
+I (02:40:01.034) MSG_DECODER: RX MSG: 02 AC 1D FF FF 80 00 0A 0E 61 01 13 14 03 
+I (02:40:01.035) MSG_DECODER: [Pool Controller ESP32 -> Broadcast] Firmware version - 1.19
+I (02:40:01.154) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C1 01 00 C2 03 
+I (02:40:01.156) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 state - Off
+I (02:40:01.274) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C2 01 00 C3 03 
+I (02:40:01.276) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 3 state - Off
+I (02:40:01.394) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C3 01 00 C4 03 
+I (02:40:01.396) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 4 state - Off
+I (02:40:01.524) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D0 01 05 D6 03 
+I (02:40:01.525) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 color - Blue (5)
+I (02:40:01.644) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D1 01 05 D7 03 
+I (02:40:01.645) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 color - Blue (5)
+I (02:40:01.764) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D2 01 05 D8 03 
+I (02:40:01.766) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 3 color - Blue (5)
+I (02:40:01.884) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D3 01 05 D9 03 
+I (02:40:01.886) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 4 color - Blue (5)
+I (02:40:02.004) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E0 01 00 E1 03 
+I (02:40:02.006) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 active - No
+I (02:40:02.134) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E1 01 00 E2 03 
+I (02:40:02.136) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 active - No
+I (02:40:02.255) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E2 01 00 E3 03 
+I (02:40:02.257) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 3 active - No
+I (02:40:02.374) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E3 01 00 E4 03 
+I (02:40:02.376) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 4 active - No
+I (02:40:02.494) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 B9 0B 01 C5 03 
+W (02:40:02.495) MSG_DECODER: [Touch Screen -> Broadcast] Unhandled register - Reg=0xB9, Slot=0x0B, Payload[3]: B9 0B 01
+I (02:40:03.324) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 16 0E 06 19 00 19 03 
+I (02:40:03.326) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature - 25°C (temp2: 0°C)
+I (02:40:03.394) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 31 0E 21 19 AA C3 03 
+W (02:40:03.395) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature (alt) - 25°C, temp2: INVALID (raw 0xAA)
+I (02:40:03.464) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 12 0F 03 00 00 08 08 03 
+I (02:40:03.464) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off, Solar output - Inactive
+I (02:40:03.534) MSG_DECODER: RX MSG: 02 00 62 00 50 80 00 2B 0E 6D 02 00 02 03 
+I (02:40:03.534) MSG_DECODER: [Connect 8/10 -> Touch Screen] Controller heartbeat (CMD 0x2B): 0x02 0x00
+I (02:40:20.064) MSG_DECODER: RX MSG: 02 00 90 FF FF 00 00 13 0B AE 03 
+W (02:40:20.066) MSG_DECODER: Unhandled [RolaChem -> Broadcast] CMD=0x13 (Unknown CMD 0x13) LEN=11 payload=[]
+I (02:40:20.234) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 12 0D 2F 00 00 03 
+I (02:40:20.235) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator status - 0x00
+I (02:40:20.414) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 0A 0E 28 02 01 03 03 
+I (02:40:20.416) MSG_DECODER: [RolaChem -> Broadcast] Firmware version - 2.1
+I (02:40:20.604) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1D 0F 3C 01 4A 00 4B 03 
+I (02:40:20.606) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator pH setpoint - 7.4
+I (02:40:20.794) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1D 0F 3C 02 9E 02 A2 03 
+I (02:40:20.796) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator ORP setpoint - 670 mV
+I (02:40:20.914) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 14 0D F1 01 01 03 
+I (02:40:20.916) MSG_DECODER: [Touch Screen -> Broadcast] Mode - Pool
+I (02:40:21.074) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0B 25 00 08 01 00 00 02 00 00 FE 00 00 FE 00 00 0B 00 00 09 00 00 FD 00 00 00 00 00 18 03 
+I (02:40:21.078) MSG_DECODER: [Touch Screen -> Broadcast] Channel status (8 channels):
+I (02:40:21.085) MSG_DECODER:   Ch1: Filter (1) = Off (Inactive)
+I (02:40:21.090) MSG_DECODER:   Ch2: Cleaning (2) = Off (Inactive)
+I (02:40:21.096) MSG_DECODER:   Ch3: Light Zone (254) = Off (Inactive)
+I (02:40:21.102) MSG_DECODER:   Ch4: Light Zone (254) = Off (Inactive)
+I (02:40:21.108) MSG_DECODER:   Ch5: Jets (11) = Off (Inactive)
+I (02:40:21.114) MSG_DECODER:   Ch6: Blower (9) = Off (Inactive)
+I (02:40:21.120) MSG_DECODER:   Ch7: Heater (253) = Off (Inactive)
+I (02:40:21.126) MSG_DECODER:   Ch8: Unused
+I (02:40:22.754) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0A 0E E8 02 08 0A 03 
+I (02:40:22.756) MSG_DECODER: [Touch Screen -> Broadcast] Firmware version - 2.8
+I (02:40:22.874) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 12 0E F0 05 00 05 03 
+I (02:40:22.875) MSG_DECODER: [Touch Screen -> Broadcast] Touchscreen status - 0x05 (bits 3-2 = 1)
+I (02:40:22.994) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 05 0D E2 01 01 03 
+I (02:40:22.996) MSG_DECODER: [Touch Screen -> Broadcast] Touchscreen unknown (CMD 0x05): 0x01
+I (02:40:23.114) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 06 0E E4 00 00 00 03 
+I (02:40:23.116) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 - Off
+I (02:40:23.234) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 06 0E E4 01 00 01 03 
+I (02:40:23.236) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 - Off
+I (02:40:23.354) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 14 0D F1 01 01 03 
+I (02:40:23.356) MSG_DECODER: [Touch Screen -> Broadcast] Mode - Pool
+I (02:40:23.474) MSG_DECODER: RX MSG: 02 00 50 00 6F 80 00 0D 0D 5B 00 00 03 
+I (02:40:23.475) MSG_DECODER: [Touch Screen -> Internal Channels] Active channels - 0x00 [--------]
+I (02:40:23.624) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0B 25 00 08 01 00 00 02 00 00 FE 00 00 FE 00 00 0B 00 00 09 00 00 FD 00 00 00 00 00 18 03 
+I (02:40:23.628) MSG_DECODER: [Touch Screen -> Broadcast] Channel status (8 channels):
+I (02:40:23.635) MSG_DECODER:   Ch1: Filter (1) = Off (Inactive)
+I (02:40:23.640) MSG_DECODER:   Ch2: Cleaning (2) = Off (Inactive)
+I (02:40:23.646) MSG_DECODER:   Ch3: Light Zone (254) = Off (Inactive)
+I (02:40:23.652) MSG_DECODER:   Ch4: Light Zone (254) = Off (Inactive)
+I (02:40:23.659) MSG_DECODER:   Ch5: Jets (11) = Off (Inactive)
+I (02:40:23.664) MSG_DECODER:   Ch6: Blower (9) = Off (Inactive)
+I (02:40:23.670) MSG_DECODER:   Ch7: Heater (253) = Off (Inactive)
+I (02:40:23.676) MSG_DECODER:   Ch8: Unused
+I (02:40:23.754) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 17 10 F7 25 1D 63 54 F9 03 
+I (02:40:23.755) MSG_DECODER: [Touch Screen -> Broadcast] Heater 1 setpoints - spa=37°C/99°F, pool=29°C/84°F
+I (02:40:23.874) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 26 0E 04 01 06 07 03 
+I (02:40:23.876) MSG_DECODER: [Touch Screen -> Broadcast] Config - temperature scale=Celsius, step=1°, heater=Off, mode=heat
+I (02:40:23.994) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C0 01 00 C1 03 
+I (02:40:23.995) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 state - Off
+I (02:40:24.114) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C1 01 00 C2 03 
+I (02:40:24.114) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 state - Off
+I (02:40:24.244) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C2 01 00 C3 03 
+I (02:40:24.246) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 3 state - Off
+I (02:40:24.364) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C3 01 00 C4 03 
+I (02:40:24.366) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 4 state - Off
+I (02:40:24.484) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D0 01 05 D6 03 
+I (02:40:24.486) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 color - Blue (5)
+I (02:40:24.604) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D1 01 05 D7 03 
+I (02:40:24.606) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 color - Blue (5)
+I (02:40:24.724) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D2 01 05 D8 03 
+I (02:40:24.726) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 3 color - Blue (5)
+I (02:40:24.854) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D3 01 05 D9 03 
+I (02:40:24.856) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 4 color - Blue (5)
+I (02:40:24.974) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E0 01 00 E1 03 
+I (02:40:24.976) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 active - No
+I (02:40:25.094) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E1 01 00 E2 03 
+I (02:40:25.095) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 active - No
+I (02:40:25.214) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E2 01 00 E3 03 
+I (02:40:25.216) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 3 active - No
+I (02:40:25.334) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E3 01 00 E4 03 
+I (02:40:25.336) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 4 active - No
+I (02:40:25.584) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 16 0E 06 19 00 19 03 
+I (02:40:25.586) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature - 25°C (temp2: 0°C)
+I (02:40:25.654) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 31 0E 21 19 AA C3 03 
+W (02:40:25.656) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature (alt) - 25°C, temp2: INVALID (raw 0xAA)
+I (02:40:25.724) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 12 0F 03 00 00 08 08 03 
+I (02:40:25.725) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off, Solar output - Inactive
+I (02:40:25.794) MSG_DECODER: RX MSG: 02 00 62 00 50 80 00 2B 0E 6D 02 00 02 03 
+I (02:40:25.795) MSG_DECODER: [Connect 8/10 -> Touch Screen] Controller heartbeat (CMD 0x2B): 0x02 0x00
+I (02:40:29.714) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 64 00 01 65 03 
+I (02:40:29.716) MSG_DECODER: [Touch Screen -> Broadcast] Separate pool/spa modes - Yes (0x01)
+I (02:40:33.064) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 10 0D FF 00 00 03 
+I (02:40:33.066) MSG_DECODER: [Connect 8/10 -> Broadcast] Channel toggle command - Channel 1 (Filter Pump)
+I (02:40:33.344) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0B 25 00 08 01 01 00 02 01 00 FE 00 00 FE 00 00 0B 00 00 09 00 00 FD 00 00 00 00 00 1A 03 
+I (02:40:33.348) MSG_DECODER: [Touch Screen -> Broadcast] Channel status (8 channels):
+I (02:40:33.354) MSG_DECODER:   Ch1: Filter (1) = Auto (Inactive)
+I (02:40:33.360) MSG_DECODER:   Ch2: Cleaning (2) = Auto (Inactive)
+I (02:40:33.366) MSG_DECODER:   Ch3: Light Zone (254) = Off (Inactive)
+I (02:40:33.372) MSG_DECODER:   Ch4: Light Zone (254) = Off (Inactive)
+I (02:40:33.378) MSG_DECODER:   Ch5: Jets (11) = Off (Inactive)
+I (02:40:33.384) MSG_DECODER:   Ch6: Blower (9) = Off (Inactive)
+I (02:40:33.390) MSG_DECODER:   Ch7: Heater (253) = Off (Inactive)
+I (02:40:33.396) MSG_DECODER:   Ch8: Unused
+I (02:40:33.714) MSG_DECODER: RX MSG: 02 00 50 00 6F 80 00 0D 0D 5B 01 01 03 
+I (02:40:33.716) MSG_DECODER: [Touch Screen -> Internal Channels] Active channels - 0x01 [-------1]
+I (02:40:33.954) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0B 25 00 08 01 01 01 02 01 00 FE 00 00 FE 00 00 0B 00 00 09 00 00 FD 00 00 00 00 00 1B 03 
+I (02:40:33.958) MSG_DECODER: [Touch Screen -> Broadcast] Channel status (8 channels):
+I (02:40:33.965) MSG_DECODER:   Ch1: Filter (1) = Auto (Active)
+I (02:40:33.970) MSG_DECODER:   Ch2: Cleaning (2) = Auto (Inactive)
+I (02:40:33.976) MSG_DECODER:   Ch3: Light Zone (254) = Off (Inactive)
+I (02:40:33.982) MSG_DECODER:   Ch4: Light Zone (254) = Off (Inactive)
+I (02:40:33.989) MSG_DECODER:   Ch5: Jets (11) = Off (Inactive)
+I (02:40:33.995) MSG_DECODER:   Ch6: Blower (9) = Off (Inactive)
+I (02:40:34.000) MSG_DECODER:   Ch7: Heater (253) = Off (Inactive)
+I (02:40:34.006) MSG_DECODER:   Ch8: Unused
+W (02:40:35.744) BUS_FRAMING: No start byte in buffer, discarding 11 bytes: 81 00 90 FF FF 80 00 12 0D 2F FC 
+W (02:40:35.894) BUS_FRAMING: Discarding 2 byte(s) before next start byte: 00 03 
+W (02:40:35.914) BUS_FRAMING: Invalid header checksum: calculated 3C, got 3D, data: 02 00 90 FF FF 80 00 1D 0F 3D 01 , resyncing by 1 byte
+W (02:40:35.924) BUS_FRAMING: No start byte in buffer, discarding 11 bytes: 00 90 FF FF 80 00 1D 0F 3D 01 4A 
+I (02:40:36.044) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0A 0E E8 02 08 0A 03 
+I (02:40:36.045) MSG_DECODER: [Touch Screen -> Broadcast] Firmware version - 2.8
+I (02:40:36.164) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 12 0E F0 05 00 05 03 
+I (02:40:36.164) MSG_DECODER: [Touch Screen -> Broadcast] Touchscreen status - 0x05 (bits 3-2 = 1)
+I (02:40:36.284) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 05 0D E2 01 01 03 
+I (02:40:36.286) MSG_DECODER: [Touch Screen -> Broadcast] Touchscreen unknown (CMD 0x05): 0x01
+I (02:40:36.524) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1D 0F 3C 01 4A 00 4B 03 
+I (02:40:36.526) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator pH setpoint - 7.4
+I (02:40:36.714) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1D 0F 3C 02 9E 02 A2 03 
+I (02:40:36.716) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator ORP setpoint - 670 mV
+I (02:40:36.784) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 16 0E 06 19 00 19 03 
+I (02:40:36.786) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature - 25°C (temp2: 0°C)
+I (02:40:36.854) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 31 0E 21 19 AA C3 03 
+W (02:40:36.855) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature (alt) - 25°C, temp2: INVALID (raw 0xAA)
+I (02:40:36.924) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 12 0F 03 00 00 08 08 03 
+I (02:40:36.925) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off, Solar output - Inactive
+I (02:40:36.994) MSG_DECODER: RX MSG: 02 00 62 00 50 80 00 2B 0E 6D 02 00 02 03 
+I (02:40:36.995) MSG_DECODER: [Connect 8/10 -> Touch Screen] Controller heartbeat (CMD 0x2B): 0x02 0x00
+I (02:40:37.114) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 06 0E E4 00 00 00 03 
+I (02:40:37.115) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 - Off
+I (02:40:37.234) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 06 0E E4 01 00 01 03 
+I (02:40:37.237) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 - Off
+I (02:40:37.354) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 14 0D F1 01 01 03 
+I (02:40:37.356) MSG_DECODER: [Touch Screen -> Broadcast] Mode - Pool
+I (02:40:37.474) MSG_DECODER: RX MSG: 02 00 50 00 6F 80 00 0D 0D 5B 01 01 03 
+I (02:40:37.476) MSG_DECODER: [Touch Screen -> Internal Channels] Active channels - 0x01 [-------1]
+I (02:40:37.624) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0B 25 00 08 01 01 01 02 01 00 FE 00 00 FE 00 00 0B 00 00 09 00 00 FD 00 00 00 00 00 1B 03 
+I (02:40:37.627) MSG_DECODER: [Touch Screen -> Broadcast] Channel status (8 channels):
+I (02:40:37.634) MSG_DECODER:   Ch1: Filter (1) = Auto (Active)
+I (02:40:37.640) MSG_DECODER:   Ch2: Cleaning (2) = Auto (Inactive)
+I (02:40:37.647) MSG_DECODER:   Ch3: Light Zone (254) = Off (Inactive)
+I (02:40:37.652) MSG_DECODER:   Ch4: Light Zone (254) = Off (Inactive)
+I (02:40:37.659) MSG_DECODER:   Ch5: Jets (11) = Off (Inactive)
+I (02:40:37.664) MSG_DECODER:   Ch6: Blower (9) = Off (Inactive)
+I (02:40:37.670) MSG_DECODER:   Ch7: Heater (253) = Off (Inactive)
+I (02:40:37.676) MSG_DECODER:   Ch8: Unused
+I (02:40:37.794) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 17 10 F7 25 1D 63 54 F9 03 
+I (02:40:37.796) MSG_DECODER: [Touch Screen -> Broadcast] Heater 1 setpoints - spa=37°C/99°F, pool=29°C/84°F
+I (02:40:37.914) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 26 0E 04 01 06 07 03 
+I (02:40:37.916) MSG_DECODER: [Touch Screen -> Broadcast] Config - temperature scale=Celsius, step=1°, heater=Off, mode=heat
+I (02:40:38.034) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C0 01 00 C1 03 
+I (02:40:38.036) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 state - Off
+I (02:40:38.154) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C1 01 00 C2 03 
+I (02:40:38.155) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 state - Off
+I (02:40:38.284) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C2 01 00 C3 03 
+I (02:40:38.285) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 3 state - Off
+I (02:40:38.404) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C3 01 00 C4 03 
+I (02:40:38.405) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 4 state - Off
+I (02:40:38.524) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D0 01 05 D6 03 
+I (02:40:38.526) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 color - Blue (5)
+I (02:40:38.644) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D1 01 05 D7 03 
+I (02:40:38.645) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 color - Blue (5)
+I (02:40:38.764) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D2 01 05 D8 03 
+I (02:40:38.766) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 3 color - Blue (5)
+I (02:40:38.894) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D3 01 05 D9 03 
+I (02:40:38.896) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 4 color - Blue (5)
+I (02:40:39.014) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E0 01 00 E1 03 
+I (02:40:39.016) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 active - No
+I (02:40:39.134) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E1 01 00 E2 03 
+I (02:40:39.136) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 active - No
+I (02:40:39.254) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E2 01 00 E3 03 
+I (02:40:39.256) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 3 active - No
+I (02:40:39.374) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E3 01 00 E4 03 
+I (02:40:39.376) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 4 active - No
+I (02:40:39.744) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 16 0E 06 19 00 19 03 
+I (02:40:39.745) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature - 25°C (temp2: 0°C)
+I (02:40:39.814) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 31 0E 21 19 AA C3 03 
+W (02:40:39.815) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature (alt) - 25°C, temp2: INVALID (raw 0xAA)
+I (02:40:39.884) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 12 0F 03 00 00 08 08 03 
+I (02:40:39.885) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off, Solar output - Inactive
+I (02:40:39.954) MSG_DECODER: RX MSG: 02 00 62 00 50 80 00 2B 0E 6D 02 00 02 03 
+I (02:40:39.955) MSG_DECODER: [Connect 8/10 -> Touch Screen] Controller heartbeat (CMD 0x2B): 0x02 0x00
+I (02:40:44.714) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 65 00 01 66 03 
+I (02:40:44.716) MSG_DECODER: [Touch Screen -> Broadcast] Mode register - Pool (0x01)
+I (02:40:59.724) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C8 00 03 CB 03 
+I (02:40:59.726) MSG_DECODER: [Touch Screen -> Broadcast] Heater 1 type - Connect Inbuilt (3)
+I (02:41:01.024) BUS: TX: 02 AC 1D FF FF 80 00 0A 0E 61 01 13 14 03 (14 bytes)
+I (02:41:01.047) BUS: TX complete: 14 bytes written and transmitted
+I (02:41:01.054) MSG_DECODER: RX MSG: 02 AC 1D FF FF 80 00 0A 0E 61 01 13 14 03 
+I (02:41:01.054) MSG_DECODER: [Pool Controller ESP32 -> Broadcast] Firmware version - 1.19
+I (02:41:14.724) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C9 00 00 C9 03 
+W (02:41:14.726) MSG_DECODER: [Touch Screen -> Broadcast] Unhandled register - Reg=0xC9, Slot=0x00, Payload[3]: C9 00 00
+I (02:41:15.724) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 FD 0F DC 28 0D 04 39 03 
+I (02:41:15.726) MSG_DECODER: [Touch Screen -> Broadcast] Controller time - 13:40 Friday
+I (02:41:29.724) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 10 18 CA 00 00 06 D0 03 
+I (02:41:29.726) MSG_DECODER: [Touch Screen -> Broadcast] Heater 1 power channel - Ch7
+I (02:41:34.964) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 12 0D 2F 00 00 03 
+I (02:41:34.966) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator status - 0x00
+I (02:41:35.154) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1D 0F 3C 01 4A 00 4B 03 
+I (02:41:35.156) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator pH setpoint - 7.4
+I (02:41:35.344) MSG_DECODER: RX MSG: 02 00 90 FF FF 80 00 1D 0F 3C 02 9E 02 A2 03 
+I (02:41:35.346) MSG_DECODER: [RolaChem -> Broadcast] Chlorinator ORP setpoint - 670 mV
+I (02:41:35.724) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0A 0E E8 02 08 0A 03 
+I (02:41:35.725) MSG_DECODER: [Touch Screen -> Broadcast] Firmware version - 2.8
+I (02:41:35.844) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 12 0E F0 05 00 05 03 
+I (02:41:35.846) MSG_DECODER: [Touch Screen -> Broadcast] Touchscreen status - 0x05 (bits 3-2 = 1)
+I (02:41:35.964) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 05 0D E2 01 01 03 
+I (02:41:35.966) MSG_DECODER: [Touch Screen -> Broadcast] Touchscreen unknown (CMD 0x05): 0x01
+I (02:41:36.084) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 06 0E E4 00 00 00 03 
+I (02:41:36.085) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 - Off
+I (02:41:36.204) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 06 0E E4 01 00 01 03 
+I (02:41:36.206) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 - Off
+I (02:41:36.324) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 14 0D F1 01 01 03 
+I (02:41:36.326) MSG_DECODER: [Touch Screen -> Broadcast] Mode - Pool
+I (02:41:36.444) MSG_DECODER: RX MSG: 02 00 50 00 6F 80 00 0D 0D 5B 01 01 03 
+I (02:41:36.446) MSG_DECODER: [Touch Screen -> Internal Channels] Active channels - 0x01 [-------1]
+I (02:41:36.604) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 0B 25 00 08 01 01 01 02 01 00 FE 00 00 FE 00 00 0B 00 00 09 00 00 FD 00 00 00 00 00 1B 03 
+I (02:41:36.608) MSG_DECODER: [Touch Screen -> Broadcast] Channel status (8 channels):
+I (02:41:36.615) MSG_DECODER:   Ch1: Filter (1) = Auto (Active)
+I (02:41:36.620) MSG_DECODER:   Ch2: Cleaning (2) = Auto (Inactive)
+I (02:41:36.626) MSG_DECODER:   Ch3: Light Zone (254) = Off (Inactive)
+I (02:41:36.633) MSG_DECODER:   Ch4: Light Zone (254) = Off (Inactive)
+I (02:41:36.639) MSG_DECODER:   Ch5: Jets (11) = Off (Inactive)
+I (02:41:36.645) MSG_DECODER:   Ch6: Blower (9) = Off (Inactive)
+I (02:41:36.650) MSG_DECODER:   Ch7: Heater (253) = Off (Inactive)
+I (02:41:36.656) MSG_DECODER:   Ch8: Unused
+I (02:41:36.724) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 17 10 F7 25 1D 63 54 F9 03 
+I (02:41:36.726) MSG_DECODER: [Touch Screen -> Broadcast] Heater 1 setpoints - spa=37°C/99°F, pool=29°C/84°F
+I (02:41:36.844) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 26 0E 04 01 06 07 03 
+I (02:41:36.846) MSG_DECODER: [Touch Screen -> Broadcast] Config - temperature scale=Celsius, step=1°, heater=Off, mode=heat
+I (02:41:36.964) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C0 01 00 C1 03 
+I (02:41:36.966) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 state - Off
+I (02:41:37.094) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C1 01 00 C2 03 
+I (02:41:37.096) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 state - Off
+I (02:41:37.214) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C2 01 00 C3 03 
+I (02:41:37.216) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 3 state - Off
+I (02:41:37.334) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 C3 01 00 C4 03 
+I (02:41:37.336) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 4 state - Off
+I (02:41:37.454) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D0 01 05 D6 03 
+I (02:41:37.456) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 color - Blue (5)
+I (02:41:37.574) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D1 01 05 D7 03 
+I (02:41:37.576) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 color - Blue (5)
+I (02:41:37.704) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D2 01 05 D8 03 
+I (02:41:37.705) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 3 color - Blue (5)
+I (02:41:37.864) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 D3 01 05 D9 03 
+I (02:41:37.866) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 4 color - Blue (5)
+I (02:41:37.984) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E0 01 00 E1 03 
+I (02:41:37.986) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 1 active - No
+I (02:41:38.104) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E1 01 00 E2 03 
+I (02:41:38.106) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 2 active - No
+I (02:41:38.224) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E2 01 00 E3 03 
+I (02:41:38.226) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 3 active - No
+I (02:41:38.354) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E3 01 00 E4 03 
+I (02:41:38.356) MSG_DECODER: [Touch Screen -> Broadcast] Lighting zone 4 active - No
+I (02:41:39.434) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 16 0E 06 19 00 19 03 
+I (02:41:39.436) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature - 25°C (temp2: 0°C)
+I (02:41:39.504) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 31 0E 21 19 AA C3 03 
+W (02:41:39.506) MSG_DECODER: [Connect 8/10 -> Broadcast] Current temperature (alt) - 25°C, temp2: INVALID (raw 0xAA)
+I (02:41:39.574) MSG_DECODER: RX MSG: 02 00 62 FF FF 80 00 12 0F 03 00 00 08 08 03 
+I (02:41:39.575) MSG_DECODER: [Connect 8/10 -> Broadcast] Heater - Off, Service mode - Off, Solar output - Inactive
+I (02:41:39.644) MSG_DECODER: RX MSG: 02 00 62 00 50 80 00 2B 0E 6D 02 00 02 03 
+I (02:41:39.646) MSG_DECODER: [Connect 8/10 -> Touch Screen] Controller heartbeat (CMD 0x2B): 0x02 0x00
+I (02:41:44.724) MSG_DECODER: RX MSG: 02 00 50 FF FF 80 00 38 0F 17 E6 00 00 E6 03 
+I (02:41:44.726) MSG_DECODER: [Touch Screen -> Broadcast] Heater 1 state - Off (0x00)

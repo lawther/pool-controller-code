@@ -103,11 +103,11 @@ static const char *MSG_TYPE_LIGHT_CONFIG =          "02 00 50 FF FF 80 00 06 0E 
 static const char *MSG_TYPE_CONTROLLER_TIME =       "02 00 50 FF FF 80 00 FD 0F DC";
 static const char *MSG_TYPE_TOUCHSCREEN_UNKNOWN3 =  "02 00 50 FF FF 80 00 05 0D E2";
 
-// Motorised valve actuators (Touchscreen 0x0050 -> Internal Control 0x007F),
-// emitted as a pair on every mode change. See PROTOCOL.md commands `0x1A` and
-// `0x41`.
-static const char *MSG_TYPE_PRE_VALVE_FRAME =       "02 00 50 00 7F 00 00 1A 0B F6";
-static const char *MSG_TYPE_VALVE_ACTUATOR_CMD =    "02 00 50 00 7F 80 00 41 0E A0";
+// Heater commands (Touchscreen 0x0050 -> All Heaters 0x007F), sent as a pair
+// whenever the Touchscreen switches the heater. See PROTOCOL.md commands `0x1A`
+// and `0x41`.
+static const char *MSG_TYPE_HEATER_TOGGLE_CMD =     "02 00 50 00 7F 00 00 1A 0B F6";
+static const char *MSG_TYPE_HEATER_TARGET_STATE =    "02 00 50 00 7F 80 00 41 0E A0";
 
 // Water temperature reading (CMD 0x16) is dispatched source-agnostically in
 // dispatch_message() — see PROTOCOL.md command `0x16`. Observed from the
@@ -260,7 +260,7 @@ static const cmd_name_entry_t CMD_NAME_TABLE[] = {
     {0x10, "Channel Toggle Cmd"},
     {0x12, "Device Status"},
     {0x14, "Mode"},
-    {0x15, "Mode Set Cmd"},
+    {0x15, "Mode Toggle Cmd"},
     {0x16, "Temperature Reading"},
     {0x17, "Temperature Setting"},
     {0x18, "Pump Speed Command"},
@@ -339,13 +339,6 @@ const uint8_t* multicolor_light_color_codes(uint8_t light_type, int *count) {
             return NULL;
     }
 }
-
-// Lighting state names
-const char *LIGHTING_STATE_NAMES[] = {
-    "Off",          // 0
-    "Auto",         // 1
-    "On",           // 2
-};
 
 // Lighting zone preset name lookup table
 const char *LIGHT_ZONE_NAME_TABLE[] = {
@@ -431,7 +424,7 @@ const char* get_device_name(uint8_t addr_hi, uint8_t addr_lo, char *fallback_buf
             case 0x62: return "Connect 8/10";
             case 0x63: return "Connect Lite Plus";
             case 0x6F: return "Internal Channels";
-            case 0x7F: return "Internal Control";
+            case 0x7F: return "All Heaters";
             case 0x70: return "Genus Heater";
             case 0x71: return "Viron Heater";
             case 0x72: return "HiNRG Gas Heater";
@@ -580,9 +573,12 @@ static bool handle_water_temp_register(const uint8_t *data, int len, const uint8
 static bool handle_multicolor_light_type(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 static bool handle_channel_count(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 static bool handle_channel_category(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
+static bool handle_channel_light_zone(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 static bool handle_valve_state(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 static bool handle_touchscreen_unknown3(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 static bool handle_heater1_state(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
+static bool handle_separate_pool_spa_modes(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
+static bool handle_mode_register(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 static bool handle_heater2_state(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 static bool handle_heater2_configured(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
 static bool handle_heater1_type(const uint8_t *data, int len, const uint8_t *payload, int payload_len, const char *addr_info, message_decoder_context_t *ctx);
@@ -607,6 +603,9 @@ static const register_handler_t REGISTER_HANDLERS[] = {
     {REG_ID_CHANNEL_TYPE_0,          REG_ID_CHANNEL_TYPE_7,          0x02, handle_channel_type,          "Channel Type"},
     {REG_ID_CHANNEL_NAME_0,          REG_ID_CHANNEL_NAME_7,          0x02, handle_channel_name,          "Channel Name"},
     {REG_ID_CHANNEL_STATE_0,         REG_ID_CHANNEL_STATE_7,         0x02, handle_channel_state,         "Channel State"},
+
+    // Channel -> light zone map (slot 0x0D, registers 0xAC-0xB3 = channels 1-8): 0-based zone, 0xFF = none
+    {REG_ID_CHANNEL_LIGHT_ZONE_0,    REG_ID_CHANNEL_LIGHT_ZONE_7,    0x0D, handle_channel_light_zone,    "Channel Light Zone"},
 
     // Lighting zones (slot 0x01, 8 zones per family)
     {REG_ID_LIGHT_ZONE_ENABLED_0,    REG_ID_LIGHT_ZONE_ENABLED_7,    0x01, handle_light_zone_enabled,    "Light Zone Enabled"},
@@ -639,6 +638,12 @@ static const register_handler_t REGISTER_HANDLERS[] = {
 
     // Solar setpoint (slot 0x01, register 0x3A)
     {REG_ID_SOLAR_SETPOINT,          REG_ID_SOLAR_SETPOINT,         0x01, handle_solar_setpoint,        "Solar Setpoint"},
+
+    // "Use separate pool and spa modes" setting (slot 0x00, register 0x64): 0x00=No, 0x01=Yes
+    {REG_ID_SEPARATE_POOL_SPA_MODES, REG_ID_SEPARATE_POOL_SPA_MODES, 0x00, handle_separate_pool_spa_modes, "Separate Pool/Spa Modes"},
+
+    // Pool/Spa mode (slot 0x00, register 0x65): same encoding as CMD 0x14
+    {REG_ID_MODE,                   REG_ID_MODE,                    0x00, handle_mode_register,         "Mode"},
 
     // Heater 1 state (slot 0x00, register 0xE6) — touchscreen register-response broadcast.
     // The CMD 0x12 broadcast from 0x0062 is the authoritative state source that updates
@@ -728,6 +733,43 @@ static void state_unlock(message_decoder_context_t *ctx, bool touched, pool_stat
         *snapshot_out = *ctx->pool_state;
     }
     xSemaphoreGive(ctx->state_mutex);
+}
+
+// A chlorinator stops sending pH/ORP readings when its sensors lose flow or
+// power (e.g. with the filter pump off). Readings normally arrive every ~60 s;
+// after three missed cycles the held value is cleared, so MQTT and the web UI
+// report it as unknown rather than showing a stale number.
+#define CHLOR_READING_STALE_MS (3 * 60 * 1000)
+
+/**
+ * Clear pH/ORP readings that have gone stale, and publish the change.
+ *
+ * noinline keeps its pool_state_t snapshot out of decode_message()'s frame,
+ * where it would sit on the stack alongside the handlers' own snapshots.
+ */
+static __attribute__((noinline)) void expire_chlor_readings(message_decoder_context_t *ctx)
+{
+    pool_state_t *state = ctx->pool_state;
+    uint32_t now_ms = xTaskGetTickCount() * portTICK_PERIOD_MS;
+    bool cleared = false;
+    pool_state_t snapshot;
+    if (!state_lock(ctx, "chlorinator reading expiry")) return;
+    if (state->ph_valid && now_ms - state->ph_reading_ms >= CHLOR_READING_STALE_MS) {
+        state->ph_valid = false;
+        cleared = true;
+    }
+    if (state->orp_valid && now_ms - state->orp_reading_ms >= CHLOR_READING_STALE_MS) {
+        state->orp_valid = false;
+        cleared = true;
+    }
+    state_unlock(ctx, cleared, cleared ? &snapshot : NULL);
+    if (!cleared) return;
+
+    ESP_LOGI(TAG, "Chlorinator readings stale (none for %d s) - cleared",
+             CHLOR_READING_STALE_MS / 1000);
+    if (ctx->enable_mqtt) {
+        mqtt_publish_chlorinator(&snapshot);
+    }
 }
 
 /**
@@ -957,6 +999,83 @@ static bool handle_heater1_state(
     // Only Off (0x00) and On (0x01) are documented; flag anything else for research.
     if (state >= 0x02) {
         record_undocumented(data, len);
+    }
+
+    return true;
+}
+
+/**
+ * Handler: "Use separate pool and spa modes" setting
+ * Register 0x64, Slot 0x00 (0x00=No, 0x01=Yes), as set at the Touchscreen.
+ * Decides whether the Pool/Spa mode select is offered over MQTT.
+ */
+static bool handle_separate_pool_spa_modes(
+    const uint8_t *data, int len,
+    const uint8_t *payload, int payload_len,
+    const char *addr_info,
+    message_decoder_context_t *ctx)
+{
+    if (payload_len < 3) return false;
+
+    uint8_t value = payload[2];
+    ESP_LOGI(TAG, "%s Separate pool/spa modes - %s (0x%02X)", addr_info,
+             value == 0x01 ? "Yes" : value == 0x00 ? "No" : "Unknown",
+             value);
+
+    // Only No (0x00) and Yes (0x01) are documented; flag anything else for research.
+    if (value > 0x01) {
+        record_undocumented(data, len);
+    }
+
+    pool_state_t snapshot;
+    if (state_lock(ctx, "separate pool/spa modes")) {
+        bool changed = !ctx->pool_state->separate_pool_spa_modes_valid ||
+                       ctx->pool_state->separate_pool_spa_modes != (value != 0);
+        ctx->pool_state->separate_pool_spa_modes       = (value != 0);
+        ctx->pool_state->separate_pool_spa_modes_valid = true;
+        state_unlock(ctx, true, &snapshot);
+
+        if (changed && ctx->enable_mqtt) {
+            mqtt_publish_mode_config(&snapshot);
+        }
+    }
+
+    return true;
+}
+
+/**
+ * Handler: Pool/Spa mode register
+ * Register 0x65, Slot 0x00 (0x00=Spa, 0x01=Pool, as CMD 0x14). Updates
+ * pool_state->mode like the CMD 0x14 broadcast. The register requester reads
+ * it at startup, so the mode is known without waiting up to a minute for the
+ * next 0x14.
+ */
+static bool handle_mode_register(
+    const uint8_t *data, int len,
+    const uint8_t *payload, int payload_len,
+    const char *addr_info,
+    message_decoder_context_t *ctx)
+{
+    if (payload_len < 3) return false;
+
+    uint8_t mode = payload[2];
+    ESP_LOGI(TAG, "%s Mode register - %s (0x%02X)", addr_info,
+             mode == MODE_SPA ? "Spa" : mode == MODE_POOL ? "Pool" : "Unknown",
+             mode);
+
+    if (mode > MODE_POOL) {
+        record_undocumented(data, len);
+        return true;
+    }
+
+    pool_state_t snapshot;
+    if (!state_lock(ctx, "mode register")) return true;
+    ctx->pool_state->mode = mode;
+    ctx->pool_state->mode_valid = true;
+    state_unlock(ctx, true, &snapshot);
+
+    if (ctx->enable_mqtt) {
+        mqtt_publish_mode(&snapshot);
     }
 
     return true;
@@ -1665,17 +1784,15 @@ static bool handle_mode(
 }
 
 /**
- * Handler: Mode set command (CMD 0x15) — source-agnostic.
- * Two forms, told apart by payload length:
- *  - 1 byte (Touchscreen 0x0050): sets the mode; same encoding as the 0x14
- *    status (0x00 = Spa, 0x01 = Pool). Mode is updated optimistically — the
- *    touchscreen broadcasts a 0x14 status to confirm.
- *  - No payload (frame with no data, from the Connect 8/10 0x0062 Pool/Spa
- *    button and the ICI Gas Heater 0x0074): toggles the mode. Log-only, as
- *    the frame names no target — the new mode comes from the 0x14 that
- *    follows.
+ * Handler: Mode toggle command (CMD 0x15) — source-agnostic.
+ * Toggles the mode, in either of two forms:
+ *  - No payload (frame with no data), as sent by the Connect 8/10 0x0062
+ *    Pool/Spa button, the ICI Gas Heater 0x0074 and our firmware.
+ *  - 1-byte payload, which the Touchscreen ignores (0x00, 0x01, 0x02, 0x7F
+ *    and 0xFF tested). Only seen injected, never from a device.
+ * Log-only — the new mode comes from the 0x14 that follows.
  */
-static bool handle_mode_set_cmd(
+static bool handle_mode_toggle_cmd(
     const uint8_t *data, int len,
     const uint8_t *payload, int payload_len,
     const char *addr_info,
@@ -1686,25 +1803,7 @@ static bool handle_mode_set_cmd(
         return true;
     }
 
-    uint8_t mode = payload[0];
-    const char *mode_str = (mode == MODE_SPA) ? "Spa" : (mode == MODE_POOL) ? "Pool" : "Unknown";
-    ESP_LOGI(TAG, "%s Mode set command - %s", addr_info, mode_str);
-
-    // Only MODE_SPA and MODE_POOL are documented; flag anything else.
-    if (mode > MODE_POOL) {
-        record_undocumented(data, len);
-    }
-
-    pool_state_t snapshot;
-    if (!state_lock(ctx, "mode set command")) return true;
-    ctx->pool_state->mode = mode;
-    ctx->pool_state->mode_valid = true;
-    state_unlock(ctx, true, &snapshot);
-
-    if (ctx->enable_mqtt) {
-        mqtt_publish_mode(&snapshot);
-    }
-
+    ESP_LOGI(TAG, "%s Mode toggle command - payload 0x%02X", addr_info, payload[0]);
     return true;
 }
 
@@ -1817,10 +1916,8 @@ static int find_or_insert_seen_device_locked(pool_state_t *st, uint8_t hi, uint8
  * Handler: Firmware version (CMD 0x0A, source-agnostic)
  *
  * Covers PROTOCOL.md command `0x0A` (consolidated). Same 2-byte `{major, minor}`
- * payload shape across every observed source — the source address selects
- * which `pool_state->*_version_*` field is populated.
- *
- * Unknown sources are logged but skipped for state-update purposes.
+ * payload shape across every observed source — the version is recorded on the
+ * source's `seen_devices` entry.
  */
 static bool handle_firmware_version(
     const uint8_t *data, int len,
@@ -1832,35 +1929,10 @@ static bool handle_firmware_version(
 
     uint8_t major = payload[0];
     uint8_t minor = payload[1];
-    uint16_t src = ((uint16_t)data[1] << 8) | data[2];
 
     ESP_LOGI(TAG, "%s Firmware version - %d.%d", addr_info, major, minor);
 
     if (!state_lock(ctx, "firmware version")) return true;
-
-    switch (src) {
-        case 0x0050:
-            ctx->pool_state->touchscreen_version_major = major;
-            ctx->pool_state->touchscreen_version_minor = minor;
-            ctx->pool_state->touchscreen_version_valid = true;
-            break;
-        case 0x0062:
-            ctx->pool_state->controller_version_major = major;
-            ctx->pool_state->controller_version_minor = minor;
-            ctx->pool_state->controller_version_valid = true;
-            break;
-        case 0x0084:
-            ctx->pool_state->chlor_version_major = major;
-            ctx->pool_state->chlor_version_minor = minor;
-            ctx->pool_state->chlor_version_valid = true;
-            break;
-        case 0x00F0:
-            ctx->pool_state->gateway_version_major = major;
-            ctx->pool_state->gateway_version_minor = minor;
-            ctx->pool_state->gateway_version_valid = true;
-            break;
-        // 0x0070 (Genus Heater) and any future device — log-only, no dedicated state field yet
-    }
 
     int dev_idx = find_or_insert_seen_device_locked(ctx->pool_state, data[1], data[2]);
     if (dev_idx >= 0) {
@@ -2009,7 +2081,7 @@ static bool handle_valve_state(
         uint8_t state   = payload[2 + i * 3];
         bool active     = (payload[3 + i * 3] == 0x01);
         if (configured) {
-            const char *state_name = (state < CHANNEL_STATE_COUNT) ? CHANNEL_STATE_NAMES[state] : "Unknown";
+            const char *state_name = channel_state_name(state);
             ESP_LOGI(TAG, "  V%d: %s (%s)", i + 1, state_name, active ? "Active" : "Inactive");
             // Valves only use Off/Auto/On (0x00-0x02); flag anything else.
             if (state > 0x02) undocumented_state = true;
@@ -2519,7 +2591,7 @@ static bool handle_register_write_request(
     if (reg_id >= REG_ID_LIGHT_ZONE_STATE_0 && reg_id <= REG_ID_LIGHT_ZONE_STATE_7 && slot == 0x01) {
         // Light zone state control (REG_ID_LIGHT_ZONE_STATE_0–REG_ID_LIGHT_ZONE_STATE_7, slot 0x01)
         uint8_t zone_num = reg_id - REG_ID_LIGHT_ZONE_STATE_0 + 1;
-        const char *state_name = (state == 0x00) ? "Off" : (state == 0x01) ? "Auto" : (state == 0x02) ? "On" : "Unknown";
+        const char *state_name = off_auto_on_name(state);
         ESP_LOGI(TAG, "%s Light zone control command - Zone %d -> %s (0x%02X)",
                  addr_info, zone_num, state_name, state);
         if (state >= 0x03) {  // Only Off/Auto/On documented for light zone state
@@ -2751,6 +2823,7 @@ static bool handle_chlor_ph_reading(
     if (!state_lock(ctx, "pH reading")) return true;
     ctx->pool_state->ph_reading = value;
     ctx->pool_state->ph_valid = true;
+    ctx->pool_state->ph_reading_ms = xTaskGetTickCount() * portTICK_PERIOD_MS;
     state_unlock(ctx, true, &snapshot);
 
     if (ctx->enable_mqtt) {
@@ -2781,6 +2854,7 @@ static bool handle_chlor_orp_reading(
     if (!state_lock(ctx, "ORP reading")) return true;
     ctx->pool_state->orp_reading = value;
     ctx->pool_state->orp_valid = true;
+    ctx->pool_state->orp_reading_ms = xTaskGetTickCount() * portTICK_PERIOD_MS;
     state_unlock(ctx, true, &snapshot);
 
     if (ctx->enable_mqtt) {
@@ -2794,7 +2868,7 @@ static bool handle_chlor_orp_reading(
  * Handler: Chlorinator status broadcast (CMD 0x12, source 0x0090 RolaChem or
  * 0x0084 Viron)
  *
- * 1-byte payload: configured operating mode. Mapping is tentative — see §32.
+ * 1-byte payload: status value, meaning unknown — logged raw (see PROTOCOL.md).
  */
 static bool handle_chlor_status(
     const uint8_t *data, int len,
@@ -2805,17 +2879,9 @@ static bool handle_chlor_status(
     if (payload_len < 1) return false;
 
     uint8_t mode = payload[0];
-    const char *mode_name;
-    switch (mode) {
-        case 0x00: mode_name = "Off";  break;
-        case 0x01: mode_name = "Auto"; break;
-        case 0x02: mode_name = "On";   break;
-        default:   mode_name = "Unknown"; break;
-    }
+    ESP_LOGI(TAG, "%s Chlorinator status - 0x%02X", addr_info, mode);
 
-    ESP_LOGI(TAG, "%s Chlorinator status - mode=%s (0x%02X)", addr_info, mode_name, mode);
-
-    // Documented modes are Off/Auto/On (0x00-0x02); flag anything else.
+    // Only 0x00-0x02 are seen routinely; flag anything else.
     if (mode > 0x02) {
         record_undocumented(data, len);
     }
@@ -3007,20 +3073,19 @@ static bool handle_light_resync(
 }
 
 /**
- * Handler: Pre-valve-command frame (CMD 0x1A) — log-only
+ * Handler: Heater toggle command (CMD 0x1A) — log-only
  *
- * Zero-payload unicast from the Touchscreen (0x0050) to Internal Control
- * (0x007F), sent ~120 ms before every CMD 0x41 valve actuator command.
- * Purpose is unknown — no reply from 0x007F has ever been observed.
- * Logged only so it stops being reported as unknown.
+ * Zero-payload unicast from the Touchscreen (0x0050) to All Heaters (0x007F)
+ * that switches the heater to its other on/off state. The heater answers with
+ * its own CMD 0x12 status, which is what updates state.
  */
-static bool handle_pre_valve_frame(
+static bool handle_heater_toggle_cmd(
     const uint8_t *data, int len,
     const uint8_t *payload, int payload_len,
     const char *addr_info,
     message_decoder_context_t *ctx)
 {
-    ESP_LOGI(TAG, "%s Pre-valve-command frame", addr_info);
+    ESP_LOGI(TAG, "%s Heater toggle command", addr_info);
 
     // No payload check here, deliberately: a 0x1A that matches the pattern is
     // byte-for-byte identical every time. The pattern pins bytes 0-9, framing
@@ -3032,15 +3097,15 @@ static bool handle_pre_valve_frame(
 }
 
 /**
- * Handler: Valve actuator command (CMD 0x41) — log-only
+ * Handler: Heater target state (CMD 0x41) — log-only
  *
- * Unicast from the Touchscreen (0x0050) to Internal Control (0x007F) that
- * drives a group of motorised valve actuators to one of their two endpoints on
- * a mode change. The position byte names an endpoint, not a flow path: a
- * three-position toggle on the actuator body reverses which way it travels for
- * a given command, so identical payloads plumb differently across installs.
+ * Unicast from the Touchscreen (0x0050) to All Heaters (0x007F), sent straight
+ * after a CMD 0x1A heater toggle. Byte 10 has always matched the state that
+ * toggle produced and byte 11 has always been 0x01, hence the reading as
+ * {state, heater number}. An ICI gas heater ignores it, so what acts on it is
+ * unknown.
  */
-static bool handle_valve_actuator_cmd(
+static bool handle_heater_target_state(
     const uint8_t *data, int len,
     const uint8_t *payload, int payload_len,
     const char *addr_info,
@@ -3048,20 +3113,19 @@ static bool handle_valve_actuator_cmd(
 {
     if (payload_len < 2) return false;
 
-    uint8_t position = payload[0];
-    uint8_t group    = payload[1];
+    uint8_t state  = payload[0];
+    uint8_t heater = payload[1];
 
-    ESP_LOGI(TAG, "%s Valve actuator command - group %d, position %d", addr_info, group, position);
+    if (state <= 1) {
+        ESP_LOGI(TAG, "%s Heater target state - heater %d, %s", addr_info, heater, state ? "On" : "Off");
+    } else {
+        ESP_LOGI(TAG, "%s Heater target state - heater %d, state 0x%02X", addr_info, heater, state);
+    }
 
-    // Flag anything not yet observed for the unknown-messages page. The
-    // actuators have two cam-limited endpoints and only positions 0x00/0x01
-    // have been seen. Group is only ever 0x01, and is checked against that
-    // rather than an upper bound: the controller has four actuator sockets
-    // but the pool/spa pair is ganged, so at most three groups could exist -
-    // and whether the two auxiliary sockets are addressable here at all is
-    // unknown. A frame naming any other group is the observation that would
-    // settle it, so it should not pass silently.
-    if ((group != 0x01) || (position > 1)) {
+    // Only heater 1 and states 0x00/0x01 have come from the Touchscreen. A
+    // heater-2 frame from an install with two heaters is the observation that
+    // would confirm byte 11 as the heater number, so it should not pass silently.
+    if ((heater != 0x01) || (state > 1)) {
         record_undocumented(data, len);
     }
 
@@ -3133,7 +3197,7 @@ static bool handle_solar_status_broadcast(
 
     uint8_t flags = payload[0];
     uint8_t mode  = payload[1];
-    const char *mode_name = (mode == 0x00) ? "Off" : (mode == 0x01) ? "Auto" : (mode == 0x02) ? "On" : "Unknown";
+    const char *mode_name = off_auto_on_name(mode);
 
     ESP_LOGI(TAG, "%s Solar status - Mode: %s, Season: %s, Flush daily: %s, "
              "Filter pump required: %s, Unknown config: 0x%02X, Differential: %d°C, Unknown: 0x%02X",
@@ -3373,7 +3437,7 @@ static bool handle_channel_state(
     uint8_t state  = payload[2];
     uint8_t ch_num = reg_id - REG_ID_CHANNEL_STATE_0 + 1;
 
-    const char *state_name = (state < CHANNEL_STATE_COUNT) ? CHANNEL_STATE_NAMES[state] : "Unknown";
+    const char *state_name = channel_state_name(state);
     ESP_LOGI(TAG, "%s Channel %d state - %s", addr_info, ch_num, state_name);
 
     if (ch_num > MAX_CHANNELS || state >= CHANNEL_STATE_COUNT) {
@@ -3462,6 +3526,36 @@ static bool handle_channel_category(
 }
 
 /**
+ * Handler: Channel light zone
+ * Register range: 0xAC-0xB3, Slot: 0x0D (channels 1-8)
+ * Value: 0-based light zone the channel drives, 0xFF = not a light channel.
+ * Log-only.
+ */
+static bool handle_channel_light_zone(
+    const uint8_t *data, int len,
+    const uint8_t *payload, int payload_len,
+    const char *addr_info,
+    message_decoder_context_t *ctx)
+{
+    if (payload_len < 3) return false;
+
+    uint8_t reg_id = payload[0];
+    uint8_t zone = payload[2];
+    uint8_t ch_num = reg_id - REG_ID_CHANNEL_LIGHT_ZONE_0 + 1;
+
+    if (zone == 0xFF) {
+        ESP_LOGI(TAG, "%s Channel %d light zone - none", addr_info, ch_num);
+    } else {
+        ESP_LOGI(TAG, "%s Channel %d light zone - Zone %d", addr_info, ch_num, zone + 1);
+        if (zone >= MAX_LIGHT_ZONES) {
+            record_undocumented(data, len);
+        }
+    }
+
+    return true;
+}
+
+/**
  * Handler: Lighting zone enabled flag
  * Register range: 0x90-0x97, Slot: 0x01
  *
@@ -3540,10 +3634,10 @@ static bool handle_light_zone_state(
         return true;  // captured as undocumented; don't fall through to UNHANDLED
     }
 
-    const char *state_name = (state < LIGHTING_STATE_COUNT) ? LIGHTING_STATE_NAMES[state] : "Unknown";
+    const char *state_name = off_auto_on_name(state);
     ESP_LOGI(TAG, "%s Lighting zone %d state - %s", addr_info, zone_idx + 1, state_name);
 
-    if (state >= LIGHTING_STATE_COUNT) {  // documented states are Off/Auto/On
+    if (state >= OFF_AUTO_ON_COUNT) {  // documented states are Off/Auto/On
         record_undocumented(data, len);
     }
 
@@ -3922,7 +4016,7 @@ static bool handle_valve_state_register(
         record_undocumented(data, len);
     }
 
-    const char *state_name = (state < CHANNEL_STATE_COUNT) ? CHANNEL_STATE_NAMES[state] : "Unknown";
+    const char *state_name = channel_state_name(state);
     ESP_LOGI(TAG, "%s Valve zone %d state - %s", addr_info, zone_num, state_name);
 
     return true;
@@ -4151,7 +4245,7 @@ static bool handle_channel_status(
             uint8_t state   = payload[payload_idx + 1];
             uint8_t active  = payload[payload_idx + 2];
 
-            const char *state_name = (state < CHANNEL_STATE_COUNT) ? CHANNEL_STATE_NAMES[state] : "Unknown";
+            const char *state_name = channel_state_name(state);
 
             if (ch_type == CHANNEL_TYPE_UNUSED) {
                 ESP_LOGI(TAG, "  Ch%d: Unused", ch_num);
@@ -4472,6 +4566,9 @@ bool decode_message(const uint8_t *data, int len, message_decoder_context_t *ctx
     }
     if (record_frame) unknown_buffer_record(data, len, UNKNOWN_REASON_UNHANDLED);
 
+    // Checked on every frame, as the bus is never quiet for long.
+    expire_chlor_readings(ctx);
+
     return decoded;
 }
 
@@ -4554,11 +4651,11 @@ static bool dispatch_message(
         return handle_set_channel_state(data, len, payload, payload_len, addr_info, ctx);
     }
 
-    // Mode set command (CMD 0x15) — source-agnostic. 1-byte payload from the
-    // Touchscreen (0x0050) sets the mode; the frame with no data from
-    // the Connect 8/10 (0x0062) and the ICI Gas Heater (0x0074) toggles it.
+    // Mode toggle command (CMD 0x15) — source-agnostic. Both forms toggle the
+    // mode: the frame with no data, and the 1-byte form, whatever the byte
+    // holds.
     if (cmd == 0x15) {
-        return handle_mode_set_cmd(data, len, payload, payload_len, addr_info, ctx);
+        return handle_mode_toggle_cmd(data, len, payload, payload_len, addr_info, ctx);
     }
 
     // Valve button (CMD 0x29) — source-agnostic; only the Connect 8/10
@@ -4782,12 +4879,12 @@ static bool dispatch_message(
         return handle_controller_time(data, len, payload, payload_len, addr_info, ctx);
     }
 
-    if (match_pattern(data, len, MSG_TYPE_PRE_VALVE_FRAME)) {
-        return handle_pre_valve_frame(data, len, payload, payload_len, addr_info, ctx);
+    if (match_pattern(data, len, MSG_TYPE_HEATER_TOGGLE_CMD)) {
+        return handle_heater_toggle_cmd(data, len, payload, payload_len, addr_info, ctx);
     }
 
-    if (match_pattern(data, len, MSG_TYPE_VALVE_ACTUATOR_CMD)) {
-        return handle_valve_actuator_cmd(data, len, payload, payload_len, addr_info, ctx);
+    if (match_pattern(data, len, MSG_TYPE_HEATER_TARGET_STATE)) {
+        return handle_heater_target_state(data, len, payload, payload_len, addr_info, ctx);
     }
 
     if (match_pattern(data, len, MSG_TYPE_TOUCHSCREEN_UNKNOWN3)) {

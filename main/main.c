@@ -19,6 +19,7 @@
 #include "tcp_bridge.h"
 #include "message_decoder.h"
 #include "register_requester.h"
+#include "version_broadcast.h"
 #include "channel_power.h"
 #include "filter_pump_type.h"
 #include "channel_energy.h"
@@ -236,6 +237,10 @@ void app_main(void)
     }
 
     register_requester_start(&s_pool_state, s_pool_state_mutex);
+
+    // Announce our firmware version on the bus (CMD 0x0A) so the Touchscreen
+    // lists the bridge among its devices.
+    version_broadcast_start();
 
     // Periodically integrate each channel's effective power into a
     // cumulative kWh total and publish it as an HA energy sensor.

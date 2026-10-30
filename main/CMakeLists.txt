@@ -15,6 +15,7 @@ idf_component_register(
         "lighting_colors.c"
         "message_decoder.c"
         "register_requester.c"
+        "version_broadcast.c"
         "channel_power.c"
         "filter_pump_type.c"
         "channel_states.c"
