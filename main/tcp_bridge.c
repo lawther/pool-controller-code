@@ -393,7 +393,7 @@ static void tcp_bridge_task(void *pvParameters)
                                     s_config.led_flash_tx();
                                 }
                             } else {
-                                const char *err_msg = "ERROR - invalid hex string\r\n";
+                                const char *err_msg = "ERROR - invalid hex string or bus send failed\r\n";
                                 client_kept = send_to_client(client_sock, err_msg, strlen(err_msg));
                                 s_last_tx_len = 0;  // Clear on error
                             }
