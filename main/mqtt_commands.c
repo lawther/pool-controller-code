@@ -612,6 +612,18 @@ static void handle_valve_command(int valve_num, const char *payload, int payload
 
 void mqtt_handle_command(const char *topic, int topic_len, const char *data, int data_len)
 {
+    // esp-mqtt topics aren't NUL-terminated. Parse a terminated copy, so
+    // strtol, the prefix compares and the %s logs below stay inside the topic.
+    // Sized like the subscribed topics (mqtt_poolclient.c).
+    char topic_buf[128];
+    if (topic_len <= 0 || topic_len >= (int)sizeof(topic_buf)) {
+        ESP_LOGW(TAG, "Ignoring command topic of length %d", topic_len);
+        return;
+    }
+    memcpy(topic_buf, topic, topic_len);
+    topic_buf[topic_len] = '\0';
+    topic = topic_buf;
+
     // Get device ID for topic matching
     char device_id[32];
     mqtt_get_device_id(device_id, sizeof(device_id));
