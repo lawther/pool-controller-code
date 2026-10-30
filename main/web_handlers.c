@@ -369,7 +369,7 @@ const char WIFI_PAGE[] =
     "</div>"
     "<div data-field>"
         "<label for='password'>Password</label>"
-        "<input type='password' id='password' name='password' placeholder='Enter network password' required>"
+        "<input type='password' id='password' name='password' placeholder='Enter network password' maxlength='64' required>"
     "</div>"
     "<button type='submit'>Connect</button>"
     "<button type='button' id='retryScan' hidden onclick='scanWiFi()'>Retry Scan</button>"
@@ -619,7 +619,7 @@ static esp_err_t provision_post_handler(httpd_req_t *req)
     content[ret] = '\0';
 
     char ssid[33] = {0};
-    char password[64] = {0};
+    char password[65] = {0};  // Up to a 64-hex-digit raw WPA2 key
 
     cJSON *json = cJSON_Parse(content);
     if (json) {

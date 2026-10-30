@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed an interrupted firmware upload from the web page (a dropped connection or a closed tab) leaving the web server stuck in a loop until the device was restarted. The upload is now abandoned when the connection closes or stalls for longer than the 2-minute upload limit
 - Fixed retained MQTT commands being re-run every time the device reconnected to the broker, e.g. a retained reboot command caused a boot loop and a retained heater command switched the heater back on after every reconnect. Retained messages on command topics are now ignored with a warning, while live commands work as before
 - Fixed MQTT command handling reading past the end of the topic when parsing it or logging an invalid one, because the topic isn't NUL-terminated. Not reachable with the current subscriptions, but it would have been with a wildcard subscription
-- Fixed WiFi networks with a 32-character name (the maximum) never connecting, because the last character was dropped when the credentials were saved
+- Fixed WiFi networks with a 32-character name (the maximum) or a 64-hex-digit raw key as the password never connecting, because the last character was dropped when the credentials were saved
 ### Removed
 ### Deprecated
 ### Security

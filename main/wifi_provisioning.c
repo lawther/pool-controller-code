@@ -68,7 +68,8 @@ esp_err_t wifi_credentials_save(const char *ssid, const char *password)
     // Full field width: a 32-character SSID fills it with no NUL terminator,
     // which the driver accepts
     strncpy((char *)wifi_cfg.sta.ssid, ssid, sizeof(wifi_cfg.sta.ssid));
-    strncpy((char *)wifi_cfg.sta.password, password, sizeof(wifi_cfg.sta.password) - 1);
+    // Likewise a 64-hex-digit raw WPA2 key fills the password field
+    strncpy((char *)wifi_cfg.sta.password, password, sizeof(wifi_cfg.sta.password));
     apply_sta_roaming_config(&wifi_cfg);
     return esp_wifi_set_config(WIFI_IF_STA, &wifi_cfg);
 }
