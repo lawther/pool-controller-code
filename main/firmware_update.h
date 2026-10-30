@@ -69,4 +69,9 @@ esp_err_t firmware_update_start_install(const char *tag);
 // the retained state matches the device.
 void firmware_update_publish_mqtt_state(void);
 
+// Parse a version string into {major, minor, patch}. Tolerates a leading 'v'
+// and any trailing "-<n>-g<hash>[-dirty]" suffix from `git describe`; missing
+// or unparseable parts are 0 (e.g. an untagged build's bare hash is 0.0.0).
+void firmware_update_parse_version(const char *s, int out[3]);
+
 #endif // FIRMWARE_UPDATE_H

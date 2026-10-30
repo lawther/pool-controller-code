@@ -225,7 +225,7 @@ Click any CMD in the first column to jump to the full section in [Commands](#com
 | [`0x05`](#0x05--touchscreen-activation-ack-️)                  | Touchscreen Activation Ack          | `0x0050` → Broadcast                                                   | 1-byte payload `0x01`; sent after favourite changes                                    | Yes (log-only)          |
 | [`0x06`](#0x06--lighting-zone-configuration-)                  | Lighting Zone Configuration         | `0x0050` → Broadcast                                                   |                                                                                             | Yes                     |
 | [`0x07`](#0x07--lighting-zone-color-broadcast-️)               | Lighting Zone Color Broadcast       | `0x0050` → Broadcast                                                   | `{zone_idx, color}`; only emitted for multicolor-capable zones; shared color code table, per-model subsets; dispatched on CMD byte alone | Yes (log-only)          |
-| [`0x0A`](#0x0a--firmware-version-)                             | Firmware Version                    | `0x0050`, `0x0062`, `0x0070`, `0x0081`, `0x0084`, `0x00A0`, `0x00F0` → Broadcast | Same `{major, minor}` payload across all sources; dispatched on CMD byte alone              | Yes (unified handler)   |
+| [`0x0A`](#0x0a--firmware-version-)                             | Firmware Version                    | `0x0050`, `0x0062`, `0x0070`, `0x0081`, `0x0084`, `0x00A0`, `0x00F0`, `0xAC1D` → Broadcast | Same `{major, minor}` payload across all sources; dispatched on CMD byte alone              | Yes (unified handler)   |
 | [`0x0B`](#0x0b--channel-status-)                               | Channel Status                      | `0x0050` → Broadcast                                                   |                                                                                             | Yes                     |
 | [`0x0D`](#0x0d--active-channels-bitmask-)                      | Active Channels Bitmask             | `0x0050` → `0x006F` Internal Channels                                  | Unicast                                                                                     | Yes                     |
 | [`0x0F`](#0x0f--set-channel-state-)                | Set Channel State          | `0x0081`, `0x0084`, `0x0062`, `0xAC1D` → `0x0050`                                                  | `{channel, state}` — sets a **pump-driven** channel to a named state directly (Off/Auto/On/Low/Med/High). The Connect 8/10 sends it for its Cleaning button | Yes                     |
@@ -375,6 +375,7 @@ Firmware-version announcement (`{major, minor}` payload) broadcast by multiple d
 | `0x0084` | Viron Chlorinator                        | `02 00 84 FF FF 80 00 0A 0E 1C`         | `05 07 0C`                     | 5.7           |
 | `0x00A0` | Viron XT Pump                            | `02 00 A0 FF FF 80 00 0A 0E 38`         | `01 09 0A`                     | 1.9           |
 | `0x00F0` | Internet Gateway                         | `02 00 F0 FF FF 80 00 0A 0E 88`         | `05 01 06` / `05 00 05`        | 5.1 / 5.0     |
+| `0xAC1D` | Pool Controller ESP32 (this firmware)    | `02 AC 1D FF FF 80 00 0A 0E 61`         | `01 13 14`                     | 1.19          |
 
 **Example (Internet Gateway, v5.1):**
 
@@ -387,7 +388,8 @@ Firmware-version announcement (`{major, minor}` payload) broadcast by multiple d
 
 **Notes:**
 
-- Decoded by the source-agnostic `handle_firmware_version` handler (matches on `data[7] == 0x0A` regardless of source); state is stored in per-device fields on `pool_state` (`touchscreen_version_*`, `controller_version_*`, `chlor_version_*`, `gateway_version_*`). Genus Heater (`0x0070`) firmware is logged only — no dedicated state field.
+- Decoded by the source-agnostic `handle_firmware_version` handler (matches on `data[7] == 0x0A` regardless of source); the version is stored on the source's entry in the seen-devices list, for every source.
+- This firmware broadcasts its own from `0xAC1D`: once about 5 s after startup, then every 60 s. The pair is the major and minor of the release (`v1.19.0` → 1.19; an untagged build sends 0.0). The Touchscreen lists the bridge as `Other Device (2753,13)`.
 - The same `{major, minor}` pair is also redundantly embedded in the Internet Gateway variant of [0x12 — Device Status](#0x12--device-status-️); firmware-version state population is performed once here.
 - **Repeated about once a minute, not only at startup.** Each device that sends it repeats it periodically. On the install with the Viron Chlorinator, all six sources sent it, at intervals of about 28 s (Connect 8/10) to 60 s. On the install with the RolaChem, the Touchscreen and Internet Gateway send it about every 60 s, but the Connect 8/10 (`0x0062`) and RolaChem (`0x0090`) sent none in a 6.6-hour capture. Rebooting the Touchscreen did not prompt them to send one either. A device can therefore be present on the bus with its firmware version never announced.
 
