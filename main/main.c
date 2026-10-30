@@ -132,6 +132,35 @@ static void configure_log_levels(void)
     // esp_log_level_set("esp_netif", ESP_LOG_WARN);       // Network interface
 }
 
+/**
+ * Confirm a newly installed OTA image once it has proven it can run.
+ *
+ * After an update the bootloader starts the new image as pending-verify. If it
+ * resets before being confirmed (a crash loop, a panic during startup), the
+ * bootloader boots the previous image instead. So confirmation waits until
+ * every service has started and the image has run OTA_CONFIRM_DELAY_MS without
+ * a reset. Until then esp_ota_begin() refuses a further update.
+ */
+static void confirm_ota_image_when_stable(void)
+{
+    esp_ota_img_states_t ota_state;
+    if (esp_ota_get_state_partition(esp_ota_get_running_partition(), &ota_state) != ESP_OK ||
+        ota_state != ESP_OTA_IMG_PENDING_VERIFY) {
+        return;
+    }
+
+    ESP_LOGI(TAG, "First boot after OTA update - confirming the image in %d s unless it resets",
+             OTA_CONFIRM_DELAY_MS / 1000);
+    vTaskDelay(pdMS_TO_TICKS(OTA_CONFIRM_DELAY_MS));
+
+    esp_err_t err = esp_ota_mark_app_valid_cancel_rollback();
+    if (err == ESP_OK) {
+        ESP_LOGI(TAG, "OTA image confirmed - rollback cancelled");
+    } else {
+        ESP_LOGE(TAG, "Failed to confirm OTA image: %s", esp_err_to_name(err));
+    }
+}
+
 // ======================================================
 // app_main
 // ======================================================
@@ -150,15 +179,7 @@ void app_main(void)
     }
     ESP_ERROR_CHECK(ret);
 
-    // Check if running from OTA partition and mark as valid
     const esp_partition_t *running = esp_ota_get_running_partition();
-    esp_ota_img_states_t ota_state;
-    if (esp_ota_get_state_partition(running, &ota_state) == ESP_OK) {
-        if (ota_state == ESP_OTA_IMG_PENDING_VERIFY) {
-            ESP_LOGI(TAG, "First boot after OTA update - marking app as valid");
-            esp_ota_mark_app_valid_cancel_rollback();
-        }
-    }
     ESP_LOGI(TAG, "Running from partition: %s (type %d, subtype %d) at offset 0x%lx",
              running->label, running->type, running->subtype, running->address);
 
@@ -249,4 +270,6 @@ void app_main(void)
     // Periodically log heap stats so a slow leak or fragmentation trend is
     // visible in the log history before it can exhaust memory and crash.
     heap_monitor_start();
+
+    confirm_ota_image_when_stable();
 }

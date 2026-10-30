@@ -169,6 +169,8 @@
 #define OTA_REBOOT_DELAY_MS            2000    // Delay before reboot after OTA
 #define OTA_UPLOAD_TIMEOUT_MS          120000  // 2 minutes max for OTA upload
 #define OTA_MAX_FIRMWARE_SIZE          0x1E0000 // Must match ota_0/ota_1 partition size in partitions.csv
+#define OTA_CONFIRM_DELAY_MS           60000   // A new image must run this long without a reset before it is
+                                                // confirmed; a reset sooner rolls back to the previous image
 
 // ======================================================
 // GitHub Firmware Update
