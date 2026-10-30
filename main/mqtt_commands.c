@@ -79,14 +79,7 @@ static void handle_channel_mode_command(int channel_id, const char *payload, int
 {
     ESP_LOGI(TAG, "Channel %d mode command: %.*s", channel_id, payload_len, payload);
 
-    int state = -1;
-    for (int i = 0; i < CHANNEL_STATE_COUNT; i++) {
-        if ((int)strlen(CHANNEL_STATE_NAMES[i]) == payload_len &&
-            strncmp(payload, CHANNEL_STATE_NAMES[i], payload_len) == 0) {
-            state = i;
-            break;
-        }
-    }
+    int state = channel_state_parse(payload, payload_len, CHANNEL_STATE_COUNT);
     if (state < 0) {
         ESP_LOGE(TAG, "Unknown channel mode: %.*s", payload_len, payload);
         return;
@@ -188,18 +181,13 @@ static void handle_light_command(int zone, const char *payload, int payload_len)
 {
     ESP_LOGI(TAG, "Light zone %d command: %.*s", zone, payload_len, payload);
 
-    // Determine state: OFF=0x00, AUTO=0x01, ON=0x02
-    uint8_t state;
-    if (strncmp(payload, "ON", payload_len) == 0) {
-        state = 0x02;
-    } else if (strncmp(payload, "OFF", payload_len) == 0) {
-        state = 0x00;
-    } else if (strncmp(payload, "AUTO", payload_len) == 0) {
-        state = 0x01;
-    } else {
+    // HA's light entity sends ON/OFF; the parse is case-insensitive
+    int parsed = channel_state_parse(payload, payload_len, OFF_AUTO_ON_COUNT);
+    if (parsed < 0) {
         ESP_LOGE(TAG, "Invalid light command: %.*s (expected ON/OFF/AUTO)", payload_len, payload);
         return;
     }
+    uint8_t state = (uint8_t)parsed;
 
     uint8_t reg_id = REG_ID_LIGHT_ZONE_STATE_0 + (zone - 1);
 
@@ -222,8 +210,7 @@ static void handle_light_command(int zone, const char *payload, int payload_len)
     // Calculate checksum (sum of bytes 10-12)
     cmd[13] = (reg_id + 0x01 + state) & 0xFF;
 
-    ESP_LOGI(TAG, "Sending light zone %d %s command", zone,
-             state == 0x02 ? "ON" : (state == 0x00 ? "OFF" : "AUTO"));
+    ESP_LOGI(TAG, "Sending light zone %d %s command", zone, off_auto_on_name(state));
     send_uart_command(cmd, sizeof(cmd));
 }
 
@@ -593,17 +580,12 @@ static void handle_valve_command(int valve_num, const char *payload, int payload
 {
     ESP_LOGI(TAG, "Valve %d command: %.*s", valve_num, payload_len, payload);
 
-    uint8_t state;
-    if (strncmp(payload, "On", payload_len) == 0) {
-        state = 0x02;
-    } else if (strncmp(payload, "Auto", payload_len) == 0) {
-        state = 0x01;
-    } else if (strncmp(payload, "Off", payload_len) == 0) {
-        state = 0x00;
-    } else {
+    int parsed = channel_state_parse(payload, payload_len, OFF_AUTO_ON_COUNT);
+    if (parsed < 0) {
         ESP_LOGE(TAG, "Invalid valve command: %.*s (expected Off/Auto/On)", payload_len, payload);
         return;
     }
+    uint8_t state = (uint8_t)parsed;
 
     // Build UART command
     // Pattern: 02 AC 1D FF FF 80 00 28 0E 7F [VALVE_IDX] [STATE] [CHECKSUM] 03
@@ -622,8 +604,7 @@ static void handle_valve_command(int valve_num, const char *payload, int payload
         0x03               // END
     };
 
-    ESP_LOGI(TAG, "Setting valve %d to %s", valve_num,
-             state == 0x02 ? "On" : (state == 0x01 ? "Auto" : "Off"));
+    ESP_LOGI(TAG, "Setting valve %d to %s", valve_num, off_auto_on_name(state));
     send_uart_command(cmd, sizeof(cmd));
 }
 

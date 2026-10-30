@@ -340,13 +340,6 @@ const uint8_t* multicolor_light_color_codes(uint8_t light_type, int *count) {
     }
 }
 
-// Lighting state names
-const char *LIGHTING_STATE_NAMES[] = {
-    "Off",          // 0
-    "Auto",         // 1
-    "On",           // 2
-};
-
 // Lighting zone preset name lookup table
 const char *LIGHT_ZONE_NAME_TABLE[] = {
     "Pool",         // 0x00
@@ -2070,7 +2063,7 @@ static bool handle_valve_state(
         uint8_t state   = payload[2 + i * 3];
         bool active     = (payload[3 + i * 3] == 0x01);
         if (configured) {
-            const char *state_name = (state < CHANNEL_STATE_COUNT) ? CHANNEL_STATE_NAMES[state] : "Unknown";
+            const char *state_name = channel_state_name(state);
             ESP_LOGI(TAG, "  V%d: %s (%s)", i + 1, state_name, active ? "Active" : "Inactive");
             // Valves only use Off/Auto/On (0x00-0x02); flag anything else.
             if (state > 0x02) undocumented_state = true;
@@ -2580,7 +2573,7 @@ static bool handle_register_write_request(
     if (reg_id >= REG_ID_LIGHT_ZONE_STATE_0 && reg_id <= REG_ID_LIGHT_ZONE_STATE_7 && slot == 0x01) {
         // Light zone state control (REG_ID_LIGHT_ZONE_STATE_0–REG_ID_LIGHT_ZONE_STATE_7, slot 0x01)
         uint8_t zone_num = reg_id - REG_ID_LIGHT_ZONE_STATE_0 + 1;
-        const char *state_name = (state == 0x00) ? "Off" : (state == 0x01) ? "Auto" : (state == 0x02) ? "On" : "Unknown";
+        const char *state_name = off_auto_on_name(state);
         ESP_LOGI(TAG, "%s Light zone control command - Zone %d -> %s (0x%02X)",
                  addr_info, zone_num, state_name, state);
         if (state >= 0x03) {  // Only Off/Auto/On documented for light zone state
@@ -3187,7 +3180,7 @@ static bool handle_solar_status_broadcast(
     uint8_t mode  = payload[1];
     uint8_t runtime_state = payload[2];
     bool solar_active = runtime_state != 0;
-    const char *mode_name = (mode == 0x00) ? "Off" : (mode == 0x01) ? "Auto" : (mode == 0x02) ? "On" : "Unknown";
+    const char *mode_name = off_auto_on_name(mode);
 
     ESP_LOGI(TAG, "%s Solar status - Mode: %s, Season: %s, Flush daily: %s, "
              "Filter pump required: %s, Output: %s (0x%02X), Differential: %d°C, Unknown: 0x%02X",
@@ -3429,7 +3422,7 @@ static bool handle_channel_state(
     uint8_t state  = payload[2];
     uint8_t ch_num = reg_id - REG_ID_CHANNEL_STATE_0 + 1;
 
-    const char *state_name = (state < CHANNEL_STATE_COUNT) ? CHANNEL_STATE_NAMES[state] : "Unknown";
+    const char *state_name = channel_state_name(state);
     ESP_LOGI(TAG, "%s Channel %d state - %s", addr_info, ch_num, state_name);
 
     if (ch_num > MAX_CHANNELS || state >= CHANNEL_STATE_COUNT) {
@@ -3626,10 +3619,10 @@ static bool handle_light_zone_state(
         return true;  // captured as undocumented; don't fall through to UNHANDLED
     }
 
-    const char *state_name = (state < LIGHTING_STATE_COUNT) ? LIGHTING_STATE_NAMES[state] : "Unknown";
+    const char *state_name = off_auto_on_name(state);
     ESP_LOGI(TAG, "%s Lighting zone %d state - %s", addr_info, zone_idx + 1, state_name);
 
-    if (state >= LIGHTING_STATE_COUNT) {  // documented states are Off/Auto/On
+    if (state >= OFF_AUTO_ON_COUNT) {  // documented states are Off/Auto/On
         record_undocumented(data, len);
     }
 
@@ -4008,7 +4001,7 @@ static bool handle_valve_state_register(
         record_undocumented(data, len);
     }
 
-    const char *state_name = (state < CHANNEL_STATE_COUNT) ? CHANNEL_STATE_NAMES[state] : "Unknown";
+    const char *state_name = channel_state_name(state);
     ESP_LOGI(TAG, "%s Valve zone %d state - %s", addr_info, zone_num, state_name);
 
     return true;
@@ -4237,7 +4230,7 @@ static bool handle_channel_status(
             uint8_t state   = payload[payload_idx + 1];
             uint8_t active  = payload[payload_idx + 2];
 
-            const char *state_name = (state < CHANNEL_STATE_COUNT) ? CHANNEL_STATE_NAMES[state] : "Unknown";
+            const char *state_name = channel_state_name(state);
 
             if (ch_type == CHANNEL_TYPE_UNUSED) {
                 ESP_LOGI(TAG, "  Ch%d: Unused", ch_num);

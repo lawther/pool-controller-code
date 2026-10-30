@@ -37,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - PROTOCOL.md no longer says the chlorinator's CMD `0x12` status byte is an Off/Auto/On operating mode. On the RolaChem it stayed the same while its pump setting, the Filter's state, Pool/Spa mode and several setup settings changed, so its meaning is now listed as unknown, with the values seen from each chlorinator. The decoder now logs the raw value (e.g. `Chlorinator status - 0x00`) in place of `Chlorinator status - mode=Off (0x00)`
 - PROTOCOL.md no longer says registers `0xB8`/`0xB9` (slot `0x0B`) read `0x01` on every install. One install reads `0x00`, in Pool and Spa alike
 - PROTOCOL.md no longer says the slot `0x0D` registers `0xAC`–`0xB3` and `0xC0`–`0xC3` only ever read `0xFF`. `0xAE`/`0xAF` read light zone numbers and `0xC0`–`0xC3` read `0x00`. Each set of four rows is now merged into an 8-register, one-per-channel block, and `0xBC`–`0xC3` is still unknown
+- Fixed the light and valve MQTT commands accepting a partial payload as a state, e.g. `O` as On or an empty payload as the first option. Payloads must now match a state name in full, ignoring case, as the pump-mode select's already did
 ### Removed
 ### Deprecated
 ### Security
