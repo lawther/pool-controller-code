@@ -106,6 +106,7 @@ void mqtt_publish_orp_discovery_single(void);
 void mqtt_publish_ph_setpoint_discovery_single(void);
 void mqtt_publish_orp_setpoint_discovery_single(void);
 void mqtt_publish_chlor_output_level_discovery_single(void);
+void mqtt_publish_chlor_mode_discovery_single(void);
 void mqtt_publish_service_mode_discovery_single(void);
 
 // Publish the pump entities: the speed sensor always, plus the power and

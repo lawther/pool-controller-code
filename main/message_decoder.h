@@ -109,6 +109,18 @@ const char* get_channel_type_name(channel_type_t type_code);
 const char* multicolor_light_type_name(uint8_t type, char *fallback_buf, size_t buf_size);
 
 /**
+ * Get the chlorinator mode name from its CMD 0x12 status byte (RolaChem 0x0090
+ * and Viron 0x0084). Known values: 0x00 "Off", 0x01 "Auto", 0x02 "On".
+ * Otherwise formats "Unknown (0xXX)" into the caller-supplied buffer and
+ * returns it.
+ * @param mode Mode byte from the chlorinator's CMD 0x12 status
+ * @param fallback_buf Buffer for the unknown-value fallback string
+ * @param buf_size Size of fallback_buf
+ * @return Chlorinator mode name string
+ */
+const char* chlor_mode_name(uint8_t mode, char *fallback_buf, size_t buf_size);
+
+/**
  * Get the color codes available on a multicolor light model
  * Returns the model's subset of the shared color value space (each code is an
  * index into LIGHTING_COLOR_NAMES) — see PROTOCOL.md, Light Zone Color Control.

@@ -1529,6 +1529,41 @@ static void publish_chlor_output_level_discovery(const char *device_id, const ch
 }
 
 // ======================================================
+// Chlorinator Mode Sensor Discovery
+// ======================================================
+
+static void publish_chlor_mode_discovery(const char *device_id, const char *mac_suffix)
+{
+    char avail_topic[128];
+    char state_topic[128];
+    snprintf(avail_topic, sizeof(avail_topic), "pool/%s/availability", device_id);
+    snprintf(state_topic, sizeof(state_topic), "pool/%s/chlorinator/state", device_id);
+
+    char uid[64];
+    snprintf(uid, sizeof(uid), DISCOVERY_ID_PREFIX "_%s_chlor_mode", mac_suffix);
+
+    cJSON *root = cJSON_CreateObject();
+    cJSON_AddStringToObject(root, "name", "Chlorinator Mode");
+    cJSON_AddStringToObject(root, "state_topic", state_topic);
+    cJSON_AddStringToObject(root, "value_template", "{{ value_json.mode }}");
+    cJSON_AddStringToObject(root, "icon", "mdi:water-check");
+    add_entity_ids(root, "sensor", mac_suffix, uid, "chlor_mode");
+    cJSON_AddStringToObject(root, "availability_topic", avail_topic);
+    cJSON_AddItemToObject(root, "device", build_device_cjson(device_id, mac_suffix));
+
+    char *json_str = cJSON_PrintUnformatted(root);
+    if (!json_str) {
+        ESP_LOGE(TAG, "Failed to print chlorinator mode discovery JSON");
+        cJSON_Delete(root);
+        return;
+    }
+    ESP_LOGI(TAG, "Publishing chlorinator mode discovery: %s", json_str);
+    publish_discovery("sensor", uid, json_str);
+    cJSON_free(json_str);
+    cJSON_Delete(root);
+}
+
+// ======================================================
 // Pump Sensor Discovery (speed, power, energy)
 // ======================================================
 
@@ -1691,6 +1726,7 @@ void mqtt_publish_orp_discovery_single(void)               { publish_single(publ
 void mqtt_publish_ph_setpoint_discovery_single(void)       { publish_single(publish_ph_setpoint_discovery); }
 void mqtt_publish_orp_setpoint_discovery_single(void)      { publish_single(publish_orp_setpoint_discovery); }
 void mqtt_publish_chlor_output_level_discovery_single(void) { publish_single(publish_chlor_output_level_discovery); }
+void mqtt_publish_chlor_mode_discovery_single(void)        { publish_single(publish_chlor_mode_discovery); }
 void mqtt_publish_service_mode_discovery_single(void)      { publish_single(publish_service_mode_discovery); }
 void mqtt_publish_mode_discovery_single(void)              { publish_single(publish_mode_discovery); }
 
@@ -2128,7 +2164,8 @@ void mqtt_publish_discovery(void)
     // Favourite select (snapshot state for dynamic options)
     publish_favourite_discovery(device_id, mac_suffix, &snapshot);
 
-    // Note: Chemistry (pH/ORP readings and setpoints, chlorine output level),
+    // Note: Chemistry (pH/ORP readings and setpoints, chlorine output level,
+    // chlorinator mode),
     // pump speed, and service mode are NOT published here. Each entity is
     // published individually on its first valid reading (see
     // mqtt_publish_chlorinator, mqtt_publish_pump, and

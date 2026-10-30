@@ -270,8 +270,12 @@ static esp_err_t home_get_handler(httpd_req_t *req)
         "rows.push(['Lighting zone '+lt.zone,s]);});"
         "if(data.multicolor_light_type)rows.push(['Multicolor Light Type',data.multicolor_light_type]);"
         "const c=data.chlorinator;"
-        "if(c.ph_reading!==null)rows.push(['pH',c.ph_reading+' (setpoint '+c.ph_setpoint+')']);"
-        "if(c.orp_reading!==null)rows.push(['ORP',c.orp_reading+'mV (setpoint '+c.orp_setpoint+'mV)']);"
+        "if(c.mode!==null)rows.push(['Chlorinator Mode',c.mode]);"
+        "const sp=(v,u)=>v!==null?' (setpoint '+v+u+')':'';"
+        "if(c.ph_reading!==null||c.ph_setpoint!==null)"
+        "rows.push(['pH',(c.ph_reading!==null?c.ph_reading:'—')+sp(c.ph_setpoint,'')]);"
+        "if(c.orp_reading!==null||c.orp_setpoint!==null)"
+        "rows.push(['ORP',(c.orp_reading!==null?c.orp_reading+'mV':'—')+sp(c.orp_setpoint,'mV')]);"
         "if(c.chlor_output_level!==null)rows.push(['Chlorine Output Level',c.chlor_output_level]);"
         "if(data.timers&&data.timers.length>0){"
         "data.timers.forEach(t=>rows.push(['Timer '+t.num,t.start+' \u2013 '+t.stop+' ['+t.days+']']));}"
@@ -934,24 +938,37 @@ static esp_err_t status_get_handler(httpd_req_t *req)
 
     // Chlorinator
     cJSON *chlorinator = cJSON_CreateObject();
-    if (state.ph_valid) {
+    if (state.ph_setpoint_valid) {
         cJSON_AddNumberToObject(chlorinator, "ph_setpoint", state.ph_setpoint / 10.0);
-        cJSON_AddNumberToObject(chlorinator, "ph_reading",  state.ph_reading  / 10.0);
     } else {
         cJSON_AddNullToObject(chlorinator, "ph_setpoint");
+    }
+    if (state.ph_valid) {
+        cJSON_AddNumberToObject(chlorinator, "ph_reading", state.ph_reading / 10.0);
+    } else {
         cJSON_AddNullToObject(chlorinator, "ph_reading");
     }
-    if (state.orp_valid) {
+    if (state.orp_setpoint_valid) {
         cJSON_AddNumberToObject(chlorinator, "orp_setpoint", state.orp_setpoint);
-        cJSON_AddNumberToObject(chlorinator, "orp_reading",  state.orp_reading);
     } else {
         cJSON_AddNullToObject(chlorinator, "orp_setpoint");
+    }
+    if (state.orp_valid) {
+        cJSON_AddNumberToObject(chlorinator, "orp_reading", state.orp_reading);
+    } else {
         cJSON_AddNullToObject(chlorinator, "orp_reading");
     }
     if (state.chlor_output_level_valid) {
         cJSON_AddNumberToObject(chlorinator, "chlor_output_level", state.chlor_output_level);
     } else {
         cJSON_AddNullToObject(chlorinator, "chlor_output_level");
+    }
+    if (state.chlor_mode_valid) {
+        char mode_buf[20];
+        cJSON_AddStringToObject(chlorinator, "mode",
+                                chlor_mode_name(state.chlor_mode, mode_buf, sizeof(mode_buf)));
+    } else {
+        cJSON_AddNullToObject(chlorinator, "mode");
     }
     cJSON_AddItemToObject(root, "chlorinator", chlorinator);
 

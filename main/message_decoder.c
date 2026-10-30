@@ -317,6 +317,17 @@ const char* multicolor_light_type_name(uint8_t type, char *fallback_buf, size_t 
     }
 }
 
+const char* chlor_mode_name(uint8_t mode, char *fallback_buf, size_t buf_size) {
+    switch (mode) {
+        case 0x00: return "Off";
+        case 0x01: return "Auto";
+        case 0x02: return "On";
+        default:
+            snprintf(fallback_buf, buf_size, "Unknown (0x%02X)", mode);
+            return fallback_buf;
+    }
+}
+
 // Per-model color code subsets of the shared color value space (indexes into
 // LIGHTING_COLOR_NAMES) — see PROTOCOL.md, Light Zone Color Control.
 static const uint8_t SLX_COLOR_CODES[] = {
@@ -2857,7 +2868,7 @@ static bool handle_chlor_orp_reading(
  * Handler: Chlorinator status broadcast (CMD 0x12, source 0x0090 RolaChem or
  * 0x0084 Viron)
  *
- * 1-byte payload: configured operating mode. Mapping is tentative — see §32.
+ * 1-byte payload: operating mode (see chlor_mode_name()).
  */
 static bool handle_chlor_status(
     const uint8_t *data, int len,
@@ -2868,25 +2879,24 @@ static bool handle_chlor_status(
     if (payload_len < 1) return false;
 
     uint8_t mode = payload[0];
-    const char *mode_name;
-    switch (mode) {
-        case 0x00: mode_name = "Off";  break;
-        case 0x01: mode_name = "Auto"; break;
-        case 0x02: mode_name = "On";   break;
-        default:   mode_name = "Unknown"; break;
-    }
-
-    ESP_LOGI(TAG, "%s Chlorinator status - mode=%s (0x%02X)", addr_info, mode_name, mode);
+    char name_buf[20];
+    ESP_LOGI(TAG, "%s Chlorinator status - mode=%s (0x%02X)", addr_info,
+             chlor_mode_name(mode, name_buf, sizeof(name_buf)), mode);
 
     // Documented modes are Off/Auto/On (0x00-0x02); flag anything else.
     if (mode > 0x02) {
         record_undocumented(data, len);
     }
 
-    if (state_lock(ctx, "chlorinator mode")) {
-        ctx->pool_state->chlor_mode = mode;
-        ctx->pool_state->chlor_mode_valid = true;
-        state_unlock(ctx, true, NULL);
+    // Update state and publish
+    pool_state_t snapshot;
+    if (!state_lock(ctx, "chlorinator mode")) return true;
+    ctx->pool_state->chlor_mode = mode;
+    ctx->pool_state->chlor_mode_valid = true;
+    state_unlock(ctx, true, &snapshot);
+
+    if (ctx->enable_mqtt) {
+        mqtt_publish_chlorinator(&snapshot);
     }
 
     return true;

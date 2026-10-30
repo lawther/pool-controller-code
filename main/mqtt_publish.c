@@ -30,6 +30,7 @@ static struct {
     bool ph_setpoint;
     bool orp_setpoint;
     bool chlor_output_level;
+    bool chlor_mode;
     bool pump;
     bool service_mode;
 } s_discovery_published = {0};
@@ -771,7 +772,9 @@ void mqtt_publish_chlorinator(const pool_state_t *current_state)
         s_last_published_state.ph_setpoint == current_state->ph_setpoint &&
         s_last_published_state.orp_setpoint == current_state->orp_setpoint &&
         s_last_published_state.chlor_output_level_valid == current_state->chlor_output_level_valid &&
-        s_last_published_state.chlor_output_level == current_state->chlor_output_level) {
+        s_last_published_state.chlor_output_level == current_state->chlor_output_level &&
+        s_last_published_state.chlor_mode_valid == current_state->chlor_mode_valid &&
+        s_last_published_state.chlor_mode == current_state->chlor_mode) {
         return;  // No change, skip publish
     }
 
@@ -795,6 +798,10 @@ void mqtt_publish_chlorinator(const pool_state_t *current_state)
     if (current_state->chlor_output_level_valid && !s_discovery_published.chlor_output_level) {
         mqtt_publish_chlor_output_level_discovery_single();
         s_discovery_published.chlor_output_level = true;
+    }
+    if (current_state->chlor_mode_valid && !s_discovery_published.chlor_mode) {
+        mqtt_publish_chlor_mode_discovery_single();
+        s_discovery_published.chlor_mode = true;
     }
 
     char device_id[32];
@@ -838,6 +845,15 @@ void mqtt_publish_chlorinator(const pool_state_t *current_state)
         len += snprintf(payload + len, sizeof(payload) - len, ",\"orp_setpoint\":null");
     }
 
+    // Mode (CMD 0x12 status)
+    if (current_state->chlor_mode_valid) {
+        char mode_buf[20];
+        len += snprintf(payload + len, sizeof(payload) - len, ",\"mode\":\"%s\"",
+                       chlor_mode_name(current_state->chlor_mode, mode_buf, sizeof(mode_buf)));
+    } else {
+        len += snprintf(payload + len, sizeof(payload) - len, ",\"mode\":null");
+    }
+
     // Salt chlorinator setpoint
     if (current_state->chlor_output_level_valid) {
         len += snprintf(payload + len, sizeof(payload) - len,
@@ -859,6 +875,8 @@ void mqtt_publish_chlorinator(const pool_state_t *current_state)
     s_last_published_state.orp_setpoint_valid = current_state->orp_setpoint_valid;
     s_last_published_state.chlor_output_level = current_state->chlor_output_level;
     s_last_published_state.chlor_output_level_valid = current_state->chlor_output_level_valid;
+    s_last_published_state.chlor_mode = current_state->chlor_mode;
+    s_last_published_state.chlor_mode_valid = current_state->chlor_mode_valid;
 
     ESP_LOGI(TAG, "Published chlorinator: pH=%.1f (sp=%.1f), ORP=%d (sp=%d), chlor_output_level=%d",
              current_state->ph_reading / 10.0, current_state->ph_setpoint / 10.0,

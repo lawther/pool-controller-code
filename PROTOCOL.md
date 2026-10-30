@@ -19,7 +19,9 @@ This document describes the proprietary serial protocol used by the Connect 10 p
   - [0x0D — Active Channels Bitmask ✅](#0x0d--active-channels-bitmask-)
   - [0x0F — Set Channel State ✅](#0x0f--set-channel-state-)
   - [0x10 — Channel Toggle Command ✅](#0x10--channel-toggle-command-)
+  - [0x11 — Pump Toggle Request ⚠️](#0x11--pump-toggle-request-️)
   - [0x12 — Device Status ⚠️](#0x12--device-status-️)
+  - [0x13 — Chlorinator Change Notice ⚠️](#0x13--chlorinator-change-notice-️)
   - [0x14 — Mode (Spa/Pool) ✅](#0x14--mode-spapool-)
   - [0x15 — Mode Toggle Command (Spa/Pool) ✅](#0x15--mode-toggle-command-spapool-)
   - [0x16 — Water Temperature Reading ✅](#0x16--water-temperature-reading-)
@@ -94,8 +96,8 @@ Frames with no data seen so far:
 
 | CMD | Source → Destination | Meaning |
 |-----|----------------------|---------|
-| `0x13` | `0x0081` VX 11S v3, `0x0084` Viron Chlorinator → Broadcast | Unknown; sent next to the chlorinator's [0x12](#0x12--device-status-️) status |
-| `0x15` | `0x0062` Connect 8/10, `0x0074` ICI Gas Heater → Broadcast | [Mode toggle](#without-payload-) |
+| `0x13` | `0x0081` VX 11S v3, `0x0084` Viron Chlorinator, `0x0090` RolaChem → Broadcast | [Chlorinator Change Notice](#0x13--chlorinator-change-notice-️); sent next to the chlorinator's [0x12](#0x12--device-status-️) status |
+| `0x15` | `0x0062` Connect 8/10, `0x0074` ICI Gas Heater, `0x0090` RolaChem → Broadcast | [Mode toggle](#without-payload-) |
 | `0x1A` | `0x0050` Touchscreen → `0x007F` All Heaters | [Heater Toggle Command](#0x1a--heater-toggle-command-) |
 
 Any other FRAME_TYPE value is invalid, and the frame is discarded.
@@ -225,14 +227,16 @@ Click any CMD in the first column to jump to the full section in [Commands](#com
 | [`0x05`](#0x05--touchscreen-activation-ack-️)                  | Touchscreen Activation Ack          | `0x0050` → Broadcast                                                   | 1-byte payload `0x01`; sent after favourite changes                                    | Yes (log-only)          |
 | [`0x06`](#0x06--lighting-zone-configuration-)                  | Lighting Zone Configuration         | `0x0050` → Broadcast                                                   |                                                                                             | Yes                     |
 | [`0x07`](#0x07--lighting-zone-color-broadcast-️)               | Lighting Zone Color Broadcast       | `0x0050` → Broadcast                                                   | `{zone_idx, color}`; only emitted for multicolor-capable zones; shared color code table, per-model subsets; dispatched on CMD byte alone | Yes (log-only)          |
-| [`0x0A`](#0x0a--firmware-version-)                             | Firmware Version                    | `0x0050`, `0x0062`, `0x0070`, `0x0081`, `0x0084`, `0x00A0`, `0x00F0`, `0xAC1D` → Broadcast | Same `{major, minor}` payload across all sources; dispatched on CMD byte alone              | Yes (unified handler)   |
+| [`0x0A`](#0x0a--firmware-version-)                             | Firmware Version                    | `0x0050`, `0x0062`, `0x0070`, `0x0081`, `0x0084`, `0x0090`, `0x00A0`, `0x00F0`, `0xAC1D` → Broadcast | Same `{major, minor}` payload across all sources; dispatched on CMD byte alone              | Yes (unified handler)   |
 | [`0x0B`](#0x0b--channel-status-)                               | Channel Status                      | `0x0050` → Broadcast                                                   |                                                                                             | Yes                     |
 | [`0x0D`](#0x0d--active-channels-bitmask-)                      | Active Channels Bitmask             | `0x0050` → `0x006F` Internal Channels                                  | Unicast                                                                                     | Yes                     |
 | [`0x0F`](#0x0f--set-channel-state-)                | Set Channel State          | `0x0081`, `0x0084`, `0x0062`, `0xAC1D` → `0x0050`                                                  | `{channel, state}` — sets a **pump-driven** channel to a named state directly (Off/Auto/On/Low/Med/High). The Connect 8/10 sends it for its Cleaning button | Yes                     |
 | [`0x10`](#0x10--channel-toggle-command-)                      | Channel Toggle Command              | `0x00F0`, `0x0062`, `0xAC1D` → Broadcast                               | Same 1-byte channel-index payload from either source; dispatched on CMD byte alone         | Yes (unified handler)   |
+| [`0x11`](#0x11--pump-toggle-request-️)                         | Pump Toggle Request                 | `0x0090` RolaChem → `0x0050`                                           | Unicast, 1-byte payload `0x01`; sent from the RolaChem's own screen, and the Touchscreen steps the Filter channel one state as for a [0x10](#0x10--channel-toggle-command-) | **No (doc only)**       |
 | [`0x12`](#0x12--device-status-️)                               | Device Status                       | `0x0050`, `0x0062`, `0x0070`–`0x0072`, `0x0074`, `0x0081`, `0x0084`, `0x0090`, `0x00F0` → Broadcast | Payload layout differs per source; dispatched on CMD byte, routed by source address         | Yes (per-source)        |
+| [`0x13`](#0x13--chlorinator-change-notice-️)                   | Chlorinator Change Notice           | `0x0081`, `0x0084`, `0x0090` → Broadcast                               | Frame with no data (LEN `0x0B`, FRAME_TYPE `00 00`); from the RolaChem it heads an off-cycle status burst after a change at its screen, and the Touchscreen answers with `0x14` and `0x0B` | **No (doc only)**       |
 | [`0x14`](#0x14--mode-spapool-)                                 | Mode (Spa/Pool)                     | `0x0050` → Broadcast                                                   |                                                                                             | Yes                     |
-| [`0x15`](#0x15--mode-toggle-command-spapool-)                  | Mode Toggle Command (Spa/Pool)      | `0x0050`, `0x0062`, `0x0074`, `0xAC1D` → Broadcast                     | Toggles the mode, in two forms by LEN: `0x0B` (frame with no data, FRAME_TYPE `00 00`) from the Connect 8/10 Pool/Spa button, the ICI Gas Heater and our firmware; `0x0D` carries one byte, which the Touchscreen ignores, and is only seen injected; dispatched on CMD byte alone | Yes (both forms)        |
+| [`0x15`](#0x15--mode-toggle-command-spapool-)                  | Mode Toggle Command (Spa/Pool)      | `0x0050`, `0x0062`, `0x0074`, `0x0090`, `0xAC1D` → Broadcast           | Toggles the mode, in two forms by LEN: `0x0B` (frame with no data, FRAME_TYPE `00 00`) from the Connect 8/10 Pool/Spa button, the ICI Gas Heater, the RolaChem's screen and our firmware; `0x0D` carries one byte, which the Touchscreen ignores, and is only seen injected; dispatched on CMD byte alone | Yes (both forms)        |
 | [`0x16`](#0x16--water-temperature-reading-)                    | Water Temperature Reading           | `0x0062` (LEN `0x0E`), `0x0070`/`0x0071`/`0x0072`/`0x0074` (LEN `0x0D`) → Broadcast | Payload length differs by source: LEN `0x0E` = `{temp1, temp2}`, LEN `0x0D` = `{temp1}`; dispatched on CMD byte alone | Yes (unified handler)   |
 | [`0x17`](#0x17--temperature-settings-)                         | Temperature Settings                | `0x0050` (LEN `0x10`), `0x0070`/`0x0071`/`0x0072`/`0x0074` (LEN `0x0E`) → Broadcast | Source-dependent payload layout                                                             | Yes (per-source)        |
 | [`0x18`](#0x18--pump-speed-command-)                           | Pump Speed Command                  | `0x0050`, `0x0084` → `0x00A0` Viron XT Pump                            | Set pump speed (low/med/high)                                                       | Yes                     |
@@ -391,7 +395,7 @@ Firmware-version announcement (`{major, minor}` payload) broadcast by multiple d
 - Decoded by the source-agnostic `handle_firmware_version` handler (matches on `data[7] == 0x0A` regardless of source); the version is stored on the source's entry in the seen-devices list, for every source.
 - This firmware broadcasts its own from `0xAC1D`: once about 5 s after startup, then every 60 s. The pair is the major and minor of the release (`v1.19.0` → 1.19; an untagged build sends 0.0). The Touchscreen lists the bridge as `Other Device (2753,13)`.
 - The same `{major, minor}` pair is also redundantly embedded in the Internet Gateway variant of [0x12 — Device Status](#0x12--device-status-️); firmware-version state population is performed once here.
-- **Repeated about once a minute, not only at startup.** Each device that sends it repeats it periodically. On the install with the Viron Chlorinator, all six sources sent it, at intervals of about 28 s (Connect 8/10) to 60 s. On the install with the RolaChem, the Touchscreen and Internet Gateway send it about every 60 s, but the Connect 8/10 (`0x0062`) and RolaChem (`0x0090`) sent none in a 6.6-hour capture. Rebooting the Touchscreen did not prompt them to send one either. A device can therefore be present on the bus with its firmware version never announced.
+- **Repeated about once a minute, not only at startup.** Each device that sends it repeats it periodically. On the install with the Viron Chlorinator, all six sources sent it, at intervals of about 28 s (Connect 8/10) to 60 s. On the install with the RolaChem, the Touchscreen and Internet Gateway send it about every 60 s, but the Connect 8/10 (`0x0062`) and RolaChem (`0x0090`) sent none in a 6.6-hour capture. Rebooting the Touchscreen did not prompt them to send one either. The RolaChem sends its own (2.1) only in the burst headed by its [0x13 Chlorinator Change Notice](#0x13--chlorinator-change-notice-️), after a change made at its screen. A device can therefore be present on the bus with its firmware version never announced.
 
 ---
 
@@ -674,6 +678,43 @@ Index `N` is channel `N+1` (`0x00`–`0x07` = Channels 1–8). Channel functions
 
 ---
 
+### 0x11 — Pump Toggle Request ⚠️
+
+Sent by the RolaChem (`0x0090`) to the Touchscreen when its pump control is used on the RolaChem's own screen. The Touchscreen steps the Filter channel to its next state, as a [0x10 Channel Toggle](#0x10--channel-toggle-command-) for that channel would. Unlike `0x10` it is unicast to `0x0050`, not broadcast. No handler in `message_decoder.c`; it is logged as an unhandled CMD.
+
+**Pattern:** `02 00 90 00 50 80 00 11 0D 80`
+
+**Example:**
+
+```
+02 00 90 00 50 80 00 11 0D 80 01 01 03
+                              ^^ Byte 10: 0x01 in every capture
+                                 ^^ Data checksum (equals byte 10)
+```
+
+**Data Fields:**
+
+- Byte 10: `0x01` in all five captured requests. Meaning unknown ⚠️ It could be a 1-based channel number (the Filter is channel 1 on the capturing install), which would differ from the 0-based index of `0x10`, or a fixed code.
+- Byte 11: Data checksum (equals byte 10)
+
+**Observed (single-speed Filter on channel 1, see `test/samples/rolachem_controls.txt`):**
+
+| Request at | Filter before → after | Touchscreen `0x0B` after |
+|------------|-----------------------|--------------------------|
+| 02:30:37.07 | Off → Auto | 190 ms |
+| 02:34:42.28 | Auto → On  | 720 ms |
+| 02:34:43.29 | On → Off   | 310 ms |
+| 02:38:30.12 | Auto → On  | 330 ms |
+| 02:38:31.14 | On → Off   | 400 ms |
+
+**Notes:**
+
+- Each request advances one step through the same Auto → On → Off cycle as `0x10`; it does not name a state. Two requests 1 s apart advanced two steps.
+- The Touchscreen answers with its usual [0x0D](#0x0d--active-channels-bitmask-) and [0x0B](#0x0b--channel-status-) updates. Nothing acknowledges the request itself.
+- Untested: whether the Touchscreen acts on it from `0xAC1D`, what another byte 10 value does, and how it steps a multi-speed Filter.
+
+---
+
 ### 0x12 — Device Status ⚠️
 
 Status broadcast emitted by multiple devices, each sending its own alongside its [0x0A](#0x0a--firmware-version-) firmware version. The CMD byte is shared but the **payload layout differs per source**, so `0x12` is dispatched on the CMD byte and then routed by source address (`handle_device_status`) to a per-source handler. Each variant is documented separately below. A source not listed here is logged as unhandled.
@@ -909,10 +950,11 @@ Observed mode values (tentative; follows the standard channel-state convention f
 
 | Value  | Meaning |
 |--------|---------|
-| `0x00` | Off (not yet observed) |
+| `0x00` | Off     |
 | `0x01` | Auto    |
 | `0x02` | On      |
 
+`0x00` was confirmed on the RolaChem by setting it to Off at its own screen: the status went from `0x01` to `0x00` in the burst headed by a [0x13 Chlorinator Change Notice](#0x13--chlorinator-change-notice-️), and stayed `0x00` in each later status (see `test/samples/rolachem_controls.txt`). While Off it kept sending status and [0x1D](#0x1d--chlorinator-setpoint-) setpoints but no [0x1F](#0x1f--chlorinator-reading-) readings.
 
 ---
 
@@ -945,6 +987,35 @@ Observed samples:
 | `05 00 05`           | 5     | 0     | `0x05` (=5+0)     |
 
 Carries redundant firmware-version information already announced by [0x0A](#0x0a--firmware-version-); firmware-version state population is left to that handler alone. Repeated about once a minute, like the Gateway's `0x0A` firmware-version announcement.
+
+---
+
+### 0x13 — Chlorinator Change Notice ⚠️
+
+A [frame with no data](#frame-types) broadcast by a chlorinator. From the RolaChem (`0x0090`) it heads an off-cycle burst sent after a change made at the RolaChem's own screen, and the Touchscreen answers that burst. Also seen from the VX 11S v3 (`0x0081`) and Viron (`0x0084`), next to their [0x12](#0x12--device-status-️) status. No handler in `message_decoder.c`; it is logged as an unhandled CMD.
+
+**Pattern:** `02 00 90 FF FF 00 00 13 0B AE 03`
+
+**Data Fields:**
+
+- None. LEN `0x0B` leaves no room for payload or data checksum, as with the no-data form of [0x15](#without-payload-).
+
+**RolaChem burst** (three times in `test/samples/rolachem_controls.txt`, about 190 ms between frames):
+
+| Order | Frame |
+|-------|-------|
+| 1 | `0x13` Chlorinator Change Notice |
+| 2 | [0x12](#0x12--device-status-️) status (mode) |
+| 3 | [0x0A](#0x0a--firmware-version-) firmware version (2.1) |
+| 4 | [0x1D](#0x1d--chlorinator-setpoint-) pH setpoint |
+| 5 | [0x1D](#0x1d--chlorinator-setpoint-) ORP setpoint |
+
+**Notes:**
+
+- The first burst came when the RolaChem was set to Off at its screen, and carried the new status (`0x00`). The other two came while it was already Off, after other changes at its screen.
+- About 120 ms after the burst's last frame the Touchscreen broadcasts [0x14 Mode](#0x14--mode-spapool-) and [0x0B Channel Status](#0x0b--channel-status-), with no `0x0D` between them.
+- This burst is the only place the RolaChem's `0x0A` has been seen. Its regular ~60 s cycle is `0x12` → `0x1D` ×2 → `0x1F` ×2, without `0x13` or `0x0A`.
+- A setpoint change made at the screen does not raise a `0x13`: the new `0x1D` is sent on its own (see [0x1D](#0x1d--chlorinator-setpoint-)).
 
 ---
 
@@ -984,7 +1055,7 @@ Switches the operating mode to the other one, Pool to Spa or Spa to Pool. It nam
 
 | Form | Seen from | LEN | FRAME_TYPE | Payload |
 |------|-----------|-----|------------|---------|
-| [Without payload](#without-payload-) | `0x0062` Connect 8/10, `0x0074` ICI Gas Heater, `0xAC1D` our firmware | `0x0B` | `00 00` | none |
+| [Without payload](#without-payload-) | `0x0062` Connect 8/10, `0x0074` ICI Gas Heater, `0x0090` RolaChem, `0xAC1D` our firmware | `0x0B` | `00 00` | none |
 | [With payload](#with-payload-) | Injection only, as `0x0050` and `0xAC1D` | `0x0D` | `80 00` | 1 byte, ignored |
 
 **Notes:**
@@ -998,11 +1069,12 @@ Switches the operating mode to the other one, Pool to Spa or Spa to Pool. It nam
 
 #### Without payload ✅
 
-Broadcast by the Connect 8/10 (`0x0062`) when its Pool/Spa button is pressed, and by the ICI Gas Heater (`0x0074`) to put the system in the mode it needs. Sent from `0xAC1D`, two toggles 10 s apart switched Pool → Spa → Pool (see `test/samples/heater_commands.txt`). It carries no payload, so it cannot name a mode: the same bytes switched Pool → Spa and Spa → Pool.
+Broadcast by the Connect 8/10 (`0x0062`) when its Pool/Spa button is pressed, by the RolaChem (`0x0090`) when Pool/Spa is switched at its own screen, and by the ICI Gas Heater (`0x0074`) to put the system in the mode it needs. Two switches at the RolaChem, 10 s apart, took the Touchscreen Pool → Spa → Pool (see `test/samples/rolachem_controls.txt`). Sent from `0xAC1D`, two toggles 10 s apart switched Pool → Spa → Pool (see `test/samples/heater_commands.txt`). It carries no payload, so it cannot name a mode: the same bytes switched Pool → Spa and Spa → Pool.
 
 **Patterns:**
 
 - Connect 8/10: `02 00 62 FF FF 00 00 15 0B 82`
+- RolaChem: `02 00 90 FF FF 00 00 15 0B B0`
 - ICI Gas Heater: `02 00 74 FF FF 00 00 15 0B 94`
 - Our firmware: `02 AC 1D FF FF 00 00 15 0B E9`
 
@@ -1392,6 +1464,10 @@ Setpoint broadcasts from chlorinator devices. The slot byte (byte 10) selects wh
 - Byte 10: Slot `0x01` = pH, `0x02` = ORP)
 - Bytes 11-12: Value (little-endian; pH × 10 or mV depending on slot)
 
+**Notes (RolaChem):**
+
+- Sent in the ~60 s cycle, and also at once when a setpoint is changed at the RolaChem's screen: one frame for the changed slot only, outside the cycle and with no [0x13](#0x13--chlorinator-change-notice-️). pH 7.4 → 7.5 → 7.4 and ORP 670 → 675 → 670 mV each appeared within seconds of the edit (see `test/samples/rolachem_controls.txt`).
+
 **Data Fields (VX 11S v3 Salt Chlorinator):**
 
 - Byte 10: `0x00` in all observed captures.
@@ -1434,6 +1510,10 @@ Current pH or ORP reading from the RolaChem chlorinator's sensors (`0x0090`). Th
 
 - Byte 10: Slot (`0x01` = pH, `0x02` = ORP)
 - Bytes 11-12: Value (little-endian; pH × 10 or mV depending on slot)
+
+**Notes:**
+
+- **Not sent while the RolaChem's setup menu is open, nor while it is Off.** In `test/samples/rolachem_controls.txt` the readings stopped when setup was entered at about 02:30, and none came for the rest of the capture, which ended about 5 minutes after it was set to [Off](#chlorinator-0x0084-viron--0x0090-rolachem-️). Status and setpoints carried on through both. A missing reading can therefore mean setup or Off, not only a device that has gone quiet.
 
 ---
 
